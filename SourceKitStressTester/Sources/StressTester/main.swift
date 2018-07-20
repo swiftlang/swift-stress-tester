@@ -15,7 +15,7 @@ import SwiftSyntax
 import SwiftLang
 
 func main() throws {
-  // Divide arguments into source files and compiler arguments, to: &standardError
+  // Divide arguments into source files and compiler arguments
   let parts = CommandLine.arguments[1...].split(separator: "--", maxSplits: 1,
                                                 omittingEmptySubsequences: false)
   guard parts.count >= 2 else {
@@ -299,7 +299,7 @@ extension RequestInfo: CustomStringConvertible {
     case .codeComplete(let file, let offset, let args):
       return "SourceKit request CodeComplete in \(file) at offset \(offset) with args: \(args.joined(separator: " "))"
     case .semanticRefactoring(let kind, let file, let offset, let args):
-      return "SourceKit request SemanticRefactoring (\(kind)) in \(file) as offset \(offset) with args: \(args.joined(separator: " "))"
+      return "SourceKit request SemanticRefactoring (\(kind)) in \(file) at offset \(offset) with args: \(args.joined(separator: " "))"
     }
   }
 }
