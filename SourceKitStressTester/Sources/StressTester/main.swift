@@ -208,7 +208,7 @@ class PositionAndRangeCollector: SyntaxVisitor {
   override func visit(_ token: SwiftSyntax.TokenSyntax) {
     guard isTokenKindOfInterest(token.tokenKind) else { return }
     let pos = token.positionAfterSkippingLeadingTrivia
-    let range = RangeInfo(start: Position(offset: pos.utf8Offset, line: pos.line, column: pos.column),
+    let range = RangeInfo(start: Position(offset: pos.byteOffset, line: pos.line, column: pos.column),
                           length: token.byteSizeAfterTrimmingTrivia)
 
     if shouldAddStartOffset(for: token.tokenKind) {
@@ -222,7 +222,7 @@ class PositionAndRangeCollector: SyntaxVisitor {
 
   override func visitPost(_ node: Syntax) {
     let pos = node.positionAfterSkippingLeadingTrivia
-    let range = RangeInfo(start: Position(offset: pos.utf8Offset, line: pos.line, column: pos.column),
+    let range = RangeInfo(start: Position(offset: pos.byteOffset, line: pos.line, column: pos.column),
                           length: node.byteSizeAfterTrimmingTrivia)
     guard range.length > 0, rangeInfoRanges.last != range else { return }
     rangeInfoRanges.append(range)
