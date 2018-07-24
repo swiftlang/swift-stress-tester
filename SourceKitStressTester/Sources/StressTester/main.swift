@@ -86,7 +86,8 @@ struct SourceKitDocument {
       throw StressTestError.errorDecodingSyntaxTree(request: .editorOpen(file: file), response: response.description)
     }
 
-    let locationCollector = PositionAndRangeCollector()
+    let lineStartOffsets = LineStartOffsets(for: sourceFileSyntax.description)
+    let locationCollector = PositionAndRangeCollector(with: lineStartOffsets)
     locationCollector.visit(sourceFileSyntax)
 
     return locationCollector.documentInfo
@@ -194,10 +195,36 @@ struct SourceKitDocument {
   }
 }
 
+struct LineStartOffsets {
+  let lineEndOffsets: [Int]
+
+  init(for content: String) {
+    lineEndOffsets = content.description.utf8
+      .enumerated()
+      .filter { $0.1 == UInt8(ascii: "\n") }
+      .map { $0.0 + 1 }
+  }
+
+  subscript(line: Int) -> Int {
+    let prevLineIndex = line - 2;
+    guard prevLineIndex >= 0 else { return 0 }
+    return lineEndOffsets[prevLineIndex]
+  }
+
+  func column(for offset: Int, on line: Int) -> Int {
+    return offset - self[line] + 1
+  }
+}
+
 class PositionAndRangeCollector: SyntaxVisitor {
   var completionOffsets = [Int]()
   var cursorInfoPositions = [Position]()
   var rangeInfoRanges = [RangeInfo]()
+  let lineStartOffsets: LineStartOffsets
+
+  init(with lineOffsets: LineStartOffsets) {
+    lineStartOffsets = lineOffsets
+  }
 
   var documentInfo: DocumentInfo {
     return DocumentInfo(completionOffsets: completionOffsets,
@@ -208,7 +235,8 @@ class PositionAndRangeCollector: SyntaxVisitor {
   override func visit(_ token: SwiftSyntax.TokenSyntax) {
     guard isTokenKindOfInterest(token.tokenKind) else { return }
     let pos = token.positionAfterSkippingLeadingTrivia
-    let range = RangeInfo(start: Position(offset: pos.byteOffset, line: pos.line, column: pos.column),
+    let range = RangeInfo(start: Position(offset: pos.byteOffset, line: pos.line,
+                                          column: lineStartOffsets.column(for: pos.byteOffset, on: pos.line)),
                           length: token.byteSizeAfterTrimmingTrivia)
 
     if shouldAddStartOffset(for: token.tokenKind) {
@@ -222,7 +250,8 @@ class PositionAndRangeCollector: SyntaxVisitor {
 
   override func visitPost(_ node: Syntax) {
     let pos = node.positionAfterSkippingLeadingTrivia
-    let range = RangeInfo(start: Position(offset: pos.byteOffset, line: pos.line, column: pos.column),
+    let range = RangeInfo(start: Position(offset: pos.byteOffset, line: pos.line,
+                                          column: lineStartOffsets.column(for: pos.byteOffset, on: pos.line)),
                           length: node.byteSizeAfterTrimmingTrivia)
     guard range.length > 0, rangeInfoRanges.last != range else { return }
     rangeInfoRanges.append(range)
