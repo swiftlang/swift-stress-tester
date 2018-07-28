@@ -37,9 +37,21 @@ func main() throws {
 func stressTest(files: [String], compilerArgs: [String]) throws {
   let connection = SourceKitdService()
 
-  for file in files {
+  for (index, file) in files.enumerated() {
     let document = SourceKitDocument(file, args: compilerArgs, connection: connection)
     let documentInfo = try document.open()
+
+    // code completion is expensive, so support limiting the number of completions
+    let completions = limit(documentInfo.completionOffsets, to: "SK_STRESS_CODECOMPLETE_LIMIT")
+    let isTruncated = completions.count < documentInfo.completionOffsets.count
+
+    log("""
+    [\(index + 1)/\(files.count)] Stress testing \(file):
+       \(documentInfo.lineCount) lines of code
+       \(documentInfo.cursorInfoPositions.count) CursorInfo requests
+       \(documentInfo.rangeInfoRanges.count) RangeInfo requests
+       \(documentInfo.completionOffsets.count) CodeComplete requests\(isTruncated ? " (limited to \(completions.count))" : "")
+    """)
 
     for position in documentInfo.cursorInfoPositions {
       _ = try document.cursorInfo(file: file, position: position)
@@ -47,12 +59,18 @@ func stressTest(files: [String], compilerArgs: [String]) throws {
     for range in documentInfo.rangeInfoRanges {
       _ = try document.rangeInfo(file: file, offset: range.offset, length: range.length)
     }
-    for offset in documentInfo.completionOffsets {
+    for offset in completions {
       _ = try document.codeComplete(file: file, offset: offset)
     }
 
     try document.close()
   }
+}
+
+func limit<T: Collection>(_ collection: T, to envVariable: String) -> T.SubSequence {
+  guard let value = ProcessInfo.processInfo.environment[envVariable],
+    let limit = Int(value) else { return collection[...] }
+  return collection.prefix(limit)
 }
 
 struct SourceKitDocument {
@@ -197,12 +215,14 @@ struct SourceKitDocument {
 
 struct LineStartOffsets {
   let lineEndOffsets: [Int]
+  let lineCount: Int
 
   init(for content: String) {
     lineEndOffsets = content.description.utf8
       .enumerated()
       .filter { $0.1 == UInt8(ascii: "\n") }
       .map { $0.0 + 1 }
+    lineCount = lineEndOffsets.count
   }
 
   subscript(line: Int) -> Int {
@@ -229,7 +249,8 @@ class PositionAndRangeCollector: SyntaxVisitor {
   var documentInfo: DocumentInfo {
     return DocumentInfo(completionOffsets: completionOffsets,
                         cursorInfoPositions: cursorInfoPositions,
-                        rangeInfoRanges: rangeInfoRanges)
+                        rangeInfoRanges: rangeInfoRanges,
+                        lineCount: lineStartOffsets.lineCount)
   }
 
   override func visit(_ token: SwiftSyntax.TokenSyntax) {
@@ -249,6 +270,7 @@ class PositionAndRangeCollector: SyntaxVisitor {
   }
 
   override func visitPost(_ node: Syntax) {
+    guard node.numberOfChildren > 0 else { return }
     let pos = node.positionAfterSkippingLeadingTrivia
     let range = RangeInfo(start: Position(offset: pos.byteOffset, line: pos.line,
                                           column: lineStartOffsets.column(for: pos.byteOffset, on: pos.line)),
@@ -289,6 +311,7 @@ struct DocumentInfo {
   let completionOffsets: [Int]
   let cursorInfoPositions: [Position]
   let rangeInfoRanges: [RangeInfo]
+  let lineCount: Int
 }
 
 struct Position: Equatable {

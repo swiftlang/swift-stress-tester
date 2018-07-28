@@ -27,7 +27,7 @@ func main() {
     log("error: Couldn't determine the sk-stress-test executable to use. Please set SK_STRESS_TEST.")
     exit(EXIT_FAILURE)
   }
-  let swiftFiles = Array(swiftcArgs.filter { $0.hasSuffix(".swift") })
+  let swiftFiles = swiftcArgs.filter(isSwiftProjectFile).sorted()
   let testerArgs = swiftFiles + ["--"] + swiftcArgs
   let testerStatus = execute(path: stressTesterPath, args: testerArgs)
   guard testerStatus != EXIT_SUCCESS else { return }
@@ -36,6 +36,11 @@ func main() {
   let silenceFailure = ProcessInfo.processInfo.environment["SK_STRESS_SILENT"] != nil
   guard silenceFailure else { exit(testerStatus) }
   log("warning: sk-stress-test invocation failed with exit code \(testerStatus) but SK_STRESS_SILENT is set. Indicating success.")
+}
+
+func isSwiftProjectFile(_ argument: String) -> Bool {
+  let dependencyPaths = ["/.build/checkouts/", "/Pods/", "/Carthage/Checkouts"]
+  return argument.hasSuffix(".swift") && dependencyPaths.allSatisfy{ !argument.contains($0) }
 }
 
 func getCompilerPath() -> String? {
