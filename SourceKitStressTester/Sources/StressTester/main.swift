@@ -367,35 +367,31 @@ enum StressTestError: Error {
   case errorDecodingSyntaxTree(request: RequestInfo, response: String)
 }
 
-/// Divide the given worklist evenly among a number of workers. If any failures
-/// are encountered, the worklist is reprocessed sequentially to ensure the
-/// error thrown corresponds to the item in the list that triggered the issue.
 func processAsync<T>(_ worklist: [T], numWorkers: Int = 4,
                              execute: @escaping (T) throws -> Void) throws {
   guard !worklist.isEmpty else { return }
 
   let group = DispatchGroup()
   let batchSize = Swift.max(worklist.count / numWorkers, 1)
-  var anyFailed = false
+  var failure: (index: Int, error: Error)? = nil
 
-  for batch in worklist.chunked(batchSize) {
+  for (index, batch) in worklist.chunked(batchSize).enumerated() {
     group.enter()
     DispatchQueue.global().async {
       do {
         try batch.lazy.forEach(execute)
       } catch {
-        DispatchQueue.global().sync{ anyFailed = true }
+        DispatchQueue.global().sync{
+          if let existing = failure, index > existing.index { return }
+          failure = (index, error)
+        }
       }
       group.leave()
     }
   }
   group.wait()
 
-  guard anyFailed else { return }
-
-  for item in worklist {
-    try execute(item)
-  }
+  if let (_, error) = failure { throw error }
 }
 
 func log(_ message: String) {
