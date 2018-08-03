@@ -54,13 +54,13 @@ func stressTest(files: [String], compilerArgs: [String]) throws {
     """)
 
     for position in documentInfo.cursorInfoPositions {
-      _ = try document.cursorInfo(file: file, position: position)
+      _ = try document.cursorInfo(position: position)
     }
     for range in documentInfo.rangeInfoRanges {
-      _ = try document.rangeInfo(file: file, offset: range.offset, length: range.length)
+      _ = try document.rangeInfo(start: range.start, length: range.length)
     }
     for offset in completions {
-      _ = try document.codeComplete(file: file, offset: offset)
+      _ = try document.codeComplete(offset: offset)
     }
 
     try document.close()
@@ -120,11 +120,11 @@ struct SourceKitDocument {
     try throwIfInvalid(response, info: .editorClose(file: file))
   }
 
-  func rangeInfo(file: String, offset: Int, length: Int) throws -> SourceKitdResponse {
+  func rangeInfo(start: Position, length: Int) throws -> SourceKitdResponse {
     let request = SourceKitdRequest(uid: .request_RangeInfo)
 
     request.addParameter(.key_SourceFile, value: file)
-    request.addParameter(.key_Offset, value: offset)
+    request.addParameter(.key_Offset, value: start.offset)
     request.addParameter(.key_Length, value: length)
     request.addParameter(.key_RetrieveRefactorActions, value: 1)
 
@@ -132,13 +132,23 @@ struct SourceKitDocument {
     for arg in args { compilerArgs.add(arg) }
 
     let response = connection.sendSyn(request: request)
-    let requestInfo = RequestInfo.rangeInfo(file: file, offset: offset, length: length, args: args)
+    let requestInfo = RequestInfo.rangeInfo(file: file, offset: start.offset, length: length, args: args)
     try throwIfInvalid(response, info: requestInfo)
+
+    if let actions = response.value.getOptional(.key_RefactorActions)?.getArray() {
+      for i in 0 ..< actions.count {
+        let action = actions.getDictionary(i)
+        let actionName = action.getString(.key_ActionName)
+        let kind = action.getUID(.key_ActionUID)
+        _ = try semanticRefactoring(actionKind: kind, actionName: actionName,
+                                    position: start)
+      }
+    }
 
     return response
   }
 
-  func cursorInfo(file: String, position: Position) throws -> SourceKitdResponse {
+  func cursorInfo(position: Position) throws -> SourceKitdResponse {
     let request = SourceKitdRequest(uid: .request_CursorInfo)
 
     request.addParameter(.key_SourceFile, value: file)
@@ -164,28 +174,36 @@ struct SourceKitDocument {
         let actionName = action.getString(.key_ActionName)
         guard actionName != "Global Rename" else { continue }
         let kind = action.getUID(.key_ActionUID)
-        let request = SourceKitdRequest(uid: .request_SemanticRefactoring)
-
-        request.addParameter(.key_ActionUID, value: kind)
-        request.addParameter(.key_SourceFile, value: file)
-        request.addParameter(.key_Line, value: position.line)
-        request.addParameter(.key_Column, value: position.column)
-        if let symbolName = symbolName, actionName == "Local Rename" {
-          request.addParameter(.key_Name, value: symbolName)
-        }
-        let compilerArgs = request.addArrayParameter(.key_CompilerArgs)
-        for arg in args { compilerArgs.add(arg) }
-
-        let response = connection.sendSyn(request: request)
-        let requestInfo = RequestInfo.semanticRefactoring(kind: actionName, file: file, offset: position.offset, args: args)
-        try throwIfInvalid(response, info: requestInfo)
+        _ = try semanticRefactoring(actionKind: kind, actionName: actionName,
+                                    position: position, newName: symbolName)
       }
     }
 
     return response
   }
 
-  func codeComplete(file: String, offset: Int) throws -> SourceKitdResponse {
+  func semanticRefactoring(actionKind: SourceKitdUID, actionName: String,
+                           position: Position, newName: String? = nil) throws -> SourceKitdResponse {
+    let request = SourceKitdRequest(uid: .request_SemanticRefactoring)
+
+    request.addParameter(.key_ActionUID, value: actionKind)
+    request.addParameter(.key_SourceFile, value: file)
+    request.addParameter(.key_Line, value: position.line)
+    request.addParameter(.key_Column, value: position.column)
+    if let newName = newName, actionName == "Local Rename" {
+      request.addParameter(.key_Name, value: newName)
+    }
+    let compilerArgs = request.addArrayParameter(.key_CompilerArgs)
+    for arg in args { compilerArgs.add(arg) }
+
+    let response = connection.sendSyn(request: request)
+    let requestInfo = RequestInfo.semanticRefactoring(kind: actionName, file: file, offset: position.offset, args: args)
+    try throwIfInvalid(response, info: requestInfo)
+
+    return response
+  }
+
+  func codeComplete(offset: Int) throws -> SourceKitdResponse {
     let request = SourceKitdRequest(uid: .request_CodeComplete)
 
     request.addParameter(.key_SourceFile, value: file)
