@@ -54,15 +54,13 @@ func stressTest(files: [String], compilerArgs: [String]) throws {
     """)
 
     for position in documentInfo.cursorInfoPositions {
-      _ = try document.cursorInfo(position: position)
+      _ = try document.cursorInfo(file: file, position: position)
     }
     for range in documentInfo.rangeInfoRanges {
-      _ = try document.rangeInfo(offset: range.offset, length: range.length)
+      _ = try document.rangeInfo(file: file, offset: range.offset, length: range.length)
     }
-    for offsets in completions.chunked(32) {
-      try processAsync(offsets, numWorkers: 4) {
-          _ = try document.codeComplete(offset: $0)
-      }
+    for offset in completions {
+      _ = try document.codeComplete(file: file, offset: offset)
     }
 
     try document.close()
@@ -123,7 +121,7 @@ struct SourceKitDocument {
     try throwIfInvalid(response, info: .editorClose(file: file))
   }
 
-  func rangeInfo(offset: Int, length: Int) throws -> SourceKitdResponse {
+  func rangeInfo(file: String, offset: Int, length: Int) throws -> SourceKitdResponse {
     let request = SourceKitdRequest(uid: .request_RangeInfo)
 
     request.addParameter(.key_SourceFile, value: file)
@@ -141,7 +139,7 @@ struct SourceKitDocument {
     return response
   }
 
-  func cursorInfo(position: Position) throws -> SourceKitdResponse {
+  func cursorInfo(file: String, position: Position) throws -> SourceKitdResponse {
     let request = SourceKitdRequest(uid: .request_CursorInfo)
 
     request.addParameter(.key_SourceFile, value: file)
@@ -188,7 +186,7 @@ struct SourceKitDocument {
     return response
   }
 
-  func codeComplete(offset: Int) throws -> SourceKitdResponse {
+  func codeComplete(file: String, offset: Int) throws -> SourceKitdResponse {
     let request = SourceKitdRequest(uid: .request_CodeComplete)
 
     request.addParameter(.key_SourceFile, value: file)
@@ -368,33 +366,6 @@ enum StressTestError: Error {
   case errorDecodingSyntaxTree(request: RequestInfo, response: String)
 }
 
-func processAsync<T>(_ worklist: [T], numWorkers: Int = 4,
-                             execute: @escaping (T) throws -> Void) throws {
-  guard !worklist.isEmpty else { return }
-
-  let group = DispatchGroup()
-  let batchSize = Swift.max(worklist.count / numWorkers, 1)
-  var failure: (index: Int, error: Error)? = nil
-
-  for (index, batch) in worklist.chunked(batchSize).enumerated() {
-    group.enter()
-    DispatchQueue.global().async {
-      do {
-        try batch.lazy.forEach(execute)
-      } catch {
-        DispatchQueue.global().sync{
-          if let existing = failure, index > existing.index { return }
-          failure = (index, error)
-        }
-      }
-      group.leave()
-    }
-  }
-  group.wait()
-
-  if let (_, error) = failure { throw error }
-}
-
 func log(_ message: String) {
   let prefix = "[sk-stress-test]"
   var standardError = FileHandle.standardError
@@ -429,14 +400,6 @@ extension FileHandle : TextOutputStream {
   public func write(_ string: String) {
     guard let data = string.data(using: .utf8) else { return }
     self.write(data)
-  }
-}
-
-extension Collection where Index == Int {
-  func chunked(_ chunkSize: Int) -> [[Element]] {
-    return stride(from: 0, to: self.count, by: chunkSize).map {
-      Array(self[$0 ..< Swift.min($0 + chunkSize, self.count)])
-    }
   }
 }
 
