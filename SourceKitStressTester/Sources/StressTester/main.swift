@@ -91,7 +91,8 @@ struct SourceKitDocument {
     request.addParameter(.key_Name, value: file)
     request.addParameter(.key_SyntaxTreeTransferMode,
                          value: .kind_SyntaxTreeFull)
-    request.addParameter(.key_EnableSyntaxMap, value: 1)
+    request.addParameter(.key_EnableSyntaxMap, value: 0)
+    request.addParameter(.key_EnableStructure, value: 0)
     request.addParameter(.key_SyntacticOnly, value: 1)
 
     let compilerArgs = request.addArrayParameter(.key_CompilerArgs)
