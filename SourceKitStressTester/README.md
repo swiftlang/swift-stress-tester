@@ -5,7 +5,7 @@ The SourceKit stress tester is a utility for running a range of SourceKit reques
 
 ## Building
 
-The SourceKit stress tester relies on the SwiftLang library, which isn't included in Xcode's default toolchain, so make sure you have a recent trunk or Swift 4.2 development toolchain installed from [swift.org](https://swift.org/download/). If you install the Swift 4.2 development toolchain be sure to check out `swift-4.2-branch`, rather than `master` in the swift-source-tools repository before continuing with the instructions below.
+The SourceKit stress tester relies on the SwiftLang library, which isn't included in Xcode's default toolchain, so make sure you have a recent trunk or Swift 4.2 development toolchain installed from [swift.org](https://swift.org/download/). If you install the Swift 4.2 development toolchain be sure to check out `swift-4.2-branch`, rather than `master` in the swift-stress-tester repository before continuing with the instructions below.
 
 ### Via Xcode
 
