@@ -52,17 +52,17 @@ func getCompilerPath() -> String? {
   // Use the selected Xcode's swiftc
   let pipe = Pipe()
   let xcrun = Process()
-  xcrun.launchPath = "xcrun"
-  xcrun.arguments = ["-f", "swiftc"]
-  xcrun.standardOutput = pipe
-  do {
-    try xcrun.run()
-  } catch {
-    return nil
+  var args = ["-f", "swiftc"]
+  if let toolchain = ProcessInfo.processInfo.environment["TOOLCHAINS"] {
+    args += ["--toolchain", toolchain]
   }
+  xcrun.launchPath = "/usr/bin/xcrun"
+  xcrun.arguments = args
+  xcrun.standardOutput = pipe
+  xcrun.launch()
   xcrun.waitUntilExit()
   let data = pipe.fileHandleForReading.readDataToEndOfFile()
-  return String(data: data, encoding: .utf8)
+  return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
 func getStressTesterPath() -> String? {
@@ -73,7 +73,7 @@ func getStressTesterPath() -> String? {
   // Look adjacent to the wrapper
   let wrapperPath = URL(fileURLWithPath: CommandLine.arguments[0])
     .deletingLastPathComponent()
-    .appendingPathComponent("sk-stress-tester")
+    .appendingPathComponent("sk-stress-test")
     .path
 
   guard FileManager.default.isExecutableFile(atPath: wrapperPath) else { return nil }
@@ -92,15 +92,9 @@ func execute(path: String, args: [String]) -> Int32 {
   process.standardInput = FileHandle.standardInput
   process.environment = ProcessInfo.processInfo.environment
   process.currentDirectoryPath = FileManager.default.currentDirectoryPath
-
-  do {
-    try process.run()
-  } catch {
-    log("error: Failed to run process: \(path) \(args.joined(separator: " "))")
-    return EXIT_FAILURE
-  }
-
+  process.launch()
   process.waitUntilExit()
+
   return process.terminationStatus
 }
 
