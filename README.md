@@ -4,13 +4,13 @@
 
 This project aims to provide stress testing utilities to help find reproducible crashes and other failures in tools that processes Swift source code, such as the Swift compiler and SourceKit. These utilities will ideally be written in Swift and make use the SwiftSyntax and SwiftLang libraries to parse, generate and modify Swift source inputs.
 
-### Current tools
+## Current tools
 
 | Tool      | Description |
 | --------- | ----------- |
 [sk&#8209;stress&#8209;test](SourceKitStressTester/README.md) | a utility for exercising a range of SourceKit functionality, such as code completion and local refactorings, at all applicable locations in a set of Swift source files.
 
-##License
+## License
 
 Copyright © 2014 - 2018 Apple Inc. and the Swift project authors.
 Licensed under Apache License v2.0 with Runtime Library Exception.
