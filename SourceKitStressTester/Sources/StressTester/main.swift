@@ -25,11 +25,16 @@ func main() throws {
 
   // Stress test the files and handle errors
   do {
-    try stressTest(files: Array(parts[0]), compilerArgs: Array(parts[1]))
+    try stressTest(files: parts[0].map(toAbsolutePath), compilerArgs: Array(parts[1]))
   } catch let error as StressTestError {
     log(error)
     exit(EXIT_FAILURE)
   }
+}
+
+func toAbsolutePath(_ path: String) -> String {
+  let expanded = NSString(string: path).expandingTildeInPath
+  return URL(fileURLWithPath: expanded).path
 }
 
 /// Invokes a range of SourceKit requests on each of the passed files in the
