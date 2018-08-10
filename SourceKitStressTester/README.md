@@ -5,7 +5,7 @@ The SourceKit stress tester is a utility for running a range of SourceKit reques
 
 ## Building
 
-The SourceKit stress tester relies on the SwiftLang library, which isn't included in Xcode's default toolchain, so make sure you have a recent trunk or Swift 4.2 development toolchain installed from [swift.org](https://swift.org/download/). If you install the Swift 4.2 development toolchin be sure to check out `swift-4.2-branch`, rather than `master` in the swift-source-tools repository before continuing with the instructions below.
+The SourceKit stress tester relies on the SwiftLang library, which isn't included in Xcode's default toolchain, so make sure you have a recent trunk or Swift 4.2 development toolchain installed from [swift.org](https://swift.org/download/). If you install the Swift 4.2 development toolchain be sure to check out `swift-4.2-branch`, rather than `master` in the swift-source-tools repository before continuing with the instructions below.
 
 ### Via Xcode
 
@@ -20,7 +20,7 @@ When you open the generated `SourceKitStressTester.xcodeproj` in Xcode, select t
 ### Via swift build
 First you'll need to get the get the `CFBundleIdentifier` of the toolchain you installed from its `Info.plist` file at `/Library/Developer/Toolchains/<your-chosen-xctoolchain>/Info.plist` so we can use it to build. It will look something like `org.swift.4220180806a`
 
-You can then build the SourceKit stress tester by substituting it and the path to your chosen xctoolchain's `usr/lib` directory (to find `sourcekitd.framework`) in the command below:
+You can then build the SourceKit stress tester by substituting it and the path to your chosen xctoolchain's `usr/lib` directory (this contains `sourcekitd.framework`) in the command below:
 
 ```
 $ TOOLCHAIN_LIB=/Library/Developer/Toolchains/<chosen-toolchain>/usr/lib
@@ -35,11 +35,12 @@ However you build, you will end up with two executables: `sk-stress-test` and `s
 The `sk-stress-test` executable is the SourceKit stress tester itself. It takes as input a set of swift source files to run over, along with the set of driver arguments you would pass to `swiftc` to compile those files, separated by `--`. To stress test sk-stress-test itself for example, we would run:
 
 ```
-.build/debug/sk-stress-test Sources/StressTester/main.swift -- -sdk `xcrun --show-sdk-path` -Fsystem $TOOLCHAIN_LIB Sources/StressTester/main.swift
+$ TOOLCHAIN_LIB=/Library/Developer/Toolchains/<chosen-toolchain>/usr/lib
+$ sk-stress-test Sources/StressTester/main.swift -- -sdk `xcrun --show-sdk-path` -Fsystem $TOOLCHAIN_LIB Sources/StressTester/main.swift
 ```
 
 ### sk-swiftc-wrapper
-The `sk-swiftc-wrapper` executable allows the stress tester to be easily run on an existing project. It serves as a drop-in replacement for swiftc during a build. When invoked, it simply invokes `swiftc` proper with the same arguments. If the `swiftc` invocation fails, `sk-swiftc-wrapper` will exit with the same exit code. If it succeeds, it additionally invokes `sk-stress-test`, passing it all the Swift files that appeared in its arguments, followed by the arguments themselves. By default it then exits with whatever exit code was returned by `sk-stress-test`, meaning a stress testing failure will cause the build to fail. Specify the `SK_STRESS_SILENT` environment variable to have the wrapper return the same exit code as the `swiftc` invocation, regardless of any stress tester failures.
+The `sk-swiftc-wrapper` executable allows the stress tester to be easily run on an existing project. It serves as a drop-in replacement for `swiftc` during a build. When invoked, it simply invokes `swiftc` proper with the same arguments. If the `swiftc` invocation fails, `sk-swiftc-wrapper` will exit with the same exit code. If it succeeds, it additionally invokes `sk-stress-test`, passing it all the Swift files that appeared in its arguments, followed by the arguments themselves. By default it then exits with whatever exit code was returned by `sk-stress-test`, meaning a stress testing failure will cause the build to fail. Specify the `SK_STRESS_SILENT` environment variable to have the wrapper return the same exit code as the `swiftc` invocation, regardless of any stress tester failures.
 
 By default `sk-swiftc-wrapper` invokes the `swiftc` from the toolchain sepcified by the `TOOLCHAINS` environment variable, or the default toolchain of the currently selected Xcode. You can override theis behaviour by setting the `SK_STRESS_SWIFTC` environment variable. Similarly, it looks for `sk-stress-test` adacent to its own launch path, but you can override this by setting the `SK_STRESS_TEST` environment variable.
 
