@@ -52,7 +52,6 @@ func stressTest(files: [String], compilerArgs: [String]) throws {
 
     log("""
     [\(index + 1)/\(files.count)] Stress testing \(file):
-       \(documentInfo.lineCount) lines of code
        \(documentInfo.cursorInfoPositions.count) CursorInfo requests
        \(documentInfo.rangeInfoRanges.count) RangeInfo requests
        \(documentInfo.completionOffsets.count) CodeComplete requests\(isTruncated ? " (limited to \(completions.count))" : "")
@@ -111,8 +110,7 @@ struct SourceKitDocument {
       throw StressTestError.errorDecodingSyntaxTree(request: .editorOpen(file: file), response: response.description)
     }
 
-    let lineStartOffsets = LineStartOffsets(for: sourceFileSyntax.description)
-    let locationCollector = PositionAndRangeCollector(with: lineStartOffsets)
+    let locationCollector = PositionAndRangeCollector()
     locationCollector.visit(sourceFileSyntax)
 
     return locationCollector.documentInfo
@@ -238,51 +236,22 @@ struct SourceKitDocument {
   }
 }
 
-struct LineStartOffsets {
-  let lineEndOffsets: [Int]
-  let lineCount: Int
-
-  init(for content: String) {
-    lineEndOffsets = content.description.utf8
-      .enumerated()
-      .filter { $0.1 == UInt8(ascii: "\n") }
-      .map { $0.0 + 1 }
-    lineCount = lineEndOffsets.count
-  }
-
-  subscript(line: Int) -> Int {
-    let prevLineIndex = line - 2;
-    guard prevLineIndex >= 0 else { return 0 }
-    return lineEndOffsets[prevLineIndex]
-  }
-
-  func column(for offset: Int, on line: Int) -> Int {
-    return offset - self[line] + 1
-  }
-}
-
 class PositionAndRangeCollector: SyntaxVisitor {
   var completionOffsets = [Int]()
   var cursorInfoPositions = [Position]()
   var rangeInfoRanges = [RangeInfo]()
-  let lineStartOffsets: LineStartOffsets
-
-  init(with lineOffsets: LineStartOffsets) {
-    lineStartOffsets = lineOffsets
-  }
 
   var documentInfo: DocumentInfo {
     return DocumentInfo(completionOffsets: completionOffsets,
                         cursorInfoPositions: cursorInfoPositions,
-                        rangeInfoRanges: rangeInfoRanges,
-                        lineCount: lineStartOffsets.lineCount)
+                        rangeInfoRanges: rangeInfoRanges)
   }
 
   override func visit(_ token: SwiftSyntax.TokenSyntax) {
     guard isTokenKindOfInterest(token.tokenKind) else { return }
     let pos = token.positionAfterSkippingLeadingTrivia
     let range = RangeInfo(start: Position(offset: pos.utf8Offset, line: pos.line,
-                                          column: lineStartOffsets.column(for: pos.utf8Offset, on: pos.line)),
+                                          column: pos.column),
                           length: token.byteSizeAfterTrimmingTrivia)
 
     if shouldAddStartOffset(for: token.tokenKind) {
@@ -298,7 +267,7 @@ class PositionAndRangeCollector: SyntaxVisitor {
     guard node.numberOfChildren > 0 else { return }
     let pos = node.positionAfterSkippingLeadingTrivia
     let range = RangeInfo(start: Position(offset: pos.utf8Offset, line: pos.line,
-                                          column: lineStartOffsets.column(for: pos.utf8Offset, on: pos.line)),
+                                          column: pos.column),
                           length: node.byteSizeAfterTrimmingTrivia)
     guard range.length > 0, rangeInfoRanges.last != range else { return }
     rangeInfoRanges.append(range)
@@ -336,7 +305,6 @@ struct DocumentInfo {
   let completionOffsets: [Int]
   let cursorInfoPositions: [Position]
   let rangeInfoRanges: [RangeInfo]
-  let lineCount: Int
 }
 
 struct Position: Equatable {
