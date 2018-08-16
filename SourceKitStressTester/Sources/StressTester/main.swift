@@ -11,11 +11,12 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import Utility
 import SwiftSyntax
 import SwiftLang
 
 func main() throws {
-  // Divide arguments into source files and compiler arguments
+  // Divide arguments into stress tester arguments and compiler arguments
   let parts = CommandLine.arguments[1...].split(separator: "--", maxSplits: 1,
                                                 omittingEmptySubsequences: false)
   guard parts.count >= 2 else {
@@ -23,12 +24,66 @@ func main() throws {
     exit(EXIT_FAILURE)
   }
 
+  guard let (limit, page, files) = parseStressTesterArguments(Array(parts[0])) else {
+    exit(EXIT_FAILURE)
+  }
+
   // Stress test the files and handle errors
   do {
-    try stressTest(files: parts[0].map(toAbsolutePath), compilerArgs: Array(parts[1]))
+    try stressTest(files: files, compilerArgs: Array(parts[1]), limit: limit, page: page)
   } catch let error as StressTestError {
     log(error)
     exit(EXIT_FAILURE)
+  }
+}
+
+func parseStressTesterArguments(_ arguments: [String]) -> (limit: Int?, page: PageParams, files: [String])? {
+  let parser = ArgumentParser(commandName: "sk-stress-test",
+                              usage: "<options> <source-file>... -- <swiftc arguments>",
+                              overview: "Stress test SourceKit on the provided Swift source files")
+  let limit: OptionArgument<Int> = parser.add(option: "--limit", shortName: "-l",
+                                              kind: Int.self,
+                                              usage: "<N> The maximum number of code completion requests to perform per file")
+  let page: OptionArgument<PageParams> = parser.add(option: "--page", shortName: "-p",
+                                                    kind: PageParams.self,
+                                                    usage: "<PAGE>/<TOTAL> Divides the code completion requests for each file into <TOTAL> equal parts and only performs the <PAGE>th group.")
+  let files = parser.add(positional: "source-file", kind: [String].self,
+                         optional: false, strategy: .remaining,
+                         usage: "a Swift source file to stress test", completion: .filename)
+  do {
+    let parsed = try parser.parse(arguments)
+    let limit = parsed.get(limit)
+    let pageParams = parsed.get(page) ?? PageParams(page: 1, total: 1)
+    let files = parsed.get(files)!.map(toAbsolutePath)
+    return (limit, pageParams, files)
+  } catch let error as ArgumentParserError {
+    log(error.description)
+  } catch let error {
+    log(error.localizedDescription)
+  }
+  return nil
+}
+
+struct PageParams: ArgumentKind {
+  static var completion: ShellCompletion = .none
+  let page: Int
+  let total: Int
+
+  init(page: Int, total: Int) {
+    self.page = page
+    self.total = total
+  }
+
+  init(argument: String) throws {
+    let parts = argument.split(separator: "/", maxSplits: 1, omittingEmptySubsequences: false)
+    if parts.count == 2 {
+      if let page = Int(parts[0]), let total = Int(parts[1]), page > 0, page <= total {
+        self.page = page
+        self.total = total
+        return
+      }
+    }
+    throw ArgumentConversionError.unknown(value: argument)
   }
 }
 
@@ -39,23 +94,18 @@ func toAbsolutePath(_ path: String) -> String {
 
 /// Invokes a range of SourceKit requests on each of the passed files in the
 /// provided order, throwing a StressTestError for the first issue encountered.
-func stressTest(files: [String], compilerArgs: [String]) throws {
+func stressTest(files: [String], compilerArgs: [String], limit: Int?, page: PageParams) throws {
   let connection = SourceKitdService()
 
-  for (index, file) in files.enumerated() {
+  for file in files {
     let document = SourceKitDocument(file, args: compilerArgs, connection: connection)
-    let documentInfo = try document.open()
-
-    // code completion is expensive, so support limiting the number of completions
-    let completions = limit(documentInfo.completionOffsets, to: "SK_STRESS_CODECOMPLETE_LIMIT")
-    let isTruncated = completions.count < documentInfo.completionOffsets.count
+    let documentInfo = try document.open().page(page.page, of: page.total, requestLimit: limit)
 
     log("""
-    [\(index + 1)/\(files.count)] Stress testing \(file):
-       \(documentInfo.lineCount) lines of code
+    Stress testing \(file)\(page.total > 1 ? " part \(page.page) of \(page.total)" : ""):
        \(documentInfo.cursorInfoPositions.count) CursorInfo requests
        \(documentInfo.rangeInfoRanges.count) RangeInfo requests
-       \(documentInfo.completionOffsets.count) CodeComplete requests\(isTruncated ? " (limited to \(completions.count))" : "")
+       \(documentInfo.completionOffsets.count) CodeComplete requests
     """)
 
     for position in documentInfo.cursorInfoPositions {
@@ -64,18 +114,12 @@ func stressTest(files: [String], compilerArgs: [String]) throws {
     for range in documentInfo.rangeInfoRanges {
       _ = try document.rangeInfo(start: range.start, length: range.length)
     }
-    for offset in completions {
+    for offset in documentInfo.completionOffsets {
       _ = try document.codeComplete(offset: offset)
     }
 
     try document.close()
   }
-}
-
-func limit<T: Collection>(_ collection: T, to envVariable: String) -> T.SubSequence {
-  guard let value = ProcessInfo.processInfo.environment[envVariable],
-    let limit = Int(value) else { return collection[...] }
-  return collection.prefix(limit)
 }
 
 struct SourceKitDocument {
@@ -272,8 +316,7 @@ class PositionAndRangeCollector: SyntaxVisitor {
   var documentInfo: DocumentInfo {
     return DocumentInfo(completionOffsets: completionOffsets,
                         cursorInfoPositions: cursorInfoPositions,
-                        rangeInfoRanges: rangeInfoRanges,
-                        lineCount: lineStartOffsets.lineCount)
+                        rangeInfoRanges: rangeInfoRanges)
   }
 
   override func visit(_ token: SwiftSyntax.TokenSyntax) {
@@ -334,7 +377,22 @@ struct DocumentInfo {
   let completionOffsets: [Int]
   let cursorInfoPositions: [Position]
   let rangeInfoRanges: [RangeInfo]
-  let lineCount: Int
+
+  func page(_ page: Int, of total: Int, requestLimit: Int?) -> DocumentInfo {
+    assert(page <= total && page > 0)
+    func pageRange<T>(from list: Array<T>) -> [T] {
+      var count = list.count
+      if let limit = requestLimit {
+        count = Swift.min(limit, count)
+      }
+      return Array(list[count * (page - 1) / total ..< count * page / total])
+    }
+    return DocumentInfo(
+      completionOffsets: pageRange(from: completionOffsets),
+      cursorInfoPositions: page == 1 ? cursorInfoPositions : [],
+      rangeInfoRanges: page == 1 ? rangeInfoRanges : []
+    )
+  }
 }
 
 struct Position: Equatable {
@@ -390,14 +448,13 @@ enum StressTestError: Error {
 
 func log(_ message: String) {
   let prefix = "[sk-stress-test]"
-  var standardError = FileHandle.standardError
-  print("\(prefix) \(message)\n", to: &standardError)
+  print("\(prefix) \(message)\n")
 }
 
 func log(_ error: StressTestError) {
   switch error {
   case .usage:
-    log("usage: sk-stress-test <source file>... -- <compiler args>")
+    log("usage: sk-stress-test <options> <source file>... -- <compiler args>")
   case .crashResponse(let request):
     log("error: crashed invoking \(request)")
   case .errorResponse(let request, let response):
@@ -414,14 +471,6 @@ func log(_ error: StressTestError) {
       error: failed decoding syntax tree in response of \(request)"
       Received response: \(response)
       """)
-  }
-}
-
-// Allow standardError/standardOutput to be passed as a target to print()
-extension FileHandle : TextOutputStream {
-  public func write(_ string: String) {
-    guard let data = string.data(using: .utf8) else { return }
-    self.write(data)
   }
 }
 
