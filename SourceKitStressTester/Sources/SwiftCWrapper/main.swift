@@ -13,34 +13,71 @@
 import Foundation
 
 func main() {
-  // Execute the compiler
+  // 1. Execute the compiler
   guard let compilerPath = getCompilerPath() else {
     log("error: Couldn't determine the swiftc executable to use. Please set SK_STRESS_SWIFTC.")
     exit(EXIT_FAILURE)
   }
   let swiftcArgs = Array(CommandLine.arguments[1...])
-  let swiftcStatus = execute(path: compilerPath, args: swiftcArgs)
+  let swiftc = ProcessRunner(launchPath: compilerPath, arguments: swiftcArgs)
+  let swiftcStatus = swiftc.run().status
   guard swiftcStatus == EXIT_SUCCESS else { exit(swiftcStatus) }
 
-  // Execute the stress tester
+  // 2. Execute the stress tester
   guard let stressTesterPath = getStressTesterPath() else {
     log("error: Couldn't determine the sk-stress-test executable to use. Please set SK_STRESS_TEST.")
     exit(EXIT_FAILURE)
   }
-  let swiftFiles = swiftcArgs.filter(isSwiftProjectFile).sorted()
-  let testerArgs = swiftFiles + ["--"] + swiftcArgs
-  let testerStatus = execute(path: stressTesterPath, args: testerArgs)
-  guard testerStatus != EXIT_SUCCESS else { return }
+  let files = swiftcArgs.filter(isSwiftProjectFile).sorted()
+  guard !files.isEmpty else { return }
+  log("Stress testing \(files.count) Swift files")
+
+  var codeCompleteLimit: Int? = nil
+  if let limit = ProcessInfo.processInfo.environment["SK_STRESS_CODECOMPLETE_LIMIT"] {
+    codeCompleteLimit = Int(limit)
+  }
+
+  // Split large files into multiple 'pages'
+  let instances = pageLargeFiles(files, codeCompleteLimit: codeCompleteLimit).map { filePage -> ProcessRunner in
+    var args = ["--page", "\(filePage.pageNumber)/\(filePage.pageCount)"]
+    if let limit = codeCompleteLimit {
+      args += ["--limit", String(limit)]
+    }
+    args += [filePage.file, "--"] + swiftcArgs
+    return ProcessRunner(launchPath: stressTesterPath, arguments: args, redirectOutput: true)
+  }
+
+  // Process in parallel
+  let processQueue = ProcessQueue(instances, maxWorkers: ProcessInfo.processInfo.activeProcessorCount, stopOnFailure: true)
+  let (failed, results) = processQueue.run()
+  for result in results {
+    forward(result.stdout)
+  }
+
+  guard failed else { return }
 
   /// Check if we should pass on stress tester failure
   let silenceFailure = ProcessInfo.processInfo.environment["SK_STRESS_SILENT"] != nil
-  guard silenceFailure else { exit(testerStatus) }
-  log("warning: sk-stress-test invocation failed with exit code \(testerStatus) but SK_STRESS_SILENT is set. Indicating success.")
+  guard silenceFailure else { exit(EXIT_FAILURE) }
+  log("warning: sk-stress-test invocation failed but SK_STRESS_SILENT is set. Indicating success.")
 }
 
 func isSwiftProjectFile(_ argument: String) -> Bool {
   let dependencyPaths = ["/.build/checkouts/", "/Pods/", "/Carthage/Checkouts"]
   return argument.hasSuffix(".swift") && dependencyPaths.allSatisfy{ !argument.contains($0) }
+}
+
+typealias FilePage = (file: String, pageNumber: Int, pageCount: Int)
+
+func pageLargeFiles(_ files: [String], codeCompleteLimit: Int?) -> [FilePage] {
+  return files.flatMap { file -> [FilePage] in
+    var pageCount = Swift.max(sizeInBytes(of: file)! / 250, 1)
+    if let limit = codeCompleteLimit {
+      // Aim for roughtly 25 code completion requests per page
+      pageCount = Swift.min(pageCount, Swift.max(limit / 25, 1))
+    }
+    return (1...pageCount).map {(file, $0, pageCount)}
+  }
 }
 
 func getCompilerPath() -> String? {
@@ -80,37 +117,19 @@ func getStressTesterPath() -> String? {
   return wrapperPath
 }
 
-/// Launches the executable at path with the provided arguments and waits for it
-/// to complete, returning its termination status.
-func execute(path: String, args: [String]) -> Int32 {
-  let process = Process()
-  process.launchPath = path
-  process.arguments = args
-
-  process.standardOutput = FileHandle.standardOutput
-  process.standardError = FileHandle.standardError
-  process.standardInput = FileHandle.standardInput
-  process.environment = ProcessInfo.processInfo.environment
-  process.currentDirectoryPath = FileManager.default.currentDirectoryPath
-  process.launch()
-  process.waitUntilExit()
-
-  return process.terminationStatus
+func sizeInBytes(of path: String) -> Int? {
+  let values = try? URL(fileURLWithPath: path).resourceValues(forKeys: [.fileSizeKey])
+  return values?.fileSize
 }
 
 /// Writes the given message to stderr prefixed with "[sk-swiftc-wrapper]" for
 /// searchability.
 func log(_ message: String) {
-  var standardError = FileHandle.standardError
-  print("[sk-swiftc-wrapper] \(message)\n", to: &standardError)
+  print("[sk-swiftc-wrapper] \(message)\n")
 }
 
-// Allow standardError/standardOutput to be passed as a target to print
-extension FileHandle : TextOutputStream {
-  public func write(_ string: String) {
-    guard let data = string.data(using: .utf8) else { return }
-    self.write(data)
-  }
+func forward(_ message: String) {
+  print(message, terminator: "")
 }
 
 main()

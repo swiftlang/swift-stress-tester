@@ -8,11 +8,13 @@ let package = Package(
     .executable(name: "sk-stress-test", targets: ["StressTester"]),
     .executable(name: "sk-swiftc-wrapper", targets: ["SwiftCWrapper"]),
   ],
-  dependencies: [],
+  dependencies: [
+    .package(url: "https://github.com/apple/swift-package-manager.git", from: "0.1.0")
+  ],
   targets: [
     .target(
       name: "StressTester",
-      dependencies: []),
+      dependencies: ["Utility"]),
     .target(
       name: "SwiftCWrapper",
       dependencies: []),
