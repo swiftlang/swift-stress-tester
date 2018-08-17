@@ -2,7 +2,7 @@
 
 # Swift Stress Tester
 
-This project aims to provide stress testing utilities to help find reproducible crashes and other failures in tools that processes Swift source code, such as the Swift compiler and SourceKit. These utilities will ideally be written in Swift and make use the SwiftSyntax and SwiftLang libraries to parse, generate and modify Swift source inputs.
+This project aims to provide stress testing utilities to help find reproducible crashes and other failures in tools that process Swift source code, such as the Swift compiler and SourceKit. These utilities will ideally be written in Swift and make use the SwiftSyntax and SwiftLang libraries to parse, generate and modify Swift source inputs.
 
 ## Current tools
 
