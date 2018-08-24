@@ -5,18 +5,35 @@ import PackageDescription
 let package = Package(
   name: "SourceKitStressTester",
   products: [
-    .executable(name: "sk-stress-test", targets: ["StressTester"]),
-    .executable(name: "sk-swiftc-wrapper", targets: ["SwiftCWrapper"]),
+    .executable(name: "sk-stress-test", targets: ["sk-stress-test"]),
+    .executable(name: "sk-swiftc-wrapper", targets: ["sk-swiftc-wrapper"]),
   ],
   dependencies: [
-    .package(url: "https://github.com/apple/swift-package-manager.git", from: "0.1.0")
+    .package(url: "https://github.com/apple/swift-package-manager.git", from: "0.2.0"),
   ],
   targets: [
     .target(
-      name: "StressTester",
+      name: "Common",
       dependencies: ["Utility"]),
     .target(
+      name: "StressTester",
+      dependencies: ["Common", "Utility"]),
+    .target(
       name: "SwiftCWrapper",
-      dependencies: []),
+      dependencies: ["Common", "Utility"]),
+
+    .target(
+      name: "sk-stress-test",
+      dependencies: ["StressTester"]),
+    .target(
+      name: "sk-swiftc-wrapper",
+      dependencies: ["SwiftCWrapper"]),
+
+    .testTarget(
+        name: "StressTesterToolTests",
+        dependencies: ["StressTester"]),
+    .testTarget(
+      name: "SwiftCWrapperToolTests",
+      dependencies: ["SwiftCWrapper"])
   ]
 )
