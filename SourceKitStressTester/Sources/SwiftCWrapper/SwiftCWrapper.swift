@@ -63,6 +63,8 @@ struct SwiftCWrapper {
       }
     }
 
+    guard !operations.isEmpty else { return swiftcResult.status }
+
     // Run the operations, reporting progress
     let progress = createProgressBar(forStream: stderrStream, header: "Stress testing SourceKit...")
     progress.update(percent: 0, text: "Scheduling \(operations.count) operations")
@@ -73,11 +75,12 @@ struct SwiftCWrapper {
     }
     queue.waitUntilFinished()
     progress.complete(success: operations.allSatisfy {$0.status.isPassed})
-
-    defer { stderrStream.flush() }
+    stderrStream <<< "\n"
+    stderrStream.flush()
 
     let elapsedSeconds = -startTime.timeIntervalSinceNow
     stderrStream <<< "Runtime: \(elapsedSeconds.formatted() ?? String(elapsedSeconds))\n"
+    stderrStream.flush()
 
     // Report the list of processed files and the first failure (if any)
     var result = WrapperResult()
@@ -96,13 +99,15 @@ struct SwiftCWrapper {
     }
 
     if machineReadable {
-      try! stderrStream <<< "[stress-tester]" <<< JSONEncoder().encode(result) <<< "\n"
+      let data = try! JSONEncoder().encode(result)
+      stderrStream <<< "[stress-tester]" <<< data <<< "\n"
       if let error = result.error {
         stderrStream <<< String(describing: error) <<< "\n"
       }
     } else {
       stderrStream <<< String(describing: result) <<< "\n"
     }
+    stderrStream.flush()
 
     if result.passed {
       return EXIT_SUCCESS

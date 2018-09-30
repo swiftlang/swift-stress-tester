@@ -52,7 +52,7 @@ struct SourceKitDocument {
     request.addParameter(.key_Name, value: file)
     request.addParameter(.key_EnableSyntaxMap, value: 0)
     request.addParameter(.key_EnableStructure, value: 0)
-    request.addParameter(.key_SyntaxTreeTransferMode, value: .kind_SyntaxTreeIncremental)
+    request.addParameter(.key_SyntaxTreeTransferMode, value: .kind_SyntaxTreeFull)
     request.addParameter(.key_SyntaxTreeSerializationFormat, value: .kind_SyntaxTreeSerializationJSON)
     request.addParameter(.key_SyntacticOnly, value: 1)
 
@@ -64,7 +64,7 @@ struct SourceKitDocument {
     try throwIfInvalid(response, request: info)
 
     deserializer = SyntaxTreeDeserializer()
-    _ = try updateSyntaxTree(response, request: info)
+    try updateSyntaxTree(response, request: info)
 
     return (tree!, response)
   }
@@ -199,10 +199,7 @@ struct SourceKitDocument {
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
-    // if there were no changes to the tree there's no delta in the response
-    if response.value.getOptional(.key_SerializedSyntaxTree) != nil {
-      _ = try updateSyntaxTree(response, request: info)
-    }
+    try updateSyntaxTree(response, request: info)
 
     // update expected source content
     sourceState?.replace(range, with: text)
@@ -236,15 +233,29 @@ struct SourceKitDocument {
     }
   }
 
+  @discardableResult
   private mutating func updateSyntaxTree(_ response: SourceKitdResponse, request: RequestInfo) throws -> SourceFileSyntax? {
     precondition(deserializer != nil)
 
-    guard let treeData = response.value.getOptional(.key_SerializedSyntaxTree)?.getString().data(using: .utf8),
-          let tree = try? deserializer!.deserialize(treeData, serializationFormat: .json) else {
+    guard let treeJSON = response.value.getOptional(.key_SerializedSyntaxTree)?.getString() else {
+      return nil
+    }
+    guard let treeData = treeJSON.data(using: .utf8) else {
       throw SourceKitError.failed(.errorDeserializingSyntaxTree, request: request, response: response.description)
     }
 
-    self.tree = tree
+    let tree: SourceFileSyntax
+    do {
+      tree = try deserializer!.deserialize(treeData, serializationFormat: .json)
+      self.tree = tree
+    } catch {
+      throw SourceKitError.failed(.errorDeserializingSyntaxTree, request: request, response: response.description)
+    }
+
+    if let state = sourceState, state.source != tree.description {
+      throw SourceKitError.failed(.sourceAndSyntaxTreeMismatch, request: request, response: response.description)
+    }
+
     return tree
   }
 }

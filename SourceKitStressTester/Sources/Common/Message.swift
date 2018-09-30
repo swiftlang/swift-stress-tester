@@ -40,7 +40,7 @@ public enum SourceKitError: Error {
 }
 
 public enum SourceKitErrorReason: String, Codable {
-  case errorResponse, errorTypeInResponse, errorDeserializingSyntaxTree
+  case errorResponse, errorTypeInResponse, errorDeserializingSyntaxTree, sourceAndSyntaxTreeMismatch
 }
 
 public enum RequestInfo {
@@ -299,6 +299,8 @@ extension SourceKitErrorReason: CustomStringConvertible {
       return "SourceKit returned a response containing <<error type>>"
     case .errorDeserializingSyntaxTree:
       return "SourceKit returned a response with invalid SyntaxTree data"
+    case .sourceAndSyntaxTreeMismatch:
+      return "SourceKit returned a syntax tree that doesn't match the expected source"
     }
   }
 }
