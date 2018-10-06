@@ -199,10 +199,9 @@ struct SourceKitDocument {
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
-    try updateSyntaxTree(response, request: info)
-
-    // update expected source content
+    // update expected source content and syntax tree
     sourceState?.replace(range, with: text)
+    try updateSyntaxTree(response, request: info)
 
     return (tree!, response)
   }
@@ -253,7 +252,16 @@ struct SourceKitDocument {
     }
 
     if let state = sourceState, state.source != tree.description {
-      throw SourceKitError.failed(.sourceAndSyntaxTreeMismatch, request: request, response: response.description)
+      // FIXME: add state and tree descriptions in their own field
+      let comparison = """
+        \(response.description)
+        --source-state------
+        \(state.source)
+        --tree-description--
+        \(tree.description)
+        --end---------------
+        """
+      throw SourceKitError.failed(.sourceAndSyntaxTreeMismatch, request: request, response: comparison)
     }
 
     return tree

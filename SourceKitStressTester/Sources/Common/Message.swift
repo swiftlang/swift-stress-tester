@@ -37,6 +37,17 @@ public enum SourceKitError: Error {
   case crashed(request: RequestInfo)
   case timedOut(request: RequestInfo)
   case failed(_ reason: SourceKitErrorReason, request: RequestInfo, response: String)
+
+  public var request: RequestInfo {
+    switch self {
+    case .crashed(let request):
+      return request
+    case .timedOut(let request):
+      return request
+    case .failed(_, let request, _):
+      return request
+    }
+  }
 }
 
 public enum SourceKitErrorReason: String, Codable {
