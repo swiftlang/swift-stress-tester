@@ -21,16 +21,16 @@ struct SwiftCWrapper {
   let stressTesterPath: String
   let astBuildLimit: Int?
   let ignoreFailures: Bool
-  let machineReadable: Bool
+  let failureManager: FailureManager?
   let failFast: Bool
 
-  init(swiftcArgs: [String], swiftcPath: String, stressTesterPath: String, astBuildLimit: Int?, ignoreFailures: Bool, machineReadable: Bool, failFast: Bool) {
+  init(swiftcArgs: [String], swiftcPath: String, stressTesterPath: String, astBuildLimit: Int?, ignoreFailures: Bool, failureManager: FailureManager?, failFast: Bool) {
     self.arguments = swiftcArgs
     self.swiftcPath = swiftcPath
     self.stressTesterPath = stressTesterPath
     self.astBuildLimit = astBuildLimit
     self.ignoreFailures = ignoreFailures
-    self.machineReadable = machineReadable
+    self.failureManager = failureManager
     self.failFast = failFast
   }
 
@@ -43,7 +43,7 @@ struct SwiftCWrapper {
       .sorted()
   }
 
-  func run() -> Int32 {
+  func run() throws -> Int32 {
     // Execute the compiler
     let swiftcResult = ProcessRunner(launchPath: swiftcPath, arguments: arguments).run(capturingOutput: false)
     guard swiftcResult.status == EXIT_SUCCESS else { return swiftcResult.status }
@@ -63,6 +63,8 @@ struct SwiftCWrapper {
       }
     }
 
+    guard !operations.isEmpty else { return swiftcResult.status }
+
     // Run the operations, reporting progress
     let progress = createProgressBar(forStream: stderrStream, header: "Stress testing SourceKit...")
     progress.update(percent: 0, text: "Scheduling \(operations.count) operations")
@@ -73,67 +75,60 @@ struct SwiftCWrapper {
     }
     queue.waitUntilFinished()
     progress.complete(success: operations.allSatisfy {$0.status.isPassed})
+    stderrStream <<< "\n"
+    stderrStream.flush()
 
-    defer { stderrStream.flush() }
-
+    // Report the overall runtime
     let elapsedSeconds = -startTime.timeIntervalSinceNow
-    stderrStream <<< "Runtime: \(elapsedSeconds.formatted() ?? String(elapsedSeconds))\n"
+    stderrStream <<< "Runtime: \(elapsedSeconds.formatted() ?? String(elapsedSeconds))\n\n"
+    stderrStream.flush()
 
-    // Report the list of processed files and the first failure (if any)
-    var result = WrapperResult()
-    for operation in operations where result.error == nil {
+    // Determine the set of processed files and the first failure (if any)
+    var processedFiles = Set<String>()
+    var detectedError: SourceKitError? = nil
+    for operation in operations where detectedError == nil {
       switch operation.status {
       case .cancelled:
         fatalError("cancelled operation before failed operation")
       case .unexecuted:
         fatalError("unterminated operation")
       case .failed(let error):
-        result.error = error
+        detectedError = error
         fallthrough
       case .passed:
-        result.processedFiles.insert(operation.file)
+        processedFiles.insert(operation.file)
       }
     }
 
-    if machineReadable {
-      try! stderrStream <<< "[stress-tester]" <<< JSONEncoder().encode(result) <<< "\n"
-      if let error = result.error {
-        stderrStream <<< String(describing: error) <<< "\n"
-      }
-    } else {
-      stderrStream <<< String(describing: result) <<< "\n"
-    }
+    let matchingSpec = try failureManager?.update(for: processedFiles, error: detectedError)
+    try report(detectedError, matching: matchingSpec)
 
-    if result.passed {
+    if detectedError == nil || matchingSpec != nil {
       return EXIT_SUCCESS
     }
     return ignoreFailures ? swiftcResult.status : EXIT_FAILURE
   }
-}
 
-struct WrapperResult: Codable, CustomStringConvertible {
-  var processedFiles: Set<String> = []
-  var error: SourceKitError? = nil
+  private func report(_ error: SourceKitError?, matching xfail: ExpectedFailure? = nil) throws {
+    defer { stderrStream.flush() }
 
-  var passed: Bool {
-    return error == nil
-  }
-
-  var description: String {
-    var output = ""
-    if !processedFiles.isEmpty {
-      output += """
-        Processed files:
-          \(processedFiles.sorted().joined(separator: "\n  "))\n
-        """
+    guard let error = error else {
+      stderrStream <<< "No failures detected.\n"
+      return
     }
-    if let error = error {
-      output += "Detected failure: \(error)\n"
+
+    if let xfail = xfail {
+      stderrStream <<< "Detected expected failure [\(xfail.issueUrl)]: \(error)\n\n"
     } else {
-      output += "No failures detected."
+      stderrStream <<< "Detected unexpected failure: \(error)\n\n"
+      if let failureManager = failureManager {
+        let xfail = ExpectedFailure(matching: error.request, issueUrl: "<issue url>",
+                                    config: failureManager.activeConfig)
+        let json = try failureManager.encoder.encode(xfail)
+        stderrStream <<< "Add the following entry to the expected failures JSON file to mark it as expected:\n"
+        stderrStream <<< json <<< "\n\n"
+      }
     }
-
-    return output
   }
 }
 

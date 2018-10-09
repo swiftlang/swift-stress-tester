@@ -26,7 +26,11 @@ public struct SwiftCWrapperTool {
     let stressTesterEnv = EnvOption("SK_STRESS_TEST", type: String.self)
     let ignoreFailuresEnv = EnvOption("SK_STRESS_SILENT", type: Bool.self)
     let astBuildLimitEnv = EnvOption("SK_STRESS_AST_BUILD_LIMIT", type: Int.self)
-    let machineReadableEnv = EnvOption("SK_STRESS_MACHINE", type: Bool.self)
+
+    // FailureManager params
+    let expectedFailuresPathEnv = EnvOption("SK_XFAILS_PATH", type: String.self)
+    let outputPathEnv = EnvOption("SK_STRESS_OUTPUT", type: String.self)
+    let activeConfigEnv = EnvOption("SK_STRESS_ACTIVE_CONFIG", type: String.self)
 
     guard let swiftc = (try swiftcEnv.get(from: environment) ?? getDefaultSwiftCPath()) else {
       throw EnvOptionError.noFallback(key: swiftcEnv.key, target: "swiftc")
@@ -36,16 +40,26 @@ public struct SwiftCWrapperTool {
     }
     let ignoreFailures = try ignoreFailuresEnv.get(from: environment) ?? false
     let astBuildLimit = try astBuildLimitEnv.get(from: environment)
-    let machineReadable = try machineReadableEnv.get(from: environment) ?? false
+
+    var failureManager: FailureManager? = nil
+    if let expectedFailuresPath = try expectedFailuresPathEnv.get(from: environment),
+      let outputPath = try outputPathEnv.get(from: environment),
+      let activeConfig = try activeConfigEnv.get(from: environment) {
+      failureManager = FailureManager(
+        activeConfig: activeConfig,
+        expectedFailuresFile: URL(fileURLWithPath: expectedFailuresPath, isDirectory: false),
+        resultsFile: URL(fileURLWithPath: outputPath, isDirectory: false)
+      )
+    }
 
     let wrapper = SwiftCWrapper(swiftcArgs: Array(arguments.dropFirst()),
                                 swiftcPath: swiftc,
                                 stressTesterPath: stressTester,
                                 astBuildLimit: astBuildLimit,
                                 ignoreFailures: ignoreFailures,
-                                machineReadable: machineReadable,
+                                failureManager: failureManager,
                                 failFast: true)
-    return wrapper.run()
+    return try wrapper.run()
   }
 
   var defaultStressTesterPath: String? {

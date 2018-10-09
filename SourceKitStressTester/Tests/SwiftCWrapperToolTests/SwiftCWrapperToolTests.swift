@@ -12,6 +12,7 @@
 
 import XCTest
 @testable import SwiftCWrapper
+import Common
 
 class SwiftCWrapperToolTests: XCTestCase {
   var workspace: URL!
@@ -96,6 +97,24 @@ class SwiftCWrapperToolTests: XCTestCase {
     XCTAssertTrue(!second.isCancelled)
     XCTAssertTrue(third.isCancelled)
     XCTAssertTrue(fourth.isCancelled)
+  }
+
+  func testFailureManager() {
+    let xfail = ExpectedFailure(
+      applicableConfigs: ["master"], issueUrl: "<issue-url>",
+      path: "*/foo/bar.swift", modification: nil,
+      request: .editorReplaceText(offset: 42, length: 0, text: nil)
+    )
+
+    let document1 = DocumentInfo(path: "/baz/foo/bar.swift", modification: nil)
+    let failure1 = RequestInfo.editorReplaceText(document: document1, offset: 42, length: 0, text: ".")
+    let failure2 = RequestInfo.editorReplaceText(document: document1, offset: 42, length: 2, text: "hello")
+    let document2 = DocumentInfo(path: "/baz/bar.swift", modification: nil)
+    let failure3 = RequestInfo.editorReplaceText(document: document2, offset: 42, length: 0, text: ".")
+
+    XCTAssertTrue(xfail.matches(failure1))
+    XCTAssertFalse(xfail.matches(failure2))
+    XCTAssertFalse(xfail.matches(failure3))
   }
 
   override func setUp() {
