@@ -93,10 +93,10 @@ class SwiftCWrapperToolTests: XCTestCase {
       return finishedOp !== second
     }).waitUntilFinished()
 
-    XCTAssertTrue(!first.isCancelled)
-    XCTAssertTrue(!second.isCancelled)
-    XCTAssertTrue(third.isCancelled)
-    XCTAssertTrue(fourth.isCancelled)
+    XCTAssertTrue(!first.isCancelled, "first was cancelled")
+    XCTAssertTrue(!second.isCancelled, "second was cancelled")
+    XCTAssertTrue(third.isCancelled, "third wasn't cancelled")
+    XCTAssertTrue(fourth.isCancelled, "fourth wasn't cancelled")
   }
 
   func testFailureManager() {
