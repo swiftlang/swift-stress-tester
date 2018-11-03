@@ -101,7 +101,7 @@ def run(args):
 
 
 def build_package(swift_build_exec, swiftc_exec, sourcekit_searchpath, swiftsyntax_searchpath, build_dir, config='release', verbose=False):
-  env = os.environ
+  env = dict(os.environ)
   env['SWIFT_EXEC'] = swiftc_exec
 
   swiftc_args = ['-lSwiftSyntax', '-I', swiftsyntax_searchpath, '-L', swiftsyntax_searchpath, '-Fsystem', sourcekit_searchpath]
