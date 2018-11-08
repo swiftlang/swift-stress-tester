@@ -22,7 +22,6 @@ from __future__ import print_function
 import argparse
 import sys
 import os
-import shutil
 import subprocess
 
 PACKAGE_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -118,16 +117,6 @@ def install_package(install_dir, sourcekit_searchpath, swiftsyntax_searchpath, b
     if not os.path.exists(directory):
       os.makedirs(directory)
 
-  # Install SwiftSyntax dylib
-  # FIXME: this should probably be handled elsewhere
-  swiftsyntax_src = os.path.join(swiftsyntax_searchpath, 'libSwiftSyntax.dylib')
-  swiftsyntax_dest = os.path.join(lib_dir, 'libswiftSwiftSyntax.dylib')
-
-  install(swiftsyntax_src, swiftsyntax_dest,
-    rpaths_to_delete=rpaths_to_delete,
-    dylib_id='@rpath/libswiftSwiftSyntax.dylib',
-    verbose=verbose)
-
   # Install sk-stress-test and sk-swiftc-wrapper
   wrapper_src = os.path.join(build_dir, 'sk-swiftc-wrapper')
   wrapper_dest = os.path.join(bin_dir, 'sk-swiftc-wrapper')
@@ -135,6 +124,7 @@ def install_package(install_dir, sourcekit_searchpath, swiftsyntax_searchpath, b
   stress_tester_dest = os.path.join(bin_dir, 'sk-stress-test')
   rpaths_to_delete += [sourcekit_searchpath, swiftsyntax_searchpath]
   rpaths_to_add = ['@executable_path/../lib/swift/macosx', '@executable_path/../lib']
+  swiftsyntax_src = os.path.join(swiftsyntax_searchpath, 'libSwiftSyntax.dylib')
   loadpath_changes = {os.path.realpath(swiftsyntax_src): '@rpath/libswiftSwiftSyntax.dylib'}
 
   install(wrapper_src, wrapper_dest,
@@ -150,36 +140,30 @@ def install_package(install_dir, sourcekit_searchpath, swiftsyntax_searchpath, b
 
 
 def install(src, dest, rpaths_to_delete=[], rpaths_to_add=[], loadpath_changes={}, dylib_id=None, verbose=False):
-  remove_if_present(dest)
-  shutil.copy2(src, dest)
+  copy_cmd=['rsync', '-a', src, dest]
+  print('installing %s to %s' % (os.path.basename(src), dest))
+  check_call(copy_cmd, verbose=verbose)
 
   if dylib_id is not None:
-    check_call(['install_name_tool', '-id', dylib_id, dest])
+    check_call(['install_name_tool', '-id', dylib_id, dest], verbose=verbose)
 
   for rpath in rpaths_to_delete:
-    remove_rpath(dest, rpath)
+    remove_rpath(dest, rpath, verbose=verbose)
   for rpath in rpaths_to_add:
-    add_rpath(dest, rpath)
+    add_rpath(dest, rpath, verbose=verbose)
 
   for key, value in loadpath_changes.iteritems():
-    check_call(['install_name_tool', '-change', key, value, dest])
+    check_call(['install_name_tool', '-change', key, value, dest], verbose=verbose)
 
 
-def add_rpath(binary, rpath):
+def add_rpath(binary, rpath, verbose=False):
   cmd = ['install_name_tool', '-add_rpath', rpath, binary]
-  check_call(cmd)
+  check_call(cmd, verbose=verbose)
 
 
-def remove_rpath(binary, rpath):
+def remove_rpath(binary, rpath, verbose=False):
   cmd = ['install_name_tool', '-delete_rpath', rpath, binary]
-  check_call(cmd)
-
-
-def remove_if_present(path):
-  try:
-    os.remove(path)
-  except FileNotFoundError:
-    pass
+  check_call(cmd, verbose=verbose)
 
 
 def check_output(cmd, env=os.environ, verbose=False, **kwargs):
