@@ -12,8 +12,7 @@
  ------------------------------------------------------------------------------
  This is a helper script for the main swift repository's build-script.py that
  knows how to build and install the stress tester utilities given a swift
- workspace. It additionally copies in the SwiftSyntax dylib as its not
- currently installed.
+ workspace.
 
 """
 
