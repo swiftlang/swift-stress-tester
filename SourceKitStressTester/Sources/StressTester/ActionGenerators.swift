@@ -121,7 +121,7 @@ final class RequestActionGenerator: SyntaxVisitor, ActionGenerator {
 
   func generate(for tree: SourceFileSyntax) -> [Action] {
     actions.removeAll()
-    visit(tree)
+    tree.walk(self)
     return actions
   }
 
@@ -138,7 +138,7 @@ final class RewriteActionGenerator: SyntaxVisitor, ActionGenerator {
 
   func generate(for tree: SourceFileSyntax) -> [Action] {
     actions = [.replaceText(range: SourceRange(of: tree, includingTrivia: true), text: "")]
-    visit(tree)
+    tree.walk(self)
     return actions
   }
 
@@ -241,7 +241,7 @@ fileprivate final class TokenData: SyntaxVisitor {
 
   init(of syntax: Syntax) {
     super.init()
-    visit(syntax)
+    syntax.walk(self)
   }
 
   override func visitPre(_ node: Syntax) {
