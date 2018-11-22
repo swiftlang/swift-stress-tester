@@ -27,34 +27,34 @@ class StressTesterToolTests: XCTestCase {
     XCTAssertThrowsError(try StressTesterTool(arguments: noCompilerArgs).parse())
 
     let validSuffix: [String] = [testFilePath, "swiftc", testFilePath]
-    let valid = [stressTesterPath] + validSuffix
+    let valid: [String] = [stressTesterPath] + validSuffix
     XCTAssertNoThrow(try StressTesterTool(arguments: valid).parse())
 
-    let invalidOptions = [stressTesterPath, "--not-an-option"] + validSuffix
+    let invalidOptions: [String] = [stressTesterPath, "--not-an-option"] + validSuffix
     XCTAssertThrowsError(try StressTesterTool(arguments: invalidOptions).parse())
 
-    let noValue = [stressTesterPath, "--format"] + validSuffix
+    let noValue: [String] = [stressTesterPath, "--format"] + validSuffix
     XCTAssertThrowsError(try StressTesterTool(arguments: noValue).parse())
 
-    let unknownValue = [stressTesterPath, "--format", "blah"] + validSuffix
+    let unknownValue: [String] = [stressTesterPath, "--format", "blah"] + validSuffix
     XCTAssertThrowsError(try StressTesterTool(arguments: unknownValue).parse())
 
-    let knownValue = [stressTesterPath, "--format", "json"] + validSuffix
+    let knownValue: [String] = [stressTesterPath, "--format", "json"] + validSuffix
     XCTAssertNoThrow(try StressTesterTool(arguments: knownValue).parse())
 
-    let typeMismatch = [stressTesterPath, "--limit", "hello"] + validSuffix
+    let typeMismatch: [String] = [stressTesterPath, "--limit", "hello"] + validSuffix
     XCTAssertThrowsError(try StressTesterTool(arguments: typeMismatch).parse())
 
-    let validLimit = [stressTesterPath, "--limit", "1"] + validSuffix
+    let validLimit: [String] = [stressTesterPath, "--limit", "1"] + validSuffix
     XCTAssertNoThrow(try StressTesterTool(arguments: validLimit).parse())
 
-    let invalidRequest = [stressTesterPath, "--request", "UnknownRequest"] + validSuffix
+    let invalidRequest: [String] = [stressTesterPath, "--request", "UnknownRequest"] + validSuffix
     XCTAssertThrowsError(try StressTesterTool(arguments: invalidRequest).parse())
 
-    let validRequest1 = [stressTesterPath, "--request", "CursorInfo"] + validSuffix
+    let validRequest1: [String] = [stressTesterPath, "--request", "CursorInfo"] + validSuffix
     XCTAssertNoThrow(try StressTesterTool(arguments: validRequest1).parse())
 
-    let validRequest2 = [stressTesterPath, "--request", "CURSORINFO"] + validSuffix
+    let validRequest2: [String] = [stressTesterPath, "--request", "CURSORINFO"] + validSuffix
     XCTAssertNoThrow(try StressTesterTool(arguments: validRequest2).parse())
   }
 
