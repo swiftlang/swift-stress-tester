@@ -251,6 +251,15 @@ struct SourceKitDocument {
       throw SourceKitError.failed(.errorDeserializingSyntaxTree, request: request, response: response.description)
     }
 
+    /// When we should be able to fully parse the file, we verify the syntax tree
+    if !containsErrors {
+      do {
+        try SyntaxVerifier.verify(tree)
+      } catch let error as SyntaxVerifierError {
+        throw SourceKitError.failed(.errorDeserializingSyntaxTree, request: request, response: error.description)
+      }
+    }
+
     if let state = sourceState, state.source != tree.description {
       // FIXME: add state and tree descriptions in their own field
       let comparison = """
