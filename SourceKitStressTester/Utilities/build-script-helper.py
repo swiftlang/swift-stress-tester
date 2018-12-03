@@ -41,9 +41,10 @@ def parse_args(args):
   parser.add_argument('--swiftc-exec', help='the compiler to use when building this package (default: xcrun -f swiftc)')
   parser.add_argument('--swift-build-exec', help='the swift-build exec to use to build this package (default: xcrun -f swift-build)')
   parser.add_argument('--swift-test-exec', help='the swift-test exec to use to test this package (default: xcrun -f swift-test)')
+  parser.add_argument('--swift-package-exec', help='the swift-package exec to use to generate an xcode project for this package (default: xcrun -f swift-package)')
   parser.add_argument('--sourcekitd-dir', help='the directory containing the sourcekitd.framework to use (default: relative to swiftc-exec)')
-  parser.add_argument('--swiftsyntax-dir', required=True, help='the directory containing SwiftSyntax\'s build products (libSwiftSyntax.dylib, and SwiftSyntax.swiftmodule)')
-  parser.add_argument('build_actions', help="Extra actions to perform. Can be any number of the following: [all, test, install]", nargs="*", default=[])
+  parser.add_argument('--swiftsyntax-dir', help='the directory containing SwiftSyntax\'s build products (libSwiftSyntax.dylib, and SwiftSyntax.swiftmodule)')
+  parser.add_argument('build_actions', help="Extra actions to perform. Can be any number of the following: [all, test, install, generate-xcodeproj]", nargs="*", default=[])
 
   parsed = parser.parse_args(args)
 
@@ -55,6 +56,8 @@ def parse_args(args):
     parsed.swift_build_exec = find_executable('swift-build')
   if parsed.swift_test_exec is None:
     parsed.swift_test_exec = find_executable('swift-test')
+  if parsed.swift_package_exec is None:
+    parsed.swift_package_exec = find_executable('swift-package')
   if parsed.sourcekitd_dir is None:
     parsed.sourcekitd_dir = os.path.join(os.path.dirname(os.path.dirname(parsed.swiftc_exec)), 'lib')
 
@@ -62,6 +65,16 @@ def parse_args(args):
 
 
 def run(args):
+  if args.swiftsyntax_dir is None:
+    print("** Building SwiftSyntax **")
+    swiftsyntax_build_dir = os.path.join(PACKAGE_DIR, '.swiftsyntax_build')
+    build_swiftsyntax(swift_build_exec=args.swift_build_exec,
+      swiftc_exec=args.swiftc_exec,
+      build_dir=swiftsyntax_build_dir,
+      config=args.config,
+      verbose=args.verbose)
+    args.swiftsyntax_dir = os.path.join(swiftsyntax_build_dir, args.config)
+
   sourcekit_searchpath=args.sourcekitd_dir
   swiftsyntax_searchpath=args.swiftsyntax_dir
 
@@ -76,13 +89,20 @@ def run(args):
 
   output_dir = os.path.realpath(os.path.join(args.build_dir, args.config))
 
+  if "generate-xcodeproj" in args.build_actions or "all" in args.build_actions:
+    print("** Generating Xcode project for Swift Stress Tester")
+    generate_xcodeproj(swift_package_exec=args.swift_package_exec,
+      sourcekit_searchpath=sourcekit_searchpath,
+      swiftsyntax_searchpath=swiftsyntax_searchpath,
+      verbose=args.verbose)
+
   if "test" in args.build_actions or "all" in args.build_actions:
     print("** Testing Swift Stress Tester **")
     build_package(swift_build_exec=args.swift_test_exec,
     swiftc_exec=args.swiftc_exec,
     sourcekit_searchpath=sourcekit_searchpath,
     swiftsyntax_searchpath=swiftsyntax_searchpath,
-    # note: test uses a different build_dir so it doesn't intefer with the 'build' step's products before install
+    # note: test uses a different build_dir so it doesn't interfere with the 'build' step's products before install
     build_dir=os.path.join(args.build_dir, 'test-build'),
     config='debug',
     verbose=args.verbose)
@@ -154,6 +174,34 @@ def install(src, dest, rpaths_to_delete=[], rpaths_to_add=[], loadpath_changes={
   for key, value in loadpath_changes.iteritems():
     check_call(['install_name_tool', '-change', key, value, dest], verbose=verbose)
 
+
+def build_swiftsyntax(swift_build_exec, swiftc_exec, build_dir, config='release', verbose=False):
+  workspace = os.path.dirname(os.path.dirname(PACKAGE_DIR))
+  cmd = [os.path.join(workspace, 'swift-syntax', 'build-script.py'),
+    '--build-dir', os.path.join(PACKAGE_DIR, '.swiftsyntax_build'),
+    '--swiftc-exec', swiftc_exec,
+    '--swift-build-exec', swift_build_exec]
+
+  if config == 'release':
+    cmd += ['--release']
+
+  env = dict(os.environ)
+  check_call(cmd, env=env, verbose=verbose)
+
+
+def generate_xcodeproj(swift_package_exec, sourcekit_searchpath, swiftsyntax_searchpath, verbose=False):
+  config_path = os.path.join(PACKAGE_DIR, 'Config.xcconfig')
+  with open(config_path, 'w') as config_file:
+    config_file.write('''
+      SWIFT_INCLUDE_PATHS = {swiftsyntax_searchpath} $(inherited)
+      SYSTEM_FRAMEWORK_SEARCH_PATHS = {sourcekit_searchpath} $(inherited)
+      LIBRARY_SEARCH_PATHS = {swiftsyntax_searchpath} $(inherited)
+      LD_RUNPATH_SEARCH_PATHS = {sourcekit_searchpath} {swiftsyntax_searchpath} $(inherited)
+    '''.format(sourcekit_searchpath=sourcekit_searchpath, swiftsyntax_searchpath=swiftsyntax_searchpath))
+
+  env = dict(os.environ)
+  args = [swift_package_exec, 'generate-xcodeproj', '--xcconfig-overrides', config_path, '--output', os.path.join(PACKAGE_DIR, 'SourceKitStressTester.xcodeproj')]
+  check_call(args, env=env, verbose=verbose)
 
 def add_rpath(binary, rpath, verbose=False):
   cmd = ['install_name_tool', '-add_rpath', rpath, binary]
