@@ -125,8 +125,9 @@ final class RequestActionGenerator: SyntaxVisitor, ActionGenerator {
     return actions
   }
 
-  override func visit(_ token: TokenSyntax) {
+  override func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
     actions.append(contentsOf: generateActions(for: token, withReplaceTexts: false))
+    return .visitChildren
   }
 }
 
@@ -142,8 +143,9 @@ final class RewriteActionGenerator: SyntaxVisitor, ActionGenerator {
     return actions
   }
 
-  override func visit(_ token: TokenSyntax) {
+  override func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
     actions.append(contentsOf: generateActions(for: token, withReplaceTexts: true))
+    return .visitChildren
   }
 }
 
@@ -252,9 +254,10 @@ fileprivate final class TokenData: SyntaxVisitor {
     depth -= 1
   }
 
-  override func visit(_ token: TokenSyntax) {
+  override func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
     tokens.append(token)
     depths[token] = depth
+    return .visitChildren
   }
 }
 
