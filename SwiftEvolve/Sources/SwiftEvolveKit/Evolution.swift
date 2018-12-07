@@ -1,4 +1,4 @@
-// SwiftEvolve/Evolution.swift - Rules for mechanically evolving declarations
+// SwiftEvolveKit/Evolution.swift - Rules for mechanically evolving declarations
 //
 // This source file is part of the Swift.org open source project
 //

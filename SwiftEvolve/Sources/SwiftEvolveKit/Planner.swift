@@ -1,4 +1,4 @@
-// SwiftEvolve/Planner.swift - Deciding how to evolve the source
+// SwiftEvolveKit/Planner.swift - Deciding how to evolve the source
 //
 // This source file is part of the Swift.org open source project
 //
@@ -18,16 +18,16 @@
 import Foundation
 import SwiftSyntax
 
-struct PlannedEvolution: Codable {
+public struct PlannedEvolution: Codable {
   var sourceLocation: String
   var file: URL
   var syntaxPath: IndexPath
   var evolution: AnyEvolution
 }
 
-class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
+public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
   var rng: G
-  var plan: [PlannedEvolution] = []
+  public var plan: [PlannedEvolution] = []
   
   var url: URL!
   var context = Context()
@@ -38,11 +38,11 @@ class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
       .append((evo, node))
   }
 
-  init(rng: G) {
+  public init(rng: G) {
     self.rng = rng
   }
 
-  func planEvolution(in file: SourceFileSyntax, at url: URL) {
+  public func planEvolution(in file: SourceFileSyntax, at url: URL) {
     self.url = url.absoluteURL
     assert(context.syntaxPath.isEmpty)
     file.walk(self)
@@ -65,14 +65,14 @@ class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
         .map { (makePlannedEvolution($0, of: node), node) }
   }
   
-  override func visitPre(_ node: Syntax) {
+  public override func visitPre(_ node: Syntax) {
     if context.enter(node) {
       potentialEvolutionsStack.append([])
     }
     plan(node)
   }
   
-  override func visitPost(_ node: Syntax) {
+  public override func visitPost(_ node: Syntax) {
     let decl = context.declContext
 
     if context.leave(node) {

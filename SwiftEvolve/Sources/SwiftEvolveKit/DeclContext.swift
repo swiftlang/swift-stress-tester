@@ -1,4 +1,4 @@
-// SwiftEvolve/Decl.swift - Logic for resilient declarations
+// SwiftEvolveKit/Decl.swift - Logic for resilient declarations
 //
 // This source file is part of the Swift.org open source project
 //

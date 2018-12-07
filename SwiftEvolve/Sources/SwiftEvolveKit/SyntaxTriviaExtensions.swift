@@ -1,4 +1,4 @@
-// SwiftEvolve/SyntaxTriviaExtensions.swift - SwiftSyntax trivia extensions
+// SwiftEvolveKit/SyntaxTriviaExtensions.swift - SwiftSyntax trivia extensions
 //
 // This source file is part of the Swift.org open source project
 //

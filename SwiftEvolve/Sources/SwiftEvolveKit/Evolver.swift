@@ -1,4 +1,4 @@
-// SwiftEvolve/Evolver.swift - Applies evolutions to source
+// SwiftEvolveKit/Evolver.swift - Applies evolutions to source
 //
 // This source file is part of the Swift.org open source project
 //
@@ -42,20 +42,20 @@ struct Context {
   }
 }
 
-class Evolver: SyntaxRewriter {
+public class Evolver: SyntaxRewriter {
   var plan: [URL: [IndexPath: [PlannedEvolution]]]
   var url: URL!
   
   var context = Context()
   
-  init(plan: [PlannedEvolution]) {
+  public init(plan: [PlannedEvolution]) {
     self.plan = [:]
     for evo in plan {
       self.plan[evo.file, default: [:]][evo.syntaxPath, default: []].append(evo)
     }
   }
 
-  func evolve(in file: SourceFileSyntax, at url: URL) -> Syntax {
+  public func evolve(in file: SourceFileSyntax, at url: URL) -> Syntax {
     self.url = url.absoluteURL
     precondition(context.syntaxPath.isEmpty)
 
@@ -65,7 +65,7 @@ class Evolver: SyntaxRewriter {
   }
 
   var recursionGuard: Syntax?
-  override func visitAny(_ node: Syntax) -> Syntax? {
+  public override func visitAny(_ node: Syntax) -> Syntax? {
     // If we're recursing, we don't want to run this again--we want to rewrite
     // our children.
     guard recursionGuard != node else {

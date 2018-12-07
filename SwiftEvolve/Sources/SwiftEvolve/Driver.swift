@@ -16,6 +16,7 @@
 
 import Foundation
 import SwiftSyntax
+import SwiftEvolveKit
 
 class Driver {
   var invocation: Invocation
@@ -69,52 +70,25 @@ extension Driver {
       let evolved = evolver.evolve(in: parsed, at: file)
 
       if invocation.replace {
-        let tempDir = try withErrorContext(url: file, debugDescription: "url(for: .itemReplacementDirectory, ...)") {
-          try FileManager.default.url(for: .itemReplacementDirectory,
-                                      in: .userDomainMask,
-                                      appropriateFor: file.deletingLastPathComponent(),
-                                      create: true)
-        }
-        
-        let tempFile =
-          tempDir.appendingPathComponent(ProcessInfo().globallyUniqueString)
-            .appendingPathExtension("swift")
+        let tempFile = try evolved.description.write(
+          toTemporaryFileWithPathExtension: "swift", appropriateFor: file
+        )
 
-        try withErrorContext(url: tempFile, debugDescription: "evolved.description.write(to: tempFile, ...)") {
-          try evolved.description.write(to: tempFile, atomically: true,
-                                        encoding: .utf8)
-        }
-
-        try withErrorContext(url: file, debugDescription: "replaceItemAt(file, withItemAt: tempFile, ...)") {
-          _ = try FileManager.default.replaceItemAt(file, withItemAt: tempFile,
-                                                    backupItemName: file.lastPathComponent + "~",
-                                                    options: .withoutDeletingBackupItem)
+        try withErrorContext(
+          url: file,
+          debugDescription: "replaceItemAt(file, withItemAt: tempFile, ...)"
+        ) {
+          _ = try FileManager.default.replaceItemAt(
+            file, withItemAt: tempFile,
+            backupItemName: file.lastPathComponent + "~",
+            options: .withoutDeletingBackupItem
+          )
         }
       }
       else {
         print(evolved, terminator: "")
       }
     }
-  }
-}
-
-fileprivate func withErrorContext<Result>(
-  url: URL, debugDescription: String, do body: () throws -> Result
-) throws -> Result {
-  do {
-    return try body()
-  }
-  catch let error as NSError {
-    var userInfoCopy = error.userInfo
-    
-    userInfoCopy[NSURLErrorKey] = url
-    userInfoCopy[NSDebugDescriptionErrorKey] = debugDescription
-    
-    throw NSError(domain: error.domain, code: error.code, userInfo: userInfoCopy)
-  }
-  catch {
-    assertionFailure("Non-NSError: \(error)")
-    throw error
   }
 }
 

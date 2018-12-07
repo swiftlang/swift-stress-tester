@@ -1,4 +1,4 @@
-// SwiftEvolve/SyntaxExtensions.swift - Miscellaneous SwiftSyntax extensions
+// SwiftEvolveKit/SyntaxExtensions.swift - Miscellaneous SwiftSyntax extensions
 //
 // This source file is part of the Swift.org open source project
 //

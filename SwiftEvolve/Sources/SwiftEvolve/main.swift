@@ -15,6 +15,7 @@
 // -----------------------------------------------------------------------------
 
 import Foundation
+import SwiftEvolveKit
 
 guard var invocation = Invocation(rawValue: CommandLine.arguments) else {
   print("""
@@ -25,16 +26,19 @@ guard var invocation = Invocation(rawValue: CommandLine.arguments) else {
 
 func logError(_ error: Error) {
   log(error.localizedDescription)
-  if let e = error as? LocalizedError {
-    if let fr = e.failureReason { log(fr) }
-    if let rs = e.recoverySuggestion { log(rs) }
+
+  let e = error as NSError
+  log("Debug Description:", e.debugDescription)
+  log("User Info:", e.userInfo)
+  
+  if let le = error as? LocalizedError {
+    if let fr = le.failureReason { log("Failure Reason:", fr) }
+    if let rs = le.recoverySuggestion { log("Recovery Suggestion:", rs) }
   }
+  
   if let e = error as? CocoaError, let u = e.underlying {
+    log("Underlying Error:")
     logError(u)
-  }
-  if let e = error as? NSError {
-    log(e.debugDescription)
-    log(e.userInfo)
   }
 }
 

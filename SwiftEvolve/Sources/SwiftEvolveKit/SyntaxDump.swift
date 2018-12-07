@@ -1,4 +1,4 @@
-// SwiftEvolve/SyntaxDump.swift - SwiftSyntax tree dumper
+// SwiftEvolveKit/SyntaxDump.swift - SwiftSyntax tree dumper
 //
 // This source file is part of the Swift.org open source project
 //

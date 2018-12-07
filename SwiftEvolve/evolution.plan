@@ -1,0 +1,27 @@
+[
+  {
+    "evolution" : {
+      "kind" : "shuffleMembers",
+      "value" : {
+        "mapping" : [
+          11,
+          9,
+          8,
+          10
+        ]
+      }
+    },
+    "file" : "file:\/\/\/Volumes\/DocumentsHD\/Code\/open-swift\/swift-stress-tester\/SwiftEvolve\/RawSetStorage.swift",
+    "sourceLocation" : "(file)._RawSetStorage at \/Volumes\/DocumentsHD\/Code\/open-swift\/swift-stress-tester\/SwiftEvolve\/RawSetStorage.swift:14:3",
+    "syntaxPath" : {
+      "indexes" : [
+        0,
+        0,
+        0,
+        0,
+        7,
+        1
+      ]
+    }
+  }
+]

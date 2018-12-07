@@ -6,7 +6,8 @@ import PackageDescription
 let package = Package(
     name: "SwiftEvolve",
     products: [
-        .executable(name: "swift-evolve", targets: ["SwiftEvolve"])
+        .executable(name: "swift-evolve", targets: ["SwiftEvolve"]),
+        .library(name: "SwiftEvolveKit", targets: ["SwiftEvolveKit"])
     ],
     dependencies: [
         .package(path: "../../swift-syntax"),
@@ -16,9 +17,15 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages which this package depends on.
         .target(
             name: "SwiftEvolve",
+            dependencies: ["SwiftEvolveKit", "SwiftSyntax"]),
+        .target(
+            name: "SwiftEvolveKit",
             dependencies: ["SwiftSyntax"]),
         .testTarget(
             name: "SwiftEvolveTests",
             dependencies: ["SwiftEvolve"]),
+        .testTarget(
+          name: "SwiftEvolveKitTests",
+          dependencies: ["SwiftEvolveKit"])
     ]
 )
