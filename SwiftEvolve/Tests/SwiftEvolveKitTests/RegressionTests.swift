@@ -24,7 +24,8 @@ class RegressionTests: XCTestCase {
       """
     ) { code in
       let evo = ShuffleMembersEvolution(mapping: [])
-      code.withEach(whereIs: MemberDeclListSyntax.self) { node in
+
+      for node in code.filter(whereIs: MemberDeclListSyntax.self) {
         let evolved = evo.evolve(node)
         let evolvedCode = evolved.description
 
@@ -55,26 +56,22 @@ extension SyntaxTreeParser {
 }
 
 extension Syntax {
-  func withEach<T: Syntax>(whereIs type: T.Type, do body: (T) -> Void) {
-    withoutActuallyEscaping(body) { body in
-      let visitor = WithEachVisitor(
-        predicate: { $0 is T }, body: { body($0 as! T) }
-      )
-      walk(visitor)
-    }
+  func filter<T: Syntax>(whereIs type: T.Type) -> [T] {
+    let visitor = FilterVisitor { $0 is T }
+    walk(visitor)
+    return visitor.passing as! [T]
   }
 }
 
-class WithEachVisitor: SyntaxVisitor {
+class FilterVisitor: SyntaxVisitor {
   let predicate: (Syntax) -> Bool
-  let body: (Syntax) -> Void
-  
-  init(predicate: @escaping (Syntax) -> Bool, body: @escaping (Syntax) -> Void) {
+  var passing: [Syntax] = []
+
+  init(predicate: @escaping (Syntax) -> Bool) {
     self.predicate = predicate
-    self.body = body
   }
   
   override func visitPre(_ node: Syntax) {
-    if predicate(node) { body(node) }
+    if predicate(node) { passing.append(node) }
   }
 }
