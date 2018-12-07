@@ -17,6 +17,7 @@
 
 import Foundation
 
+/// - Warning: This is not used yet and might never be.
 public struct CodableTypeDictionary {
   public init() {}
 
