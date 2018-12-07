@@ -48,7 +48,7 @@ extension Driver {
 
     for file in invocation.files {
       let parsed = try parsedSource(at: file)
-      planner.planEvolution(in: parsed, at: file)
+      try planner.planEvolution(in: parsed, at: file)
     }
 
     let planFile = URL(fileURLWithPath: "evolution.plan")

@@ -36,7 +36,8 @@ protocol Evolution: Codable {
   /// - Parameter rng: A random number generator the evolution can use to
   ///             make decisions pseudo-randomly.
   /// - Throws: Usually an `EvolutionError.unsupported` if the evolution
-  ///           cannot be safely applied to `node`.
+  ///           cannot be safely applied to `node`. Other errors can also be
+  ///           thrown and will pass through all the initialization machinery.
   /// - Returns: The evolution instance, or `nil` if applying the evolution
   ///            would be a no-op.
   init?<G>(for node: Syntax, in decl: DeclContext, using rng: inout G) throws
