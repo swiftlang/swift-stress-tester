@@ -10,15 +10,31 @@
 //
 // -----------------------------------------------------------------------------
 ///
-/// This file specifies and implements many ABI-compatible mechanical
-/// transformations we can perform on various resilient declarations.
+/// This file contains the type which stores information about which
+/// evolutions we are permitted to perform during this run and implements
+/// these rules.
 ///
 // -----------------------------------------------------------------------------
 
-import Foundation
+import SwiftSyntax
 
 public struct EvolutionRules {
   var exclusions: [AnyEvolution.Kind: [String]?]
+
+  func makeAll<G>(
+    for node: Syntax, in decl: DeclContext, using rng: inout G
+  ) throws -> [[Evolution]] where G: RandomNumberGenerator {
+    return try allKinds(for: decl).compactMap { kind -> [Evolution]? in
+      do {
+        return try kind.type.makeWithPrerequisites(
+          for: node, in: decl, using: &rng
+        )
+      }
+      catch EvolutionError.unsupported {
+        return nil
+      }
+    }
+  }
   
   func allKinds(for decl: DeclContext) -> [AnyEvolution.Kind] {
     let declName = decl.name

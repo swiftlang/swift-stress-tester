@@ -67,21 +67,21 @@ public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
   }
   
   fileprivate func makePlannedEvolution(
-    _ evolution: AnyEvolution, of node: Syntax
+    _ evolution: Evolution, of node: Syntax
   ) -> PlannedEvolution {
     return PlannedEvolution(
       sourceLocation: "\(context.declContext.name) at \(node.startLocation(in: url))",
       file: url,
       syntaxPath: context.syntaxPath,
-      evolution: evolution
+      evolution: AnyEvolution(evolution)
     )
   }
 
   fileprivate func plan(_ node: Syntax) {
     do {
       potentialEvolutionsStack[potentialEvolutionsStack.endIndex - 1] +=
-        try AnyEvolution.makeAll(
-          by: rules, for: node, in: context.declContext, using: &rng
+        try rules.makeAll(
+          for: node, in: context.declContext, using: &rng
         ).map { $0.map { makePlannedEvolution($0, of: node) } }
     }
     catch {

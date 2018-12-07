@@ -24,23 +24,6 @@ struct AnyEvolution {
   init(_ value: Evolution) {
     self.value = value
   }
-}
-
-extension AnyEvolution {
-  static func makeAll<G>(
-    by rules: EvolutionRules,
-    for node: Syntax, in decl: DeclContext,
-    using rng: inout G
-  ) throws -> [[AnyEvolution]] where G: RandomNumberGenerator {
-    return try rules.allKinds(for: decl).compactMap { kind -> [Evolution]? in
-      do {
-        return try kind.type.makeWithPrerequisites(for: node, in: decl, using: &rng)
-      }
-      catch EvolutionError.unsupported {
-        return nil
-      }
-    }.map { $0.map(AnyEvolution.init(_:)) }
-  }
 
   func evolve(_ node: Syntax) -> Syntax {
     return value.evolve(node).prependingComment("Evolved: \(value)")
