@@ -35,12 +35,6 @@ extension AnyEvolution {
     }.map(AnyEvolution.init(_:))
   }
 
-  static func random<G>(for node: Syntax, in decl: DeclContext, using rng: inout G)
-    -> AnyEvolution? where G: RandomNumberGenerator
-  {
-    return makeAll(for: node, in: decl, using: &rng).randomElement(using: &rng)
-  }
-
   func makePrerequisites<G>(for node: Syntax, in decl: DeclContext, using rng: inout G)
     -> [AnyEvolution] where G: RandomNumberGenerator {
     return value.makePrerequisites(for: node, in: decl, using: &rng)
