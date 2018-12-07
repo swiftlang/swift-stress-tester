@@ -337,6 +337,9 @@ extension VariableDeclSyntax: Decl {
   // FIXME: Is isResilient == true correct?
 
   var isStored: Bool {
+    // FIXME: It's wrong to describe the whole decl as stored or not stored;
+    // each individual binding (or, arguably, each individual bound property)
+    // is stored or not stored.
     return bindings.allSatisfy { binding in
       switch binding.accessor {
       case is CodeBlockSyntax:
@@ -368,6 +371,7 @@ extension VariableDeclSyntax: Decl {
   }
 }
 
+// FIXME: We should shuffle case statements!
 //extension EnumCaseDeclSyntax: DeclWithResilience {
 //
 //}
