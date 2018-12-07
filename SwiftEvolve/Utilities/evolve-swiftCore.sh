@@ -24,7 +24,7 @@ function gensha() {
 
 #gensha >$EVOLVE/before.sha
 
-cd $EVOLVE && env PATH="$BUILD/swiftpm-macosx-x86_64/x86_64-apple-macosx/debug:$PATH" swift run swift-evolve --replace=true $ROOT/swift/stdlib/public/core/*.swift \
+cd $EVOLVE && env PATH="$BUILD/swiftpm-macosx-x86_64/x86_64-apple-macosx/debug:$PATH" swift run swift-evolve --replace --rules=$EVOLVE/Utilities/swiftCore-exclude.json $ROOT/swift/stdlib/public/core/*.swift \
 && cd $ROOT/swift && utils/build-script --release-debuginfo --debug-swift-stdlib -t
 
 # Currently this is hacked to simply build Swift with a debug stdlib while I

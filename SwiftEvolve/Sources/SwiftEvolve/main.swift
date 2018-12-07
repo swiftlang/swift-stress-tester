@@ -19,7 +19,8 @@ import SwiftEvolveKit
 
 guard var invocation = Invocation(rawValue: CommandLine.arguments) else {
   print("""
-        Usage: swift evolve [--replace] [--seed=number] [--plan=evolution.plan] file1.swift file2.swift
+        Usage: swift evolve [--replace] [--rules=rules.json] [--seed=number]
+                            [--plan=evolution.plan] file1.swift file2.swift
         """)
   exit(2)
 }

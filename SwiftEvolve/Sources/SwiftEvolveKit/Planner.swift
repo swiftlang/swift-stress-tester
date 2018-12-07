@@ -27,6 +27,8 @@ public struct PlannedEvolution: Codable {
 
 public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
   var rng: G
+  let rules: EvolutionRules
+  
   public var plan: [PlannedEvolution] = []
   
   var url: URL!
@@ -38,8 +40,9 @@ public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
       .append((evo, node))
   }
 
-  public init(rng: G) {
+  public init(rng: G, rules: EvolutionRules) {
     self.rng = rng
+    self.rules = rules
   }
 
   public func planEvolution(in file: SourceFileSyntax, at url: URL) {
@@ -61,8 +64,9 @@ public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
 
   fileprivate func plan(_ node: Syntax) {
     potentialEvolutionsStack[potentialEvolutionsStack.endIndex - 1] +=
-      AnyEvolution.makeAll(for: node, in: context.declContext, using: &rng)
-        .map { (makePlannedEvolution($0, of: node), node) }
+      AnyEvolution.makeAll(
+        by: rules, for: node, in: context.declContext, using: &rng
+      ).map { (makePlannedEvolution($0, of: node), node) }
   }
   
   public override func visitPre(_ node: Syntax) {

@@ -56,7 +56,7 @@ extension Evolution {
 }
 
 extension AnyEvolution {
-  enum Kind: String, Codable {
+  enum Kind: String, Codable, CaseIterable {
     case shuffleMembers
     case synthesizeMemberwiseInitializer
     case changeDefaultArgument

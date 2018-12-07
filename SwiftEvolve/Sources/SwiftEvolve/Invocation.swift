@@ -19,6 +19,7 @@ import Foundation
 struct Invocation {
   var command: String
   var seed: UInt64 = LinearCongruentialGenerator.makeSeed()
+  var rulesFile: URL?
   var planFile: URL?
   var files: [URL] = []
   var replace: Bool = false
@@ -39,6 +40,9 @@ extension Invocation: RawRepresentable, CustomStringConvertible {
       }
       else if let planPath = arg.parseArg(named: "plan", as: String.self) {
         self.planFile = URL(fileURLWithPath: planPath)
+      }
+      else if let rulesPath = arg.parseArg(named: "rules", as: String.self) {
+        self.rulesFile = URL(fileURLWithPath: rulesPath)
       }
       else if let path = arg.parseArg(named: nil, as: String.self) {
         self.files.append(URL(fileURLWithPath: path))

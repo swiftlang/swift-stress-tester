@@ -27,16 +27,19 @@ struct AnyEvolution {
 }
 
 extension AnyEvolution {
-  static func makeAll<G>(for node: Syntax, in decl: DeclContext, using rng: inout G)
-    -> [AnyEvolution] where G: RandomNumberGenerator
-  {
-    return [Kind.shuffleMembers].compactMap {
+  static func makeAll<G>(
+    by rules: EvolutionRules,
+    for node: Syntax, in decl: DeclContext,
+    using rng: inout G
+  ) -> [AnyEvolution] where G: RandomNumberGenerator {
+    return rules.allKinds(for: decl).compactMap {
       $0.type.init(for: node, in: decl, using: &rng)
     }.map(AnyEvolution.init(_:))
   }
 
-  func makePrerequisites<G>(for node: Syntax, in decl: DeclContext, using rng: inout G)
-    -> [AnyEvolution] where G: RandomNumberGenerator {
+  func makePrerequisites<G>(
+    for node: Syntax, in decl: DeclContext, using rng: inout G
+  ) -> [AnyEvolution] where G: RandomNumberGenerator {
     return value.makePrerequisites(for: node, in: decl, using: &rng)
   }
 

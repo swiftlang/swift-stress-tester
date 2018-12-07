@@ -28,12 +28,23 @@ class Driver {
 }
 
 extension Driver {
+  func readRules() throws -> EvolutionRules {
+    guard let url = invocation.rulesFile else {
+      return EvolutionRules()
+    }
+    let jsonData = try Data(contentsOf: url)
+    return try JSONDecoder().decode(EvolutionRules.self, from: jsonData)
+  }
+  
   func plan() throws {
     guard invocation.planFile == nil else { return }
 
     log("Planning: \(invocation)")
     
-    let planner = Planner(rng: LinearCongruentialGenerator(seed: invocation.seed))
+    let planner = Planner(
+      rng: LinearCongruentialGenerator(seed: invocation.seed),
+      rules: try readRules()
+    )
 
     for file in invocation.files {
       let parsed = try parsedSource(at: file)
