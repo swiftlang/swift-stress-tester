@@ -31,16 +31,15 @@ extension AnyEvolution {
     by rules: EvolutionRules,
     for node: Syntax, in decl: DeclContext,
     using rng: inout G
-  ) -> [AnyEvolution] where G: RandomNumberGenerator {
-    return rules.allKinds(for: decl).compactMap {
-      $0.type.init(for: node, in: decl, using: &rng)
-    }.map(AnyEvolution.init(_:))
-  }
-
-  func makePrerequisites<G>(
-    for node: Syntax, in decl: DeclContext, using rng: inout G
-  ) -> [AnyEvolution] where G: RandomNumberGenerator {
-    return value.makePrerequisites(for: node, in: decl, using: &rng)
+  ) throws -> [[AnyEvolution]] where G: RandomNumberGenerator {
+    return try rules.allKinds(for: decl).compactMap { kind -> [Evolution]? in
+      do {
+        return try kind.type.makeWithPrerequisites(for: node, in: decl, using: &rng)
+      }
+      catch EvolutionError.unsupported {
+        return nil
+      }
+    }.map { $0.map(AnyEvolution.init(_:)) }
   }
 
   func evolve(_ node: Syntax) -> Syntax {

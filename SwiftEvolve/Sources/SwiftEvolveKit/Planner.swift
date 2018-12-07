@@ -33,11 +33,20 @@ public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
   
   var url: URL!
   var context = Context()
+  var error: Error?
 
-  var potentialEvolutionsStack: [[(PlannedEvolution, Syntax)]] = []
-  func addPotentialEvolution(_ evo: PlannedEvolution, on node: Syntax) {
+  // The levels of nesting here mean:
+  //   - Innermost: Contains an evolution plus its prerequisites; all of these
+  //     must be applied together for any of them to be valid.
+  //   - Middle: Set of alternative evolution plans; we will choose one of its
+  //     elements to apply.
+  //   - Outer: Stack corresponding to context.declContext; we push an empty
+  //     set of alternative plans when we enter a decl, and we pop a set and
+  //     choose one of the alternatives when we exit it.
+  var potentialEvolutionsStack: [[[PlannedEvolution]]] = []
+  func addPotentialEvolution(_ evos: [PlannedEvolution], on node: Syntax) {
     potentialEvolutionsStack[potentialEvolutionsStack.endIndex - 1]
-      .append((evo, node))
+      .append(evos)
   }
 
   public init(rng: G, rules: EvolutionRules) {
@@ -45,10 +54,16 @@ public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
     self.rules = rules
   }
 
-  public func planEvolution(in file: SourceFileSyntax, at url: URL) {
+  public func planEvolution(in file: SourceFileSyntax, at url: URL) throws {
     self.url = url.absoluteURL
-    assert(context.syntaxPath.isEmpty)
+    context = Context()
+    error = nil
+
     file.walk(self)
+
+    if let error = error {
+      throw error
+    }
   }
   
   fileprivate func makePlannedEvolution(
@@ -63,13 +78,20 @@ public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
   }
 
   fileprivate func plan(_ node: Syntax) {
-    potentialEvolutionsStack[potentialEvolutionsStack.endIndex - 1] +=
-      AnyEvolution.makeAll(
-        by: rules, for: node, in: context.declContext, using: &rng
-      ).map { (makePlannedEvolution($0, of: node), node) }
+    do {
+      potentialEvolutionsStack[potentialEvolutionsStack.endIndex - 1] +=
+        try AnyEvolution.makeAll(
+          by: rules, for: node, in: context.declContext, using: &rng
+        ).map { $0.map { makePlannedEvolution($0, of: node) } }
+    }
+    catch {
+      self.error = error
+    }
   }
   
   public override func visitPre(_ node: Syntax) {
+    guard error == nil else { return }
+
     if context.enter(node) {
       potentialEvolutionsStack.append([])
     }
@@ -77,29 +99,19 @@ public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
   }
   
   public override func visitPost(_ node: Syntax) {
-    let decl = context.declContext
+    guard error == nil else { return }
 
     if context.leave(node) {
       let potentials = potentialEvolutionsStack.removeLast()
 
-      guard let (selected, node) = potentials.randomElement(using: &rng) else {
+      guard let selected = potentials.randomElement(using: &rng) else {
         return
       }
 
-      func appendWithPrerequisites(_ planned: PlannedEvolution, for node: Syntax) {
-        var plannedCopy = planned
-        let prereqs = planned.evolution.makePrerequisites(
-          for: node, in: decl, using: &rng
-        )
-        for prereq in prereqs {
-          plannedCopy.evolution = prereq
-          appendWithPrerequisites(plannedCopy, for: node)
-        }
+      for planned in selected {
         log("  Planning to evolve \(planned.sourceLocation) by \(planned.evolution)")
         plan.append(planned)
       }
-
-      appendWithPrerequisites(selected, for: node)
     }
   }
 }

@@ -17,6 +17,13 @@
 
 import SwiftSyntax
 
+/// Errors with recognized meaning for evolution initialization.
+enum EvolutionError: Error {
+  /// The evolution does not know how to handle this node. If this is a
+  /// prerequisite evolution, the evolution following it cannot be performed.
+  case unsupported
+}
+
 /// An Evolution is a mechanically-implementable transformation of code. Each
 /// evolution knows which declarations it can be applied to; to see if it can
 /// be applied to a given declaration, try to create an instance with
@@ -28,13 +35,29 @@ protocol Evolution: Codable {
   /// - Parameter decl: The declaration the syntax node is in.
   /// - Parameter rng: A random number generator the evolution can use to
   ///             make decisions pseudo-randomly.
-  /// - Returns: `nil` if the evolution cannot be applied; an instance of the
-  ///            evolution otherwise.
-  init?<G>(for node: Syntax, in decl: DeclContext, using rng: inout G)
+  /// - Throws: Usually an `EvolutionError.unsupported` if the evolution
+  ///           cannot be safely applied to `node`.
+  /// - Returns: The evolution instance, or `nil` if applying the evolution
+  ///            would be a no-op.
+  init?<G>(for node: Syntax, in decl: DeclContext, using rng: inout G) throws
     where G: RandomNumberGenerator
 
-  func makePrerequisites<G>(for node: Syntax, in decl: DeclContext, using rng: inout G)
-    -> [AnyEvolution] where G: RandomNumberGenerator
+  /// Creates instances of any evolutions that need to be applied to `node`
+  /// before `self` is applied.
+  ///
+  /// - Parameter node: The syntax node we're looking to evolve.
+  /// - Parameter decl: The declaration the syntax node is in.
+  /// - Parameter rng: A random number generator the evolution can use to
+  ///             make decisions pseudo-randomly.
+  /// - Throws: Usually an `EvolutionError.unsupported` if the evolution
+  ///           cannot be safely applied to `node`.
+  /// - Returns: An array of evolutions which should be applied before `self`.
+  ///
+  /// - Note: Implementations should usually make the prerequisite evolutions
+  ///         by calling `makeWithPrerequisites(for:in:using:)`.
+  func makePrerequisites<G>(
+    for node: Syntax, in decl: DeclContext, using rng: inout G
+  ) throws -> [Evolution] where G: RandomNumberGenerator
 
   /// Applies the evolution to `node`.
   ///
@@ -48,9 +71,30 @@ protocol Evolution: Codable {
 }
 
 extension Evolution {
-  func makePrerequisites<G>(for node: Syntax, in decl: DeclContext, using rng: inout G)
-    -> [AnyEvolution] where G: RandomNumberGenerator
-  {
+  /// Creates an array containing an instance of the evolution and all
+  /// evolutions that need to be applied along with it.
+  ///
+  /// - Parameter node: The syntax node we're looking to evolve.
+  /// - Parameter decl: The declaration the syntax node is in.
+  /// - Parameter rng: A random number generator the evolution can use to
+  ///             make decisions pseudo-randomly.
+  /// - Throws: Usually an `EvolutionError.unsupported` if the evolution
+  ///           cannot be safely applied to `node`.
+  /// - Returns: An array of evolutions which all need to be applied together,
+  ///            or `nil` if the evolution would be a no-op.
+  static func makeWithPrerequisites<G>(
+    for node: Syntax, in decl: DeclContext, using rng: inout G
+  ) throws -> [Evolution]? where G: RandomNumberGenerator {
+    guard let evo = try self.init(for: node, in: decl, using: &rng) else {
+      return nil
+    }
+    let prereqs = try evo.makePrerequisites(for: node, in: decl, using: &rng)
+    return prereqs + [evo]
+  }
+
+  func makePrerequisites<G>(
+    for node: Syntax, in decl: DeclContext, using rng: inout G
+  ) throws -> [Evolution] where G: RandomNumberGenerator {
     return []
   }
 }
@@ -107,12 +151,12 @@ struct ChangeDefaultArgumentEvolution: Evolution {
 // MARK: Implementations
 
 extension ShuffleMembersEvolution {
-  init?<G>(for node: Syntax, in decl: DeclContext, using rng: inout G)
+  init?<G>(for node: Syntax, in decl: DeclContext, using rng: inout G) throws
     where G: RandomNumberGenerator
   {
     guard
       let members = node as? MemberDeclListSyntax
-    else { return nil }
+    else { throw EvolutionError.unsupported }
 
     func shouldShuffleMember(at i: Int) -> Bool {
       guard let memberDecl = members[i].decl as? Decl else {
@@ -131,12 +175,11 @@ extension ShuffleMembersEvolution {
     self.init(mapping: mapping)
   }
 
-  func makePrerequisites<G>(for node: Syntax, in decl: DeclContext, using rng: inout G)
-    -> [AnyEvolution] where G : RandomNumberGenerator
-  {
-    return [
-      SynthesizeMemberwiseInitializerEvolution(for: node, in: decl, using: &rng)
-    ].compactMap { $0 }.map(AnyEvolution.init(_:))
+  func makePrerequisites<G>(
+    for node: Syntax, in decl: DeclContext, using rng: inout G
+  ) throws -> [Evolution] where G : RandomNumberGenerator {
+    return try SynthesizeMemberwiseInitializerEvolution
+      .makeWithPrerequisites(for: node, in: decl, using: &rng) ?? []
   }
 
   func evolve(_ node: Syntax) -> Syntax {
@@ -151,13 +194,15 @@ extension ShuffleMembersEvolution {
 }
 
 extension SynthesizeMemberwiseInitializerEvolution {
-  init?<G>(for node: Syntax, in decl: DeclContext, using rng: inout G)
+  init?<G>(for node: Syntax, in decl: DeclContext, using rng: inout G) throws
     where G : RandomNumberGenerator
   {
-    guard
-      let members = node as? MemberDeclListSyntax,
-      decl.last is StructDeclSyntax
-    else { return nil }
+    guard let members = node as? MemberDeclListSyntax else {
+      throw EvolutionError.unsupported
+    }
+    guard decl.last is StructDeclSyntax else {
+      return nil
+    }
 
     var hasDefault = true
     var hasMemberwise = true
@@ -262,9 +307,9 @@ extension SynthesizeMemberwiseInitializerEvolution {
 }
 
 extension ChangeDefaultArgumentEvolution {
-  init?<G>(
-    for node: Syntax, in decl: DeclContext, using rng: inout G
-  ) where G: RandomNumberGenerator {
+  init?<G>(for node: Syntax, in decl: DeclContext, using rng: inout G) throws
+    where G: RandomNumberGenerator
+  {
     guard
       let declWithParams = node as? DeclWithParameters,
 
@@ -274,7 +319,7 @@ extension ChangeDefaultArgumentEvolution {
       let index = declWithParams.parameters.parameterList
                     .interestingForDefaultArguments.indices
                       .randomElement(using: &rng)
-    else { return nil }
+    else { throw EvolutionError.unsupported }
 
     self.init(parameterIndex: index)
   }
