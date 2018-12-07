@@ -3,43 +3,43 @@ import SwiftSyntax
 @testable import SwiftEvolveKit
 
 class RegressionTests: XCTestCase {
-    func testUnshuffledDeclsStayInOrder() throws {
-      // Checks that we don't mess up the order of declarations we're not trying
-      // to shuffle. In particular, if we store the properties in a Set or other
-      // unordered collection, we could screw this up.
-      try SyntaxTreeParser.withParsedCode(
-        """
-        @_fixed_layout struct X {
-          var p0: Int
-          var p1: Int
-          var p2: Int
-          var p3: Int
-          var p4: Int
-          var p5: Int
-          var p6: Int
-          var p7: Int
-          var p8: Int
-          var p9: Int
+  func testUnshuffledDeclsStayInOrder() throws {
+    // Checks that we don't mess up the order of declarations we're not trying
+    // to shuffle. In particular, if we store the properties in a Set or other
+    // unordered collection, we could screw this up.
+    try SyntaxTreeParser.withParsedCode(
+      """
+      @_fixed_layout struct X {
+        var p0: Int
+        var p1: Int
+        var p2: Int
+        var p3: Int
+        var p4: Int
+        var p5: Int
+        var p6: Int
+        var p7: Int
+        var p8: Int
+        var p9: Int
+      }
+      """
+    ) { code in
+      let evo = ShuffleMembersEvolution(mapping: [])
+      code.withEach(whereIs: MemberDeclListSyntax.self) { node in
+        let evolved = evo.evolve(node)
+        let evolvedCode = evolved.description
+
+        let locs = (0...9).compactMap {
+          evolvedCode.range(of: "p\($0)")?.lowerBound
         }
-        """
-      ) { code in
-        let evo = ShuffleMembersEvolution(mapping: [])
-        code.withEach(whereIs: MemberDeclListSyntax.self) { node in
-          let evolved = evo.evolve(node)
-          let evolvedCode = evolved.description
-          
-          let locs = (0...9).compactMap {
-            evolvedCode.range(of: "p\($0)")?.lowerBound
-          }
-          
-          XCTAssertEqual(locs.count, 10, "All ten properties were preserved")
-          
-          for (prev, next) in zip(locs, locs.dropFirst()) {
-            XCTAssertLessThan(prev, next, "Adjacent properties are in order")
-          }
+
+        XCTAssertEqual(locs.count, 10, "All ten properties were preserved")
+
+        for (prev, next) in zip(locs, locs.dropFirst()) {
+          XCTAssertLessThan(prev, next, "Adjacent properties are in order")
         }
       }
     }
+  }
 }
 
 extension SyntaxTreeParser {
