@@ -142,7 +142,8 @@ extension ShuffleMembersEvolution {
   func evolve(_ node: Syntax) -> Syntax {
     let members = node as! MemberDeclListSyntax
 
-    let missing = Set(members.indices).subtracting(mapping)
+    let inMapping = Set(mapping)
+    let missing = members.indices.filter { !inMapping.contains($0) }
     let fullMapping = mapping + missing
 
     return SyntaxFactory.makeMemberDeclList(fullMapping.map { members[$0] })
