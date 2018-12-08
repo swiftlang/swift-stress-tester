@@ -71,6 +71,18 @@ class RegressionTests: XCTestCase {
           ),
           "Should throw when a stored property is in a #if block"
         )
+
+        for ifConfig in decl.filter(whereIs: IfConfigDeclSyntax.self) {
+          let dc = DeclContext(declarationChain: [code, decl])
+
+          XCTAssertNil(
+            try SynthesizeMemberwiseInitializerEvolution(
+              for: (ifConfig.clauses.first!.elements as! MemberDeclListSyntax),
+              in: dc, using: &unusedRNG
+            ),
+            "Should not try to synthesize an init() inside an #if"
+          )
+        }
       }
     }
 
@@ -93,6 +105,18 @@ class RegressionTests: XCTestCase {
           ),
           "Should not throw when properties are only non-stored"
         )
+
+        for ifConfig in decl.filter(whereIs: IfConfigDeclSyntax.self) {
+          let dc = DeclContext(declarationChain: [code, decl])
+
+          XCTAssertNil(
+            try SynthesizeMemberwiseInitializerEvolution(
+              for: (ifConfig.clauses.first!.elements as! MemberDeclListSyntax),
+              in: dc, using: &unusedRNG
+            ),
+            "Should not try to synthesize an init() inside an #if"
+          )
+        }
       }
     }
 
@@ -116,6 +140,18 @@ class RegressionTests: XCTestCase {
           ),
           "Should not throw when there's an explicit init"
         )
+
+        for ifConfig in decl.filter(whereIs: IfConfigDeclSyntax.self) {
+          let dc = DeclContext(declarationChain: [code, decl])
+
+          XCTAssertNil(
+            try SynthesizeMemberwiseInitializerEvolution(
+              for: (ifConfig.clauses.first!.elements as! MemberDeclListSyntax),
+              in: dc, using: &unusedRNG
+            ),
+            "Should not try to synthesize an init() inside an #if"
+          )
+        }
       }
     }
   }

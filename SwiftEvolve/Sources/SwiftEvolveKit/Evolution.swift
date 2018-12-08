@@ -201,7 +201,10 @@ extension SynthesizeMemberwiseInitializerEvolution {
     guard let members = node as? MemberDeclListSyntax else {
       throw EvolutionError.unsupported
     }
-    guard decl.last is StructDeclSyntax else {
+    guard
+      decl.last is StructDeclSyntax,
+      members.parent is MemberDeclBlockSyntax
+    else {
       return nil
     }
 
