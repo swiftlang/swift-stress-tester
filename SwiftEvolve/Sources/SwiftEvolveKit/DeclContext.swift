@@ -376,6 +376,29 @@ extension VariableDeclSyntax: Decl {
 //
 //}
 
+extension IfConfigDeclSyntax {
+  var containsStoredMembers: Bool {
+    return clauses.contains { clause in
+      guard let members = clause.elements as? MemberDeclListSyntax else {
+        return false
+      }
+
+      return members.contains { memberItem in
+        switch memberItem.decl {
+        case let nestedIfConfig as IfConfigDeclSyntax:
+          return nestedIfConfig.containsStoredMembers
+
+        case let member as Decl:
+          return member.isStored
+
+        default:
+          return false
+        }
+      }
+    }
+  }
+}
+
 // MARK: - Helpers
 
 extension Optional where Wrapped == AttributeListSyntax {

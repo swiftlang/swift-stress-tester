@@ -207,27 +207,33 @@ extension SynthesizeMemberwiseInitializerEvolution {
 
     var hasDefault = true
     var hasMemberwise = true
+    var hasConditionalStoredProperties = false
     var properties: [StoredProperty] = []
 
     for membersItem in members {
-      guard let member = membersItem.decl as? Decl else { continue }
-
-      if member is InitializerDeclSyntax {
-        // If we declare an explicit init, we don't have implicit ones
-        return nil
-      }
-      else if member.isStored {
-        guard let member = member as? VariableDeclSyntax else {
-          preconditionFailure("Only variable decls should be stored")
+      switch membersItem.decl {
+      case let ifConfig as IfConfigDeclSyntax:
+        if ifConfig.containsStoredMembers {
+          // We would need to generate separate inits for each version. Maybe
+          // someday, but not today.
+          hasConditionalStoredProperties = true
         }
-        
+
+      case is InitializerDeclSyntax:
+        // If we declare an explicit init, we don't have implicit ones
+        // FIXME: Do we need to look into IfConfigDecls for these, too? That
+        // would be ludicrous.
+        return nil
+
+      case let member as VariableDeclSyntax where member.isStored:
+        // We definitely care about stored properties.
         for prop in member.boundProperties {
           if let type = prop.type {
             var typeName = String(describing: type)
             if type.isFunctionType(in: decl) {
               typeName = "@escaping \(typeName)"
             }
-            
+
             properties.append(StoredProperty(
               name: prop.name.text,
               type: typeName
@@ -240,7 +246,20 @@ extension SynthesizeMemberwiseInitializerEvolution {
             hasDefault = false
           }
         }
+
+      default:
+        // Consistency check: This isn't somehow stored, is it?
+        if let member = membersItem.decl as? Decl {
+          assert(!member.isStored, "\(member.name) is a stored non-property???")
+        }
+
+        // If not, then we don't care.
+        continue
       }
+    }
+
+    if hasConditionalStoredProperties {
+      throw EvolutionError.unsupported
     }
     
     var inits: [[StoredProperty]] = []
