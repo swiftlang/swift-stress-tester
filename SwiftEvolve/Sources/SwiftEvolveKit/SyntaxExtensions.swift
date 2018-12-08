@@ -159,7 +159,6 @@ extension TypeSyntax {
       return abs.baseType.isFunctionType(in: dc)
 
     default:
-      log("Not function type: \(type(of: abs))")
       return false
     }
   }
