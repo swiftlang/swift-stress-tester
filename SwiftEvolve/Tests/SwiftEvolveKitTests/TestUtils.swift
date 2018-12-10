@@ -41,3 +41,19 @@ struct UnusedGenerator: RandomNumberGenerator {
     return 0
   }
 }
+
+struct PredictableGenerator: RandomNumberGenerator {
+  let values: [UInt64]
+  var index: Int = 0
+
+  init<S>(values: S) where S: Sequence, S.Element == UInt64 {
+    self.values = Array(values)
+  }
+
+  mutating func next() -> UInt64 {
+    defer {
+      index = (index + 1) % values.count
+    }
+    return values[index]
+  }
+}

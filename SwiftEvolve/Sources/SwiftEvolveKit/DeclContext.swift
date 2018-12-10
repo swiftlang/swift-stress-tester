@@ -65,8 +65,7 @@ extension DeclContext: CustomStringConvertible {
   }
 
   var isStored: Bool {
-    guard let prop = last as? VariableDeclSyntax else { return false }
-    return prop.isStored
+    return last?.isStored ?? false
   }
 }
 
@@ -371,10 +370,39 @@ extension VariableDeclSyntax: Decl {
   }
 }
 
-// FIXME: We should shuffle case statements!
-//extension EnumCaseDeclSyntax: DeclWithResilience {
-//
-//}
+extension EnumCaseElementSyntax {
+  var name: String {
+    let params: String
+    if let paramList = associatedValue?.parameterList {
+      params = paramList.map {
+        "\($0.firstName?.withoutTrivia().text ?? "_"):"
+      }.joined()
+    }
+    else {
+      params = ""
+    }
+    return "\(identifier.withoutTrivia().text)(\( params ))"
+  }
+}
+
+extension EnumCaseDeclSyntax: Decl {
+  var name: String {
+    if elements.count == 1 {
+      return elements.first!.name
+    }
+    else {
+      return "(" + elements.map { $0.name }.joined(separator: ", ") + ")"
+    }
+  }
+
+  var isStored: Bool {
+    return true
+  }
+
+  func lookupDirect(_ name: String) -> Decl? {
+    return nil
+  }
+}
 
 extension IfConfigDeclSyntax {
   var containsStoredMembers: Bool {
@@ -406,3 +434,10 @@ extension Optional where Wrapped == AttributeListSyntax {
     return self?.contains { $0.attributeName.text == name } ?? false
   }
 }
+
+extension Optional where Wrapped == ModifierListSyntax {
+  func contains(named name: String) -> Bool {
+    return self?.contains { $0.name.withoutTrivia().text == name } ?? false
+  }
+}
+
