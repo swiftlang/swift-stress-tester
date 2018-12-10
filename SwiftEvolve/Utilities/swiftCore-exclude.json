@@ -1,6 +1,16 @@
 {
   "changeDefaultArgument": null,
   "shuffleMembers": [
-    "(file)._CocoaSet.Iterator"
+    "(file)._CocoaSet.Iterator",
+    "(file)._SwiftDeferredNSSet",
+    "(file)._CocoaDictionary.Iterator",
+    "(file)._SwiftDeferredNSDictionary",
+    "(file)._StringSwitchContext",
+    "(file).RawKeyPathComponent",
+    "(file).RawKeyPathComponent.Header",
+    "(file).KeyPathBuffer",
+    "(file).KeyPathBuffer.Header",
+    "(file).ComputedArgumentWitnesses",
+    "(file).ComputedPropertyID"
   ]
 }
