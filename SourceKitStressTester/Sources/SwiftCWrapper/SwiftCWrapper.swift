@@ -145,7 +145,8 @@ struct SwiftFile: Comparable {
   }
 
   var isProjectFile: Bool {
-    let dependencyPaths = ["/.build/checkouts/", "/Pods/", "/Carthage/Checkouts"]
+    // TODO: make this configurable
+    let dependencyPaths = ["/.build/checkouts/", "/Pods/", "/Carthage/Checkouts", "/submodules/"]
     return dependencyPaths.allSatisfy {!file.path.contains($0)}
   }
 
