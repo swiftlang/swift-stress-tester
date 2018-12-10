@@ -36,7 +36,7 @@ class FilterVisitor: SyntaxVisitor {
 }
 
 struct UnusedGenerator: RandomNumberGenerator {
-  mutating func next<T>() -> T where T : FixedWidthInteger, T : UnsignedInteger {
+  mutating func next() -> UInt64 {
     XCTFail("RNG used unexpectedly")
     return 0
   }
