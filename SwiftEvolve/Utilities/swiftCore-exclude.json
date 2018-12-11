@@ -1,5 +1,4 @@
 {
-  "changeDefaultArgument": null,
   "shuffleMembers": [
     "(file).(extension _CocoaSet).Iterator",
     "(file)._SwiftDeferredNSSet",

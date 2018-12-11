@@ -104,7 +104,6 @@ extension AnyEvolution {
   enum Kind: String, Codable, CaseIterable {
     case shuffleMembers
     case synthesizeMemberwiseInitializer
-    case changeDefaultArgument
 
     var type: Evolution.Type {
       switch self {
@@ -112,8 +111,6 @@ extension AnyEvolution {
         return ShuffleMembersEvolution.self
       case .synthesizeMemberwiseInitializer:
         return SynthesizeMemberwiseInitializerEvolution.self
-      case .changeDefaultArgument:
-        return ChangeDefaultArgumentEvolution.self
       }
     }
   }
@@ -141,12 +138,6 @@ struct SynthesizeMemberwiseInitializerEvolution: Evolution {
   var inits: [[StoredProperty]]
   
   var kind: AnyEvolution.Kind { return .synthesizeMemberwiseInitializer }
-}
-
-/// An evolution which adds, removes, or changes a default argument.
-struct ChangeDefaultArgumentEvolution: Evolution {
-  var parameterIndex: Int
-  var kind: AnyEvolution.Kind { return .changeDefaultArgument }
 }
 
 // MARK: Implementations
@@ -327,124 +318,6 @@ extension SynthesizeMemberwiseInitializerEvolution {
       return members.appending(MemberDeclListItemSyntax {
         $0.useDecl(newInitializer)
       })
-    }
-  }
-}
-
-extension ChangeDefaultArgumentEvolution {
-  init?<G>(for node: Syntax, in decl: DeclContext, using rng: inout G) throws
-    where G: RandomNumberGenerator
-  {
-    guard
-      let declWithParams = node as? DeclWithParameters,
-
-      // Protocols don't support default args
-      !(decl.declarationChain.dropLast().last is ProtocolDeclSyntax),
-
-      let index = declWithParams.parameters.parameterList
-                    .interestingForDefaultArguments.indices
-                      .randomElement(using: &rng)
-    else { throw EvolutionError.unsupported }
-
-    self.init(parameterIndex: index)
-  }
-
-  func evolve(_ decl: Syntax) -> Syntax {
-    let decl = decl as! DeclWithParameters
-
-    return decl.withParameters(
-      ParameterClauseSyntax { newParams in
-        newParams.useLeftParen(decl.parameters.leftParen)
-
-        for (i, oldParam) in zip(decl.parameters.parameterList.indices, decl.parameters.parameterList) {
-          if i != parameterIndex {
-            newParams.addFunctionParameter(oldParam)
-            continue
-          }
-
-          let newDefaultArg: InitializerClauseSyntax?
-
-          if let newDefaultValue = oldParam.type?.makeDefaultArgument() {
-            newDefaultArg = InitializerClauseSyntax {
-              $0.useEqual(SyntaxFactory.makeEqualToken())
-              $0.useValue(newDefaultValue)
-            }
-          }
-          else {
-            newDefaultArg = nil
-          }
-
-          let newParam = oldParam.withDefaultArgument(newDefaultArg)
-          newParams.addFunctionParameter(newParam)
-        }
-
-        newParams.useRightParen(decl.parameters.rightParen)
-      }
-    )
-  }
-}
-
-// MARK: - Helpers
-
-fileprivate func ~= (name: String, type: TypeSyntax) -> Bool {
-  switch type {
-  case is ArrayTypeSyntax:
-    return "Array".contains(name)
-
-  case is DictionaryTypeSyntax:
-    return "Dictionary".contains(name)
-
-  case is OptionalTypeSyntax:
-    return "Optional".contains(name)
-
-  case is ImplicitlyUnwrappedOptionalTypeSyntax:
-    return "Optional".contains(name)
-
-  case is MetatypeTypeSyntax:
-    return "Type".contains(name)
-
-  case let t as SimpleTypeIdentifierSyntax:
-    return t.name.text.contains(name)
-
-  case let t as MemberTypeIdentifierSyntax:
-    return t.name.text.contains(name)
-
-  case let t as CompositionTypeSyntax:
-    return t.elements.contains { name ~= $0.type }
-
-  default:
-    return false
-  }
-}
-
-extension TypeSyntax {
-  fileprivate func makeDefaultArgument() -> ExprSyntax? {
-    switch self {
-    case "Array", "Set":
-      return ArrayExprSyntax({ _ in })
-    case "Dictionary":
-      return DictionaryExprSyntax({ _ in })
-    case "String", "Substring":
-      return SyntaxFactory.makeStringLiteralExpr("fnord")
-    case "Int":
-      return SyntaxFactory.makeIntegerLiteralExpr(digits:
-        SyntaxFactory.makeIntegerLiteral("42"))
-    case "Double", "Float":
-      return SyntaxFactory.makeFloatLiteralExpr(floatingDigits:
-        SyntaxFactory.makeFloatingLiteral("42.424242"))
-    case "Optional":
-      return SyntaxFactory.makeBlankNilLiteralExpr()
-    default:
-      return nil
-    }
-  }
-}
-
-extension FunctionParameterListSyntax {
-  var interestingForDefaultArguments:
-      LazyFilterCollection<FunctionParameterListSyntax> {
-    return lazy.filter {
-      $0.defaultArgument != nil || $0.type?.makeDefaultArgument() != nil
     }
   }
 }

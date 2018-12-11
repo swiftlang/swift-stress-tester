@@ -29,10 +29,11 @@ class RulesTests: XCTestCase {
     XCTAssertFalse(sharedRules.permit(.synthesizeMemberwiseInitializer, forDeclName: "(file).Foo.Bar"))
     XCTAssertFalse(sharedRules.permit(.synthesizeMemberwiseInitializer, forDeclName: "(file).Baz"))
     XCTAssertTrue(sharedRules.permit(.synthesizeMemberwiseInitializer, forDeclName: "(file).Baz.Quux"))
-    
-    XCTAssertTrue(sharedRules.permit(.changeDefaultArgument, forDeclName: "(file).Foo"))
-    XCTAssertTrue(sharedRules.permit(.changeDefaultArgument, forDeclName: "(file).Foo.Bar"))
-    XCTAssertTrue(sharedRules.permit(.changeDefaultArgument, forDeclName: "(file).Baz"))
-    XCTAssertTrue(sharedRules.permit(.changeDefaultArgument, forDeclName: "(file).Baz.Quux"))
+
+    // FIXME: When we have a third evolution, use it in these tests.
+//    XCTAssertTrue(sharedRules.permit(.changeDefaultArgument, forDeclName: "(file).Foo"))
+//    XCTAssertTrue(sharedRules.permit(.changeDefaultArgument, forDeclName: "(file).Foo.Bar"))
+//    XCTAssertTrue(sharedRules.permit(.changeDefaultArgument, forDeclName: "(file).Baz"))
+//    XCTAssertTrue(sharedRules.permit(.changeDefaultArgument, forDeclName: "(file).Baz.Quux"))
   }
 }
