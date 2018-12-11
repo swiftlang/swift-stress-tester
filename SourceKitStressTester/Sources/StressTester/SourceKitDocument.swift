@@ -213,7 +213,7 @@ struct SourceKitDocument {
       response = $0
       completed.signal()
     }
-    switch completed.wait(timeout: .now() + DispatchTimeInterval.seconds(60)) {
+    switch completed.wait(timeout: .now() + DispatchTimeInterval.seconds(300)) {
     case .success:
       return response!
     case .timedOut:
