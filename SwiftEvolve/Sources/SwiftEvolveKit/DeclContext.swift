@@ -32,7 +32,7 @@ struct DeclContext {
   }
   
   func lookupDirect(_ identifier: TokenSyntax) -> DeclContext? {
-    return lookupDirect(identifier.withoutTrivia().text)
+    return lookupDirect(identifier.text)
   }
 
   /// Looks up `name` in the declarations in `declarationChain`, from last to
@@ -46,7 +46,7 @@ struct DeclContext {
   }
   
   func lookupUnqualified(_ identifier: TokenSyntax) -> DeclContext? {
-    return lookupUnqualified(identifier.withoutTrivia().text)
+    return lookupUnqualified(identifier.text)
   }
 }
 
@@ -176,7 +176,7 @@ extension SourceFileSyntax: Decl {
 
 extension ClassDeclSyntax: Decl {
   var name: String {
-    return identifier.withoutTrivia().text
+    return identifier.text
   }
 
   var isResilient: Bool {
@@ -186,7 +186,7 @@ extension ClassDeclSyntax: Decl {
 
 extension StructDeclSyntax: Decl {
   var name: String {
-    return identifier.withoutTrivia().text
+    return identifier.text
   }
 
   var isResilient: Bool {
@@ -196,7 +196,7 @@ extension StructDeclSyntax: Decl {
 
 extension EnumDeclSyntax: Decl {
   var name: String {
-    return identifier.withoutTrivia().text
+    return identifier.text
   }
 
   var isResilient: Bool {
@@ -206,7 +206,7 @@ extension EnumDeclSyntax: Decl {
 
 extension ProtocolDeclSyntax: Decl {
   var name: String {
-    return identifier.withoutTrivia().text
+    return identifier.text
   }
 }
 
@@ -218,7 +218,7 @@ extension ExtensionDeclSyntax: Decl {
 
 extension TypealiasDeclSyntax: Decl {
   var name: String {
-    return identifier.withoutTrivia().text
+    return identifier.text
   }
   
   func lookupDirect(_ name: String) -> Decl? {
@@ -228,7 +228,7 @@ extension TypealiasDeclSyntax: Decl {
 
 extension AssociatedtypeDeclSyntax: Decl {
   var name: String {
-    return identifier.withoutTrivia().text
+    return identifier.text
   }
   
   func lookupDirect(_ name: String) -> Decl? {
@@ -250,7 +250,7 @@ extension PatternSyntax {
   var boundIdentifiers: [(name: TokenSyntax, type: TypeSyntax?)] {
     switch self {
     case let self as IdentifierPatternSyntax:
-      return [(self.identifier.withoutTrivia(), nil)]
+      return [(self.identifier, nil)]
 
     case let self as AsTypePatternSyntax:
       let subnames = self.pattern.boundIdentifiers
@@ -315,8 +315,8 @@ extension VariableDeclSyntax: Decl {
   
   var name: String {
     let list = boundProperties
-    if list.count == 1 { return String(describing: list.first!.name) }
-    let nameList = list.map { String(describing: $0.name) }
+    if list.count == 1 { return list.first!.name.text }
+    let nameList = list.map { $0.name.text }
     return "(\( nameList.joined(separator: ", ") ))"
   }
 
@@ -348,7 +348,7 @@ extension VariableDeclSyntax: Decl {
       case let accessorBlock as AccessorBlockSyntax:
         // Check the individual accessors.
         return accessorBlock.accessors.allSatisfy { accessor in
-          switch accessor.accessorKind.withoutTrivia().text {
+          switch accessor.accessorKind.text {
           case "willSet", "didSet":
             // These accessors are allowed on stored properties.
             return true
@@ -375,13 +375,13 @@ extension EnumCaseElementSyntax {
     let params: String
     if let paramList = associatedValue?.parameterList {
       params = paramList.map {
-        "\($0.firstName?.withoutTrivia().text ?? "_"):"
+        "\($0.firstName?.text ?? "_"):"
       }.joined()
     }
     else {
       params = ""
     }
-    return "\(identifier.withoutTrivia().text)(\( params ))"
+    return "\(identifier.text)(\( params ))"
   }
 }
 
@@ -437,7 +437,7 @@ extension Optional where Wrapped == AttributeListSyntax {
 
 extension Optional where Wrapped == ModifierListSyntax {
   func contains(named name: String) -> Bool {
-    return self?.contains { $0.name.withoutTrivia().text == name } ?? false
+    return self?.contains { $0.name.text == name } ?? false
   }
 }
 

@@ -47,7 +47,7 @@ extension InitializerDeclSyntax: AbstractFunctionDecl {
 
 extension FunctionDeclSyntax: AbstractFunctionDecl {
   var baseName: String {
-    return identifier.withoutTrivia().text
+    return identifier.text
   }
 
   var parameters: ParameterClauseSyntax {
@@ -74,7 +74,7 @@ extension SubscriptDeclSyntax: DeclWithParameters {
 extension DeclWithParameters {
   var name: String {
     let parameterNames = parameters.parameterList.map { param in
-      "\(param.firstName?.withoutTrivia().text ?? "_"):"
+      "\(param.firstName?.text ?? "_"):"
     }
     return "\( baseName )(\( parameterNames.joined() ))"
   }
