@@ -179,8 +179,10 @@ extension ShuffleMembersEvolution {
   func makePrerequisites<G>(
     for node: Syntax, in decl: DeclContext, using rng: inout G
   ) throws -> [Evolution] where G : RandomNumberGenerator {
-    return try SynthesizeMemberwiseInitializerEvolution
-      .makeWithPrerequisites(for: node, in: decl, using: &rng) ?? []
+    return [
+      try SynthesizeMemberwiseInitializerEvolution
+        .makeWithPrerequisites(for: node, in: decl, using: &rng)
+    ].compactMap { $0 }.flatMap { $0 }
   }
 
   func evolve(_ node: Syntax) -> Syntax {
