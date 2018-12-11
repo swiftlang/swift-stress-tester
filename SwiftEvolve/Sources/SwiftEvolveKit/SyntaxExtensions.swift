@@ -163,3 +163,49 @@ extension TypeSyntax {
     }
   }
 }
+
+extension TypeSyntax {
+  var typeText: String {
+    let formatter = TokenTextFormatter()
+    walk(formatter)
+    return formatter.text
+  }
+}
+
+extension TokenKind {
+  var needsSpace: Bool {
+    if isKeyword { return true }
+    switch self {
+    case .identifier, .dollarIdentifier, .integerLiteral, .floatingLiteral, .yield:
+      return true
+    default:
+      return false
+    }
+  }
+}
+
+fileprivate class TokenTextFormatter: SyntaxVisitor {
+  var previous: TokenKind?
+  var text: String = ""
+
+  override init() {
+    super.init()
+  }
+
+  override func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
+    switch token.tokenKind {
+    case .comma:
+      text += ", "
+    case .colon:
+      text += ": "
+    case .arrow:
+      text += " -> "
+    case _ where token.tokenKind.needsSpace && (previous?.needsSpace ?? false):
+      text += " " + token.text
+    case _:
+      text += token.text
+    }
+    previous = token.tokenKind
+    return .skipChildren
+  }
+}

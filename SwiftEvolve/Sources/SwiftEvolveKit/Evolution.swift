@@ -234,7 +234,7 @@ extension SynthesizeMemberwiseInitializerEvolution {
         // We definitely care about stored properties.
         for prop in member.boundProperties {
           if let type = prop.type {
-            var typeName = String(describing: type)
+            var typeName = type.typeText
             if type.isFunctionType(in: decl) {
               typeName = "@escaping \(typeName)"
             }

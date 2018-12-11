@@ -212,7 +212,7 @@ extension ProtocolDeclSyntax: Decl {
 
 extension ExtensionDeclSyntax: Decl {
   var name: String {
-    return String(describing: extendedType)
+    return "(extension \(extendedType.typeText))"
   }
 }
 
