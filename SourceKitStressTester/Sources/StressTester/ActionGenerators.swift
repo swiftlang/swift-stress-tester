@@ -126,7 +126,7 @@ final class RequestActionGenerator: SyntaxVisitor, ActionGenerator {
   }
 
   override func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
-    actions.append(contentsOf: generateActions(for: token, withReplaceTexts: false))
+    actions.append(contentsOf: generateActions(for: token, withReplaceTexts: false, parentsAreValid: true))
     return .visitChildren
   }
 }
@@ -144,7 +144,7 @@ final class RewriteActionGenerator: SyntaxVisitor, ActionGenerator {
   }
 
   override func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
-    actions.append(contentsOf: generateActions(for: token, withReplaceTexts: true))
+    actions.append(contentsOf: generateActions(for: token, withReplaceTexts: true, parentsAreValid: true))
     return .visitChildren
   }
 }
