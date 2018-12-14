@@ -83,7 +83,6 @@ final class StressTestOperation: Operation {
           status: \(status)
           args: \(process.process.arguments?.joined(separator: " ") ?? "")
           stdout: \(String(data: result.stdout, encoding: .utf8) ?? "")
-          stderr: \(String(data: result.stderr, encoding: .utf8) ?? "")
         """)
     }
   }
