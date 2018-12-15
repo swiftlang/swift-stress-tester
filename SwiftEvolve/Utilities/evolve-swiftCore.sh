@@ -37,6 +37,7 @@ function run() {
 }
 
 function buildSwift() {
+  assertLibNotSymlink
   run "Building Swift with $phase" swift/utils/build-script $BUILD_SCRIPT_ARGS "$@"
 }
 
@@ -56,19 +57,28 @@ function libs() {
   echo "$BUILD_SWIFT/lib/swift$1$2"
 }
 
-function useLibs() {
+function assertLibNotSymlink() {
+  if [ -L $(libs $1 $2) ]; then
+    echo "FAILED: Assertion failure: $(libs $1 $2) is a symlink!"
+    exit 2
+  fi
+}
+
+function linkLibs() {
+  assertLibNotSymlink $1 $2
   rm -rf $(libs)
   ln -s $(libs $1 $2) $(libs)
 }
 
 function saveLibs() {
   rm -rf $(libs $1 $2)
+  assertLibNotSymlink
   mv $(libs) $(libs $1 $2)
-  useLibs $1 $2
 }
 
 function mixLibs() {
   rm -rf $(libs $1 $2)
+  assertLibNotSymlink $1 $1
   run "Copying $1 Modules to $phase" cp -Rc $(libs $1 $1) $(libs $1 $2)
   run "Copying $2 Binaries to $phase" rsync -ai --include '*/' --include '*.dylib' --exclude '*' $(libs $2 $2)/ $(libs $1 $2)
 }
@@ -88,5 +98,5 @@ saveLibs 'Evolved' 'Evolved'
 
 phase="Current Modules, Evolved Binaries"
 mixLibs 'Current' 'Evolved'
-useLibs 'Current' 'Evolved'
+linkLibs 'Current' 'Evolved'
 testSwift --param swift_evolve
