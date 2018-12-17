@@ -86,10 +86,12 @@ function mixLibs() {
 phase="Current Modules, Current Binaries"
 buildSwift --llbuild --swiftpm --swiftsyntax
 testSwift
-saveLibs 'Current' 'Current'
 
+# We have to run this before we move the libraries out of the way.
 evolveSwift
 diffStdlib stdlib.diff
+
+saveLibs 'Current' 'Current'
 
 phase="Evolved Modules, Evolved Binaries"
 buildSwift
