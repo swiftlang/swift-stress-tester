@@ -14,42 +14,4 @@
 ///
 // -----------------------------------------------------------------------------
 
-import Foundation
-import SwiftEvolveKit
-
-guard var invocation = Invocation(rawValue: CommandLine.arguments) else {
-  print("""
-        Usage: swift evolve [--replace] [--rules=rules.json] [--seed=number]
-                            [--plan=evolution.plan] file1.swift file2.swift
-        """)
-  exit(2)
-}
-
-func logError(_ error: Error) {
-  log(error.localizedDescription)
-
-  let e = error as NSError
-  log("Debug Description:", e.debugDescription)
-  log("User Info:", e.userInfo)
-  
-  if let le = error as? LocalizedError {
-    if let fr = le.failureReason { log("Failure Reason:", fr) }
-    if let rs = le.recoverySuggestion { log("Recovery Suggestion:", rs) }
-  }
-  
-  if let e = error as? CocoaError, let u = e.underlying {
-    log("Underlying Error:")
-    logError(u)
-  }
-}
-
-do {
-  let driver = Driver(invocation: invocation)
-  try driver.plan()
-  try driver.evolve()
-}
-catch {
-  log(type(of: error))
-  logError(error)
-  exit(1)
-}
+SwiftEvolveTool(arguments: CommandLine.arguments).run()

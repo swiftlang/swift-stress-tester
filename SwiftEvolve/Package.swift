@@ -10,6 +10,7 @@ let package = Package(
         .library(name: "SwiftEvolveKit", targets: ["SwiftEvolveKit"])
     ],
     dependencies: [
+        .package(url: "https://github.com/apple/swift-package-manager.git", from: "0.2.0"),
         .package(path: "../../swift-syntax"),
     ],
     targets: [
@@ -17,7 +18,7 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages which this package depends on.
         .target(
             name: "SwiftEvolve",
-            dependencies: ["SwiftEvolveKit", "SwiftSyntax"]),
+            dependencies: ["SwiftEvolveKit", "SwiftSyntax", "Utility"]),
         .target(
             name: "SwiftEvolveKit",
             dependencies: ["SwiftSyntax"]),
