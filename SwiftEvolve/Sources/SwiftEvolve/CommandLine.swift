@@ -70,7 +70,7 @@ extension SwiftEvolveTool.Step {
       replace = parser.add(option: "--replace", kind: Bool.self,
                            usage: "Replace files with modified versions instead of printing them")
       files = parser.add(positional: "<source-file>", kind: [PathArgument].self,
-                         optional: false, strategy: .oneByOne,
+                         optional: false,
                          usage: "Swift source files to modify")
     }
   }
