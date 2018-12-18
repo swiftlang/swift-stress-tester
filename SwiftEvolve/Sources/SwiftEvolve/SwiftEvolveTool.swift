@@ -129,7 +129,10 @@ extension SwiftEvolveTool {
 
       if options.replace {
         try withExtendedLifetime(
-          TemporaryFile(dir: nil, prefix: "", suffix: file.basename, deleteOnClose: true)
+          TemporaryFile(
+            dir: file.parentDirectory, prefix: "", suffix: file.basename,
+            deleteOnClose: true
+          )
         ) { tempFile in
           tempFile.fileHandle.write(evolved.description)
           
