@@ -14,6 +14,6 @@
 ///
 // -----------------------------------------------------------------------------
 
-import SwiftEvolveKit
+import SwiftEvolve
 
 SwiftEvolveTool(arguments: CommandLine.arguments).run()
