@@ -45,6 +45,9 @@ class RegressionTests: XCTestCase {
   }
 
   func testStoredIfConfigBlocksMemberwiseInitSynthesis() throws {
+    // FIXME: Crashes when run in Xcode because of a version mismatch between
+    // SwiftSyntax and the compiler it uses (specifically, how they represent
+    // accessor blocks). Should pass in "env PATH=... swift build".
     try SyntaxTreeParser.withParsedCode(
       """
       struct A {
