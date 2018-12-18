@@ -1,16 +1,19 @@
 import XCTest
 import SwiftSyntax
 @testable import SwiftEvolve
+import Basic
 
 extension SyntaxTreeParser {
   static func withParsedCode(
     _ code: String, do body: (SourceFileSyntax) throws -> Void
     ) throws -> Void {
-    let url = try code.write(toTemporaryFileWithPathExtension: "swift")
-    defer {
-      try? FileManager.default.removeItem(at: url)
+    try withExtendedLifetime(
+      TemporaryFile(dir: nil, prefix: "test", suffix: "swift", deleteOnClose: true)
+    ) { tempFile in
+      tempFile.fileHandle.write(code)
+      tempFile.fileHandle.synchronizeFile()
+      try body(parse(URL(tempFile.path)))
     }
-    try body(parse(url))
   }
 }
 

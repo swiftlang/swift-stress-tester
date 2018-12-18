@@ -28,48 +28,6 @@ extension FileHandle: TextOutputStream {
   }
 }
 
-extension String {
-  public func write(
-    toTemporaryFileWithPathExtension pathExtension: String,
-    appropriateFor destination: URL? = nil
-  ) throws -> URL {
-    let tempDir: URL = try withErrorContext(
-      url: destination, debugDescription: "while creating temporary directory"
-    ) {
-      if let destination = destination {
-        return try FileManager.default.url(
-          for: .itemReplacementDirectory, in: .userDomainMask,
-          appropriateFor: destination.deletingLastPathComponent(),
-          create: true
-        )
-      }
-      else {
-        let dir = try FileManager.default.url(
-          for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil,
-          create: true
-          ).appendingPathComponent("SwiftEvolve")
-        try FileManager.default.createDirectory(
-          at: dir, withIntermediateDirectories: true
-        )
-        return dir
-      }
-    }
-    
-    let tempFile = tempDir.appendingPathComponent(
-      ProcessInfo().globallyUniqueString + "." + pathExtension
-    )
-    
-    try withErrorContext(
-      url: tempFile,
-      debugDescription: "write(to: tempFile, ...)"
-    ) {
-      try write(to: tempFile, atomically: true, encoding: .utf8)
-    }
-    
-    return tempFile
-  }
-}
-
 public func withErrorContext<Result>(
   url: URL?, debugDescription: String, do body: () throws -> Result
 ) throws -> Result {
