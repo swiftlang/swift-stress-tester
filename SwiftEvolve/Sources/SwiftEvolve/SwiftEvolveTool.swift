@@ -178,9 +178,10 @@ extension URL {
 }
 
 fileprivate func logError(_ error: Error) {
-  log(error.localizedDescription)
+  log(error)
   
   let e = error as NSError
+  log("Localized Description:", e.localizedDescription)
   log("Debug Description:", e.debugDescription)
   log("User Info:", e.userInfo)
   

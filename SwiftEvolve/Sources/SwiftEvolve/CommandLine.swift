@@ -19,6 +19,17 @@ import Basic
 
 // MARK: Argument parsing
 
+enum CommandLineError: Error {
+  case mutuallyExclusiveArguments(String, String)
+  
+  var description: String {
+    switch self {
+    case .mutuallyExclusiveArguments(let a, let b):
+      return "cannot specify both \(a) and \(b); they are mutually exclusive"
+    }
+  }
+}
+
 extension SwiftEvolveTool.Step {
   init(arguments: [String]) throws {
     let command = arguments.first!
@@ -27,14 +38,14 @@ extension SwiftEvolveTool.Step {
     let schema = ArgumentSchema()
     let result = try schema.parser.parse(rest)
 
-    self.init(
+    try self.init(
       seed: result.get(schema.seed),
       planFile: result.get(schema.planFile),
       options: Options(command: command, schema: schema, result: result)
     )
   }
   
-  fileprivate init(seed: UInt64?, planFile: PathArgument?, options: Options) {
+  fileprivate init(seed: UInt64?, planFile: PathArgument?, options: Options) throws {
     switch (seed, planFile) {
     case (nil, nil):
       self = .seed(options: options)
@@ -43,8 +54,7 @@ extension SwiftEvolveTool.Step {
     case (nil, let planFile?):
       self = .evolve(planFile: planFile.path, options: options)
     case (_?, _?):
-      log("Error: Cannot specify both seed and plan")
-      self = .exit(code: 2)
+      throw CommandLineError.mutuallyExclusiveArguments("--seed", "--plan")
     }
   }
   
