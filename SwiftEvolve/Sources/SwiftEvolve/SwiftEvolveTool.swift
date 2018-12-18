@@ -16,10 +16,9 @@
 
 import Foundation
 import SwiftSyntax
-import SwiftEvolveKit
 import Basic
 
-class SwiftEvolveTool {
+public class SwiftEvolveTool {
   enum Step {
     case parse(arguments: [String])
     case seed(options: Options)
@@ -38,7 +37,7 @@ class SwiftEvolveTool {
   var nextStep: Step
   fileprivate var parsedSourceFiles: [AbsolutePath: SourceFileSyntax] = [:]
   
-  init(arguments: [String]) {
+  public init(arguments: [String]) {
     nextStep = .parse(arguments: arguments)
   }
 }
@@ -61,7 +60,7 @@ extension SwiftEvolveTool.Step {
 }
 
 extension SwiftEvolveTool {
-  func run() -> Never {
+  public func run() -> Never {
     while true {
       log("\(nextStep.name): \(nextStep)")
       do {

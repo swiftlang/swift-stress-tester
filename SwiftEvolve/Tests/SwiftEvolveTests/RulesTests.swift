@@ -1,5 +1,5 @@
 import XCTest
-@testable import SwiftEvolveKit
+@testable import SwiftEvolve
 
 class RulesTests: XCTestCase {
   let sharedRules = EvolutionRules(exclusions: [

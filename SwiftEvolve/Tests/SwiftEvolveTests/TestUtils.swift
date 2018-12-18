@@ -1,6 +1,6 @@
 import XCTest
 import SwiftSyntax
-@testable import SwiftEvolveKit
+@testable import SwiftEvolve
 
 extension SyntaxTreeParser {
   static func withParsedCode(

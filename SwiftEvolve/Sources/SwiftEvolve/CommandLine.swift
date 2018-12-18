@@ -43,7 +43,7 @@ extension SwiftEvolveTool.Step {
     case (nil, let planFile?):
       self = .evolve(planFile: planFile.path, options: options)
     case (_?, _?):
-      stderrStream <<< "Cannot specify both seed and plan"
+      log("Error: Cannot specify both seed and plan")
       self = .exit(code: 2)
     }
   }
