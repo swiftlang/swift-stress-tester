@@ -19,7 +19,7 @@ import Basic
 
 // MARK: Argument parsing
 
-enum CommandLineError: Error {
+enum CommandLineError: Error, CustomStringConvertible {
   case mutuallyExclusiveArguments(String, String)
   
   var description: String {

@@ -19,14 +19,14 @@ import SwiftSyntax
 import Basic
 
 public class SwiftEvolveTool {
-  enum Step {
+  enum Step: Hashable {
     case parse(arguments: [String])
     case seed(options: Options)
     case plan(seed: UInt64, options: Options)
     case evolve(planFile: AbsolutePath, options: Options)
     case exit(code: Int32)
     
-    struct Options {
+    struct Options: Hashable {
       let command: String
       let files: [AbsolutePath]
       let rulesFile: AbsolutePath?
