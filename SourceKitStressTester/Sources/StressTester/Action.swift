@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-enum Action {
+enum Action: Equatable {
   case cursorInfo(position: SourcePosition)
   case codeComplete(position: SourcePosition)
   case rangeInfo(range: SourceRange)
