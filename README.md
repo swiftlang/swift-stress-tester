@@ -9,6 +9,7 @@ This project aims to provide stress testing utilities to help find reproducible 
 | Tool      | Description |
 | --------- | ----------- |
 [sk&#8209;stress&#8209;test](SourceKitStressTester/README.md) | a utility for exercising a range of SourceKit functionality, such as code completion and local refactorings, at all applicable locations in a set of Swift source files.
+[swift&#8209;evolve](SwiftEvolve/README.md) | a utility to randomly modify Swift source files in ways libraries are permitted to evolve without breaking ABI compatibility.
 
 ## License
 
