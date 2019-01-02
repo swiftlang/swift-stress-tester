@@ -5,49 +5,7 @@ The Sourcekitd stress tester is a utility for running a range of sourcekitd requ
 
 ## Building
 
-The sourcekitd stress tester relies on the SwiftLang library, which isn't included in Xcode's default toolchain, so make sure you have a recent trunk or Swift 5.0 development toolchain installed from [swift.org](https://swift.org/download/). 
-
-Also take note of where the toolchain you installed is located. Depending on the options you chose this should be under Library/Developer/Toolchains/<downloaded-toolchain> in either you home or root directory, e.g:
-```
-$ TOOLCHAIN_DIR=/Library/Developer/Toolchains/swift-DEVELOPMENT-SNAPSHOT-2018-11-26-a.xctoolchain
-```
-
-### Workspace setup
-For local development you'll need to have the [Swift](https://github.com/apple/swift) and [SwiftSyntax](https://github.com/apple/swift-syntax) repositories checked out adjacent to the swift-stress-tester repository in the structure shown below:
-```
-<workspace>/
-  swift/
-  swift-syntax/
-  swift-stress-tester/
-```
-If you installed the Swift 5.0 development toolchain be sure to check out `swift-5.0-branch`, rather than `master` in all of these repositories before continuing with the instructions below.
-
-### Via Xcode
-
-To generate an Xcode project that's set up correctly, run `build-script-helper.py` in the Utilities directory, passing the path to the swiftc executable in the downloaded toolchain via the `--swiftc-exec` option and the `generate-xcodeproj` action:
-```
-$ ./Utilities/build-script-helper.py --swiftc-exec $TOOLCHAIN_DIR/usr/bin/swiftc generate-xcodeproj
-```
-This will generate `SourceKitStressTester.xcodeproj`. Open it and select the toolchain you installed from the Xcode > Toolchains menu, before building the `SourceKitStressTester-Package` scheme.
-
-### Via command line
-
-To build, run `build-script-helper.py` in the Utilities directory, passing the path to the swiftc executable in the downloaded toolchain via the `--swiftc-exec` option:
-```
-$ ./Utilities/build-script-helper.py --swiftc-exec $TOOLCHAIN_DIR/usr/bin/swiftc
-```
-
-To run the tests, repeat the above command, but additionally pass the `test` action:
-```
-$ ./Utilities/build-script-helper.py --swiftc-exec $TOOLCHAIN_DIR/usr/bin/swiftc test
-```
-
-### Via swift's build script
-
-If you want to build the stress tester to use a locally built sourcekitd and SwiftLang, use the Swift repository's build-script to build and test the stress tester by passing `--swiftsyntax` and `--skstresstester` as extra options. To build and run tests, for example, you would run:
-```
-$ ./utils/build-script -t --swiftsyntax --skstresstester
-```
+You can build SourceKitStressTester using Swift's build-script, using the command line, or using Xcode. In the latter two cases, you'll use the build-script-helper.py script in the parent directory. Please see [the README file adjacent to it](../README.md) for full instructions.
 
 ## Running
 

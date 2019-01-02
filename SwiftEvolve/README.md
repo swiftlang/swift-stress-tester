@@ -1,100 +1,68 @@
 # swift-evolve
 
-This tool randomly permutes Swift source code in ways that should be safe for
-resilience. You can then rebuild the dylibs with the modified source, drop them
-into an existing binary distribution, and test that nothing breaks.
+SwiftEvolve simulates a framework engineer evolving a library in backwards-compatible ways by taking Swift source files as input and making random source- and binary-compatible changes to them. It currently shuffles members within type declarations and replaces implicit memberwise initializers with explicit ones.
 
-## Requirements
+SwiftEvolve can be used as part of a larger workflow to test Swift's source- and binary-compatibility features. If it is applied to the source code of a library, the modified version should pass all tests the original did; if that library is built with `-enable-resilience`, its dylibs should be usable as drop-in replacements for the original library's. Any failures usually indicate either a bug in the tool or a bug in the language.
 
-swift-evolve currently works only with the Swift 5 master branch. It is built with swiftpm
-and requires SwiftSyntax.
+SwiftEvolve is not intended to test the library it is run against; rather, it uses that library and its test suite to test the compiler. However, the failures it causes may sometimes indicate that the library is unsafely depending upon compiler implementation details, such as the memory layout of Swift types.
 
-To set up the appropriate environment:
+## Building
 
-```
-$ mkdir src && cd src
-$ brew install cmake ninja
-$ git clone https://github.com/apple/swift.git
-$ ./swift/utils/update-checkout --clone
-```
+You can build SwiftEvolve using Swift's build-script, using the command line, or using Xcode. In the latter two cases, you'll use the build-script-helper.py script in the parent directory. Please see [the README file adjacent to it](../README.md) for full instructions.
 
-## Running resilience tests automatically
+## Running
 
-You can automatically run resilience tests on the standard library with:
+However you build, you will end up with an executable called `swift-evolve`. It will be available in the `.build/debug` directory if building on the command line or via the Swift repo's build-script, and under `Products/Debug` in the Xcode project's `DerivedData` directory if building there. It is (or will soon be) also available in the `usr/bin` directory of recent trunk and swift 5.0 development toolchains from swift.org, if you're just interested in running them, rather than building them locally.
+
+### swift-evolve
+
+The `swift-evolve` executable takes one or more Swift source files as input. By default, it generates a random seed, then uses it to select source-compatible evolutions to apply to the files, and finally applies the selected evolutions and prints the resulting source code. As it goes, it prints out modified copies of its command line that can be used to reproduce its changes.
 
 ```
-$ swift-stress-tester/SwiftEvolve/Utility/evolve-swiftCore.sh
+$ .build/debug/swift-evolve SourceFile.swift
+Planning: .build/debug/swift-evolve --seed=14113475929543082565 /Users/yourname/src/SourceFile.swift
+  ...
+Evolving: .build/debug/swift-evolve --plan=evolution.plan /Users/yourname/src/SourceFile.swift
+  ...
+class MyClass {
+  deinit { print("in deinit") }
+  var myInt: Int
+  var myString: String { ... }
+  ...
+}
+...
 ```
 
-This performs the following steps:
+The tool has a number of options; the most important is probably `--replace`, which makes it rewrite files in-place instead of printing the modified versions.
 
-1. Build Swift, llbuild, SwiftPM, and SwiftSyntax.
+By itself, modifying the source code of a project doesn't do anything; it then needs to be rebuilt and tested in some interesting way:
 
-2. Run Swift's test suite. **If any tests fail at this point, there is a bug in Swift master which
-  has nothing to do with swift-evolve.**
+* Rebuilding the project and running its tests simulates using a new version at both build and runtime.
 
-3. Evolve the standard library and generate a diff of the changes.
+* Rebuilding the project's implementation (dylibs) but keeping its interface (swiftmodule and other files) unchanged simulates building against an old version but running with a new version.
 
-4. Move the original `lib/swift` folder (containing the generated modules and binaries)
-   aside.
-    
-5. Rebuild Swift with the evolved standard library.
+* Rebuilding the project's interface but keeping its implementation unchanged simulates building against a new version but running with an old version.
 
-6. Run Swift's test suite, excluding tests known to generate false positives. **If any tests fail
-   at this point, there is a source-compatibility bug in Swift or swift-evolve.**
+The `swift-evolve` tool is meant to be used as one step in a larger process which rebuilds and possibly mixes files to create these configurations. Rebuilding, mixing, and testing can be done by hand, or it can be automated using a script. The `Utility/evolve-swiftCore.sh` script in this repository is one such example.
 
-7. Move the evolved `lib/swift` folder aside.
+`swift-evolve` does not make the same changes every time it's run, so it's best to evolve and test, then restore the source files to their original state and repeat until satisfied there's nothing left to shake out.
 
-8. Create a new `lib/swift` folder by combining the original modules with the evolved
-   binaries.
+### Utility/evolve-swiftCore.sh
 
-9. Run Swift's test suite, excluding tests known to generate false positives. **If any tests fail
-   at this point, there is a binary-compatibility bug in Swift or swift-evolve.**
+This script automates resilience testing using the Swift standard library and lit test suite. Specifically, it performs the following steps:
 
-## Evolving code manually
+1. Builds the current Swift and SwiftEvolve, then tests Swift.
+2. Evolves the Swift standard library, then re-tests Swift.
+3. Mixes the current interface files with the evolved implementation files, then re-tests Swift.
 
-To use swift-evolve in another scenario, you can manually build swift-evolve's prerequisites
-and run it on code of your choice with these two commands:
+Any build or test failures indicate a bug in either SwiftEvolve or the Swift compiler; depending on the step it's in, you can tell which kind of bug it found:
 
-```
-$ ./swift/utils/build-script --llbuild --swiftpm --swiftsyntax
-$ env PATH=$(pwd)/build/Ninja-ReleaseAssert/swiftpm-macosx-x86_64/x86_64-apple-macosx/debug:$PATH \
-swift run --package-path swift-stress-tester/SwiftEvolve swift-evolve <args>
-```
+1. A bug in the basic functionality of Swift; normal builds should show the same issues.
+2. A bug in the source stability of Swift or SwiftEvolve's evolutions.
+3. A bug in the ABI stability of Swift or SwiftEvolve's evolutions.
 
-(The `env` command here ensures you use the right compiler with the package manager
-built alongside it; you could instead use a toolchain or some other arrangement.)
+The script also captures standard library diffs and other information which might be useful to reproduce any failures.
 
-The simplest use is to print an evolved version of a source file:
+Some parts of the standard library are tied to private implementation details of the compiler or runtime; evolving these in certain ways may cause spurious failures. The `swiftCore-exclude.json` specifies these declarations and the evolutions that are expected to break them so that `swift-evolve` can avoid causing these issues.
 
-```
-$ swift-evolve MyFile.swift
-```
-
-("swift-evolve" here is in practice a stand-in for the long `swift run` command above.)
-
-swift-evolve can instead overwrite its inputs with evolved versions:
-
-```
-$ swift-evolve --replace MyFile.swift
-```
-
-It can take multiple source files:
-
-```
-$ swift-evolve --replace MyFile.swift OtherFile.swift
-```
-
-And it can take a rules file specifying evolutions which are normally ABI-compatible, but
-which should not be performed on this specific codebase:
-
-```
-$ swift-evolve --replace --rules excluded.json MyFile.swift OtherFile.swift
-```
-
-(See the Utilities/swiftCore-exclude.json file for an example of such a rules file.)
-
-swift-evolve chooses the evolutions it performs randomly. As it runs, it will print new
-versions of its command line with a `--seed` or `--plan` parameter. These can be used
-to reproduce the same execution of the tool. It also inserts comments into the evolved
-source code obliquely describing the evolutions it performed.
+When running Swift's test suite in steps 2 or 3, the script turns on the "swift_evolve" feature in `lit`. This feature is used to disable tests which are known to sometimes fail during swift-evolve testing, either due to expected behavor or due to known but unfixed bugs. When a test is known to sometimes fail during swift-evolve testing, you should add `// UNSUPPORTED: swift_evolve` to its file.
