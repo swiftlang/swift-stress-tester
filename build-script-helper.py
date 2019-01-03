@@ -23,8 +23,8 @@ import sys
 import os
 import subprocess
 
-def main():
-  args = parse_args(sys.argv[1:])
+def main(argv_prefix = []):
+  args = parse_args(argv_prefix + sys.argv[1:])
   run(args)
 
 def parse_args(args):
