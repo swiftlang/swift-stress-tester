@@ -118,7 +118,7 @@ function mixLibs() {
 
 # Build and test a stock version of Swift.
 phase="Current Modules, Current Binaries"
-buildSwift --llbuild --swiftpm --swiftsyntax --swiftevolve
+buildSwift --swiftsyntax --swiftevolve
 testSwift
 
 # Modify the standard library.
