@@ -64,7 +64,7 @@ def parse_args(args):
                         os.path.join(repo_path, parsed.package_dir))
 
   # Convert build_dir to absolute path, relative to package_dir.
-  parsed.build_dir = os.path.join(parsed.package_dir, '.build')
+  parsed.build_dir = os.path.join(parsed.package_dir, parsed.build_dir)
 
   return parsed
 
