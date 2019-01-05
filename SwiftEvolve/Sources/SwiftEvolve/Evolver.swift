@@ -18,7 +18,7 @@ import Foundation
 import SwiftSyntax
 
 struct Context {
-  var syntaxPath = IndexPath()
+  var syntaxPath: [Int] = []
   var declContext = DeclContext()
 
   @discardableResult
@@ -43,7 +43,7 @@ struct Context {
 }
 
 public class Evolver: SyntaxRewriter {
-  var plan: [URL: [IndexPath: [PlannedEvolution]]]
+  var plan: [URL: [[Int]: [PlannedEvolution]]]
   var url: URL!
   
   var context = Context()
