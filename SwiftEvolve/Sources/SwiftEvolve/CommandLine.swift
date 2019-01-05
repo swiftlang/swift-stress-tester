@@ -38,10 +38,13 @@ extension SwiftEvolveTool.Step {
     let schema = ArgumentSchema()
     let result = try schema.parser.parse(rest)
 
+    let options = Options(command: command, schema: schema, result: result)
+    options.setMinimumLogTypeToPrint()
+
     try self.init(
       seed: result.get(schema.seed),
       planFile: result.get(schema.planFile),
-      options: Options(command: command, schema: schema, result: result)
+      options: options
     )
   }
   
@@ -67,6 +70,7 @@ extension SwiftEvolveTool.Step {
     let seed: OptionArgument<UInt64>
     let planFile: OptionArgument<PathArgument>
     let replace: OptionArgument<Bool>
+    let verbose: OptionArgument<Bool>
     let files: PositionalArgument<[PathArgument]>
     
     init() {
@@ -79,6 +83,8 @@ extension SwiftEvolveTool.Step {
                             usage: "<PATH> JSON file specifying a pre-generated plan")
       replace = parser.add(option: "--replace", kind: Bool.self,
                            usage: "Replace files with modified versions instead of printing them")
+      verbose = parser.add(option: "--verbose", shortName: "-v", kind: Bool.self,
+                           usage: "Print detailed progress and make source locations more detailed")
       files = parser.add(positional: "<source-file>", kind: [PathArgument].self,
                          optional: false,
                          usage: "Swift source files to modify")
@@ -92,7 +98,8 @@ extension SwiftEvolveTool.Step.Options {
       command: command,
       files: result.get(schema.files)!.map { $0.path },
       rulesFile: result.get(schema.rulesFile)?.path,
-      replace: result.get(schema.replace) ?? false
+      replace: result.get(schema.replace) ?? false,
+      verbose: result.get(schema.verbose) ?? false
     )
   }
 }
@@ -132,6 +139,9 @@ extension SwiftEvolveTool.Step.Options {
     }
     if replace {
       args += ["--replace"]
+    }
+    if verbose {
+      args += ["--verbose"]
     }
     args += files.map { $0.asString }
     return args

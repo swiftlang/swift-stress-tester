@@ -30,7 +30,12 @@ public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
   let rules: EvolutionRules
   
   public var plan: [PlannedEvolution] = []
-  
+
+  /// Make this true to include line and column numbers in
+  /// PlannedEvolution.sourceLocation strings, at the cost of a significant
+  /// increase in planning time.
+  public var includeLineAndColumn: Bool
+
   var url: URL!
   var context = Context()
   var error: Error?
@@ -49,9 +54,10 @@ public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
       .append(evos)
   }
 
-  public init(rng: G, rules: EvolutionRules) {
+  public init(rng: G, rules: EvolutionRules, includeLineAndColumn: Bool) {
     self.rng = rng
     self.rules = rules
+    self.includeLineAndColumn = includeLineAndColumn
   }
 
   public func planEvolution(in file: SourceFileSyntax, at url: URL) throws {
@@ -65,12 +71,21 @@ public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
       throw error
     }
   }
+
+  func makeLocationString(for node: Syntax) -> String {
+    if includeLineAndColumn {
+      return "at \(node.startLocation(in: url))"
+    }
+    else {
+      return "in \(url.path)"
+    }
+  }
   
   fileprivate func makePlannedEvolution(
     _ evolution: Evolution, of node: Syntax
   ) -> PlannedEvolution {
     return PlannedEvolution(
-      sourceLocation: "\(context.declContext.name) at \(node.startLocation(in: url))",
+      sourceLocation: "\(context.declContext.name) \(makeLocationString(for: node))",
       file: url,
       syntaxPath: context.syntaxPath,
       evolution: AnyEvolution(evolution)
@@ -109,7 +124,7 @@ public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
       }
 
       for planned in selected {
-        log("  Planning to evolve \(planned.sourceLocation) by \(planned.evolution)")
+        log(type: .debug, "  Planning to evolve \(planned.sourceLocation) by \(planned.evolution)")
         plan.append(planned)
       }
     }

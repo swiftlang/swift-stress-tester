@@ -79,7 +79,7 @@ public class Evolver: SyntaxRewriter {
     let nodePlan = plan[url, default: [:]][context.syntaxPath, default: []]
 
     return nodePlan.reduce(visit(node)) { node, planned in
-      log("  Evolving \(planned.sourceLocation) by \(planned.evolution)")
+      log(type: .debug, "  Evolving \(planned.sourceLocation) by \(planned.evolution)")
       return planned.evolution.evolve(node)
     }
   }

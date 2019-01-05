@@ -20,7 +20,8 @@ class CommandLineTests: XCTestCase {
         command: "exec-path",
         files: [file(named: "file1.swift")],
         rulesFile: nil,
-        replace: false
+        replace: false,
+        verbose: false
       ))
     )
   }
@@ -32,7 +33,8 @@ class CommandLineTests: XCTestCase {
         command: "exec-path",
         files: [file(named: "file1.swift"), file(named: "file2.swift")],
         rulesFile: nil,
-        replace: false
+        replace: false,
+        verbose: false
       ))
     )
   }
@@ -44,7 +46,8 @@ class CommandLineTests: XCTestCase {
         command: "exec-path",
         files: [file(named: "file1.swift")],
         rulesFile: file(named: "rules.json"),
-        replace: false
+        replace: false,
+        verbose: false
       ))
     )
     
@@ -54,7 +57,8 @@ class CommandLineTests: XCTestCase {
         command: "exec-path",
         files: [file(named: "file1.swift")],
         rulesFile: file(named: "rules.json"),
-        replace: false
+        replace: false,
+        verbose: false
       ))
     )
     
@@ -64,7 +68,8 @@ class CommandLineTests: XCTestCase {
         command: "exec-path",
         files: [file(named: "file1.swift")],
         rulesFile: file(named: "other.json"),
-        replace: false
+        replace: false,
+        verbose: false
       ))
     )
 
@@ -77,9 +82,37 @@ class CommandLineTests: XCTestCase {
         command: "exec-path",
         files: [file(named: "file1.swift")],
         rulesFile: nil,
-        replace: true
+        replace: true,
+        verbose: false
       ))
     )
+  }
+
+  func testVerbose() throws {
+    XCTAssertEqual(
+      try SwiftEvolveTool.Step(arguments: ["exec-path", "--verbose", "file1.swift"]),
+      .seed(options: .init(
+        command: "exec-path",
+        files: [file(named: "file1.swift")],
+        rulesFile: nil,
+        replace: false,
+        verbose: true
+      ))
+    )
+
+    SwiftEvolveTool.Step.Options(command: "exec-path",
+                                 files: [file(named: "file1.swift")],
+                                 rulesFile: nil,
+                                 replace: false,
+                                 verbose: true).setMinimumLogTypeToPrint()
+    XCTAssertEqual(LogType.minimumToPrint, .debug)
+
+    SwiftEvolveTool.Step.Options(command: "exec-path",
+                                 files: [file(named: "file1.swift")],
+                                 rulesFile: nil,
+                                 replace: false,
+                                 verbose: false).setMinimumLogTypeToPrint()
+    XCTAssertEqual(LogType.minimumToPrint, .info)
   }
   
   func testSeed() throws {
@@ -89,7 +122,8 @@ class CommandLineTests: XCTestCase {
         command: "exec-path",
         files: [file(named: "file1.swift")],
         rulesFile: nil,
-        replace: false
+        replace: false,
+        verbose: false
       ))
     )
     
@@ -99,7 +133,8 @@ class CommandLineTests: XCTestCase {
         command: "exec-path",
         files: [file(named: "file1.swift")],
         rulesFile: nil,
-        replace: false
+        replace: false,
+        verbose: false
       ))
     )
     
@@ -118,7 +153,8 @@ class CommandLineTests: XCTestCase {
         command: "exec-path",
         files: [file(named: "file1.swift")],
         rulesFile: nil,
-        replace: false
+        replace: false,
+        verbose: false
       ))
     )
     
@@ -128,7 +164,8 @@ class CommandLineTests: XCTestCase {
         command: "exec-path",
         files: [file(named: "file1.swift")],
         rulesFile: nil,
-        replace: false
+        replace: false,
+        verbose: false
       ))
     )
     
