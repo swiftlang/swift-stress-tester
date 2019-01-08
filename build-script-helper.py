@@ -145,14 +145,15 @@ def install_package(package_dir, install_dir, sourcekit_searchpath, swiftsyntax_
     if not os.path.exists(directory):
       os.makedirs(directory)
 
+  rpaths_to_delete += [sourcekit_searchpath, swiftsyntax_searchpath]
+  rpaths_to_add = ['@executable_path/../lib/swift/macosx', '@executable_path/../lib']
+  swiftsyntax_src = os.path.join(swiftsyntax_searchpath, 'libSwiftSyntax.dylib')
+  loadpath_changes = {os.path.realpath(swiftsyntax_src): '@rpath/libswiftSwiftSyntax.dylib'}
+
   # Install sk-stress-test and sk-swiftc-wrapper
   for product in get_products(package_dir):
     src = os.path.join(build_dir, product)
     dest = os.path.join(bin_dir, product)
-    rpaths_to_delete += [sourcekit_searchpath, swiftsyntax_searchpath]
-    rpaths_to_add = ['@executable_path/../lib/swift/macosx', '@executable_path/../lib']
-    swiftsyntax_src = os.path.join(swiftsyntax_searchpath, 'libSwiftSyntax.dylib')
-    loadpath_changes = {os.path.realpath(swiftsyntax_src): '@rpath/libswiftSwiftSyntax.dylib'}
 
     install(src, dest,
       rpaths_to_delete=rpaths_to_delete,
