@@ -66,7 +66,7 @@ function testSwift() {
 
 # Modify swift/stdlib source code.
 function evolveSwift() {
-  run "Evolving Swift source code" env PATH="$BUILD/swiftpm-macosx-x86_64/x86_64-apple-macosx/debug:$PATH" swift run --package-path $EVOLVE swift-evolve --replace --rules=$EVOLVE/Utilities/swiftCore-exclude.json $ROOT/swift/stdlib/public/core/*.swift
+  run "Evolving Swift source code" env SWIFT_EXEC="$BUILD_SWIFT/bin/swiftc" $BUILD/swiftevolve-macosx-x86_64/debug/swift-evolve --replace --rules=$EVOLVE/Utilities/swiftCore-exclude.json $ROOT/swift/stdlib/public/core/*.swift
 }
 
 # Generate a diff of swift/stdlib.
@@ -118,7 +118,7 @@ function mixLibs() {
 
 # Build and test a stock version of Swift.
 phase="Current Modules, Current Binaries"
-buildSwift --llbuild --swiftpm --swiftsyntax
+buildSwift --swiftsyntax --swiftevolve
 testSwift
 
 # Modify the standard library.
