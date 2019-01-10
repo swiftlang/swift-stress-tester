@@ -32,6 +32,7 @@ public class SwiftEvolveTool {
       let files: [AbsolutePath]
       let rulesFile: AbsolutePath?
       let replace: Bool
+      let verbose: Bool
     }
   }
   
@@ -60,10 +61,17 @@ extension SwiftEvolveTool.Step {
   }
 }
 
+extension SwiftEvolveTool.Step.Options {
+  func setMinimumLogTypeToPrint() {
+    LogType.minimumToPrint = verbose ? .debug : .info
+  }
+}
+
 extension SwiftEvolveTool {
   public func run() -> Never {
     while true {
-      log("\(nextStep.name): \(nextStep)")
+      log(type: .info, "\(nextStep.name): \(nextStep)")
+
       do {
         switch nextStep {
         case let .parse(arguments: arguments):
@@ -97,7 +105,8 @@ extension SwiftEvolveTool {
   func plan(withSeed seed: UInt64, options: Step.Options) throws -> AbsolutePath {
     let planner = Planner(
       rng: LinearCongruentialGenerator(seed: seed),
-      rules: try readRules(options: options)
+      rules: try readRules(options: options),
+      includeLineAndColumn: options.verbose
     )
 
     for file in options.files {
@@ -191,20 +200,20 @@ extension URL {
 }
 
 fileprivate func logError(_ error: Error) {
-  log(error)
+  log(type: .error, error)
   
   let e = error as NSError
-  log("Localized Description:", e.localizedDescription)
-  log("Debug Description:", e.debugDescription)
-  log("User Info:", e.userInfo)
+  log(type: .debug, "Localized Description:", e.localizedDescription)
+  log(type: .debug, "Debug Description:", e.debugDescription)
+  log(type: .debug, "User Info:", e.userInfo)
   
   if let le = error as? LocalizedError {
-    if let fr = le.failureReason { log("Failure Reason:", fr) }
-    if let rs = le.recoverySuggestion { log("Recovery Suggestion:", rs) }
+    if let fr = le.failureReason { log(type: .debug, "Failure Reason:", fr) }
+    if let rs = le.recoverySuggestion { log(type: .debug, "Recovery Suggestion:", rs) }
   }
   
   if let e = error as? CocoaError, let u = e.underlying {
-    log("Underlying Error:")
+    log(type: .error, "Underlying Error:")
     logError(u)
   }
 }

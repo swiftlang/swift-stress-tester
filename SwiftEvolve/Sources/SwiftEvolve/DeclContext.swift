@@ -17,8 +17,21 @@
 
 import SwiftSyntax
 
+private func makeName(from declarationChain: [Decl]) -> String {
+  return declarationChain.map { $0.name }.joined(separator: ".")
+}
+
 struct DeclContext {
-  var declarationChain: [Decl] = []
+  private(set) var name: String
+
+  var declarationChain: [Decl] = [] {
+    didSet { name = makeName(from: declarationChain) }
+  }
+
+  init(declarationChain: [Decl] = []) {
+    self.declarationChain = declarationChain
+    name = makeName(from: declarationChain)
+  }
 
   /// Looks up `name` in the last declaration in `declarationChain`.
   ///
@@ -51,10 +64,6 @@ struct DeclContext {
 }
 
 extension DeclContext: CustomStringConvertible {
-  var name: String {
-    return declarationChain.map { $0.name }.joined(separator: ".")
-  }
-  
   var description: String {
     return name
   }

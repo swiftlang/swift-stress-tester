@@ -16,7 +16,21 @@
 
 import Foundation
 
-public func log(_ items: Any..., separator: String = " ", terminator: String = "\n") {
+public enum LogType: Int, Comparable {
+  case debug, info, error, fault
+
+  public static func < (lhs: LogType, rhs: LogType) -> Bool {
+    return lhs.rawValue < rhs.rawValue
+  }
+
+  static var minimumToPrint = LogType.error
+}
+
+public func log(type: LogType, _ items: Any..., separator: String = " ", terminator: String = "\n") {
+  guard type >= .minimumToPrint else {
+    return
+  }
+
   var stderr = FileHandle.standardError
   print(items.map(String.init(describing:)).joined(separator: separator),
         terminator: terminator, to: &stderr)

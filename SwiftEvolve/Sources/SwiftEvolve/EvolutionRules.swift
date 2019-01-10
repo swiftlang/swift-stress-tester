@@ -19,7 +19,7 @@
 import SwiftSyntax
 
 public struct EvolutionRules {
-  var exclusions: [AnyEvolution.Kind: [String]?]
+  var exclusions: [AnyEvolution.Kind: Set<String>?]
 
   func makeAll<G>(
     for node: Syntax, in decl: DeclContext, using rng: inout G
@@ -64,7 +64,7 @@ extension EvolutionRules: Decodable {
     
     exclusions = [:]
     for key in container.allKeys {
-      exclusions[key] = try container.decode([String]?.self, forKey: key)
+      exclusions[key] = try container.decode(Set<String>?.self, forKey: key)
     }
   }
 }
