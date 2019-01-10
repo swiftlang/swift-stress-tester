@@ -26,7 +26,7 @@ if ! git -C swift diff --exit-code --quiet -- stdlib; then
 fi
 
 # Set up a few globals.
-BUILD_SCRIPT_ARGS="--build-subdir=buildbot_evolve-swiftCore" "$@"
+BUILD_SCRIPT_ARGS="--build-subdir=buildbot_evolve-swiftCore --release"
 ROOT="$(pwd)"
 BUILD=$ROOT/build/buildbot_evolve-swiftCore
 BUILD_SWIFT=$BUILD/swift-macosx-x86_64
