@@ -1,5 +1,6 @@
 import XCTest
 import SwiftSyntax
+import SwiftLang
 @testable import SwiftEvolve
 
 class RegressionTests: XCTestCase {
@@ -9,7 +10,7 @@ class RegressionTests: XCTestCase {
     // Checks that we don't mess up the order of declarations we're not trying
     // to shuffle. In particular, if we store the properties in a Set or other
     // unordered collection, we could screw this up.
-    try SyntaxTreeParser.withParsedCode(
+    try SwiftLang.withParsedCode(
       """
       @_fixed_layout struct X {
         var p0: Int
@@ -48,7 +49,7 @@ class RegressionTests: XCTestCase {
     // FIXME: Crashes when run in Xcode because of a version mismatch between
     // SwiftSyntax and the compiler it uses (specifically, how they represent
     // accessor blocks). Should pass in "env PATH=... swift build".
-    try SyntaxTreeParser.withParsedCode(
+    try SwiftLang.withParsedCode(
       """
       struct A {
         #if os(iOS)
@@ -82,7 +83,7 @@ class RegressionTests: XCTestCase {
       }
     }
 
-    try SyntaxTreeParser.withParsedCode(
+    try SwiftLang.withParsedCode(
       """
       struct B {
         var b1: Int
@@ -116,7 +117,7 @@ class RegressionTests: XCTestCase {
       }
     }
 
-    try SyntaxTreeParser.withParsedCode(
+    try SwiftLang.withParsedCode(
       """
       struct C {
         #if os(iOS)

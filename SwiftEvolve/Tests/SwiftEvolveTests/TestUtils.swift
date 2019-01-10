@@ -1,18 +1,20 @@
 import XCTest
 import SwiftSyntax
+import SwiftLang
 @testable import SwiftEvolve
 import Basic
 
-extension SyntaxTreeParser {
+extension SwiftLang {
   static func withParsedCode(
     _ code: String, do body: (SourceFileSyntax) throws -> Void
-    ) throws -> Void {
+  ) throws -> Void {
     try withExtendedLifetime(
       TemporaryFile(dir: nil, prefix: "test", suffix: "swift", deleteOnClose: true)
     ) { tempFile in
       tempFile.fileHandle.write(code)
       tempFile.fileHandle.synchronizeFile()
-      try body(parse(URL(tempFile.path)))
+      let tree = try parse(contentsOf: URL(tempFile.path), into: .swiftSyntax)
+      try body(tree)
     }
   }
 }

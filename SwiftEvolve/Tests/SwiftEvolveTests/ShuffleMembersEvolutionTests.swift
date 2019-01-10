@@ -1,12 +1,13 @@
 import XCTest
 import SwiftSyntax
+import SwiftLang
 @testable import SwiftEvolve
 
 class ShuffleMembersEvolutionTests: XCTestCase {
   var predictableRNG = PredictableGenerator(values: 0..<16)
 
   func testEnumCases() throws {
-    try SyntaxTreeParser.withParsedCode(
+    try SwiftLang.withParsedCode(
       """
       enum Foo {
         case a

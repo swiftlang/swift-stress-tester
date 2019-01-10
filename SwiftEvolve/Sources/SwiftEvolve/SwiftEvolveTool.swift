@@ -16,6 +16,7 @@
 
 import Foundation
 import SwiftSyntax
+import SwiftLang
 import Basic
 
 public class SwiftEvolveTool {
@@ -168,9 +169,18 @@ extension SwiftEvolveTool {
     if let preparsed = parsedSourceFiles[path] {
       return preparsed
     }
-    let parsed = try SyntaxTreeParser.parse(URL(path))
+
+    let parsed = try SwiftLang.parse(contentsOf: URL(path), into: .swiftSyntax)
     parsedSourceFiles[path] = parsed
     return parsed
+  }
+}
+
+extension SwiftLang.SyntaxTreeFormat {
+  static var swiftSyntax: SwiftLang.SyntaxTreeFormat<SourceFileSyntax> {
+    return byteTree.withTreeMapped {
+      try SyntaxTreeDeserializer().deserialize($0, serializationFormat: .byteTree)
+    }
   }
 }
 
