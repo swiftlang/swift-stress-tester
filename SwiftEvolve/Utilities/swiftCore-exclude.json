@@ -11,6 +11,7 @@
     "(file).KeyPathBuffer.Header",
     "(file).ComputedArgumentWitnesses",
     "(file).ComputedPropertyID",
-    "(file)._ObjectiveCBridgeable"
+    "(file)._ObjectiveCBridgeable",
+    "(file)._UnicodeEncoding"
   ]
 }
