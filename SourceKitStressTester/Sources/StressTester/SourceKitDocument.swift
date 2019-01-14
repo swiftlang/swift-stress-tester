@@ -187,8 +187,6 @@ struct SourceKitDocument {
 
     request.addParameter(.key_EnableSyntaxMap, value: 0)
     request.addParameter(.key_EnableStructure, value: 0)
-    request.addParameter(.key_SyntaxTreeTransferMode, value: .kind_SyntaxTreeIncremental)
-    request.addParameter(.key_SyntaxTreeSerializationFormat, value: .kind_SyntaxTreeSerializationJSON)
     request.addParameter(.key_SyntacticOnly, value: 1)
 
     let info = RequestInfo.editorReplaceText(document: documentInfo, offset: range.start.offset, length: range.length, text: text)
@@ -228,8 +226,7 @@ struct SourceKitDocument {
     }
   }
 
-  @discardableResult
-  private mutating func updateSyntaxTree(request: RequestInfo) throws -> SourceFileSyntax {
+  private func parseSyntax(request: RequestInfo) throws -> SourceFileSyntax {
     let reparseLookup: IncrementalEditTransition?
     switch request {
     case .editorReplaceText(_, let offset, let length, let text):
@@ -244,6 +241,17 @@ struct SourceKitDocument {
       tree = try SyntaxParser.parse(source: state.source, parseLookup: reparseLookup)
     } else {
       tree = try SyntaxParser.parse(URL(fileURLWithPath: file))
+    }
+    return tree
+  }
+
+  @discardableResult
+  private mutating func updateSyntaxTree(request: RequestInfo) throws -> SourceFileSyntax {
+    let tree: SourceFileSyntax
+    do {
+      tree = try parseSyntax(request: request)
+    } catch let error {
+      throw SourceKitError.failed(.errorDeserializingSyntaxTree, request: request, response: error.localizedDescription)
     }
     self.tree = tree
 
