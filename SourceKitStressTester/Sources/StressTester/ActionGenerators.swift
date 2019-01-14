@@ -20,7 +20,7 @@ protocol ActionGenerator {
 extension ActionGenerator {
   /// Entrypoint intended for testing purposes only
   func generate(for file: URL) -> [Action] {
-    let tree = try! SyntaxTreeParser.parse(file)
+    let tree = try! SyntaxParser.parse(file)
     return generate(for: tree)
   }
 

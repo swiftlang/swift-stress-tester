@@ -20,7 +20,7 @@ from __future__ import print_function
 
 import argparse
 import sys
-import os
+import os, platform
 import subprocess
 
 def main(argv_prefix = []):
@@ -40,6 +40,8 @@ def parse_args(args):
   parser.add_argument('--swift-test-exec', help='the swift-test exec to use to test this package (default: xcrun -f swift-test)')
   parser.add_argument('--swift-package-exec', help='the swift-package exec to use to generate an xcode project for this package (default: xcrun -f swift-package)')
   parser.add_argument('--sourcekitd-dir', help='the directory containing the sourcekitd.framework to use (default: relative to swiftc-exec)')
+  parser.add_argument('--syntax-parser-header-dir', help='the directory containing the header and module map for the parser library (default: assume contained in swift default search paths)')
+  parser.add_argument('--syntax-parser-lib-dir', help='the directory containing the shared parser library (default: assume contained in swift default search paths)')
   parser.add_argument('--swiftsyntax-dir', help='the directory containing SwiftSyntax\'s build products (libSwiftSyntax.dylib, and SwiftSyntax.swiftmodule)')
   parser.add_argument('build_actions', help="Extra actions to perform. Can be any number of the following: [all, test, install, generate-xcodeproj]", nargs="*", default=[])
 
@@ -74,6 +76,8 @@ def run(args):
     swiftsyntax_build_dir = os.path.join(PACKAGE_DIR, '.swiftsyntax_build')
     build_swiftsyntax(swift_build_exec=args.swift_build_exec,
       swiftc_exec=args.swiftc_exec,
+      parser_header_dir=args.syntax_parser_header_dir,
+      parser_lib_dir=args.syntax_parser_lib_dir,
       build_dir=swiftsyntax_build_dir,
       config=args.config,
       verbose=args.verbose)
@@ -87,6 +91,8 @@ def run(args):
   build_package(args.package_dir,
     swift_build_exec=args.swift_build_exec,
     swiftc_exec=args.swiftc_exec,
+    parser_header_dir=args.syntax_parser_header_dir,
+    parser_lib_dir=args.syntax_parser_lib_dir,
     sourcekit_searchpath=sourcekit_searchpath,
     swiftsyntax_searchpath=swiftsyntax_searchpath,
     build_dir=args.build_dir,
@@ -108,6 +114,8 @@ def run(args):
     build_package(args.package_dir,
     swift_build_exec=args.swift_test_exec,
     swiftc_exec=args.swiftc_exec,
+    parser_header_dir=args.syntax_parser_header_dir,
+    parser_lib_dir=args.syntax_parser_lib_dir,
     sourcekit_searchpath=sourcekit_searchpath,
     swiftsyntax_searchpath=swiftsyntax_searchpath,
     # note: test uses a different build_dir so it doesn't interfere with the 'build' step's products before install
@@ -127,12 +135,21 @@ def run(args):
       verbose=args.verbose)
 
 
-def build_package(package_dir, swift_build_exec, swiftc_exec, sourcekit_searchpath, swiftsyntax_searchpath, build_dir, config='release', verbose=False):
+def build_package(package_dir, swift_build_exec, swiftc_exec, parser_header_dir, parser_lib_dir, sourcekit_searchpath, swiftsyntax_searchpath, build_dir, config='release', verbose=False):
   env = dict(os.environ)
   env['SWIFT_EXEC'] = swiftc_exec
 
   swiftc_args = ['-lSwiftSyntax', '-I', swiftsyntax_searchpath, '-L', swiftsyntax_searchpath, '-Fsystem', sourcekit_searchpath]
   linker_args = ['-rpath', swiftsyntax_searchpath, '-rpath', sourcekit_searchpath]
+
+  # To find the syntax parser library.
+  if parser_header_dir:
+    swiftc_args.extend(['-I', parser_header_dir])
+  if parser_lib_dir:
+    swiftc_args.extend(['-L', parser_lib_dir])
+    if platform.system() == 'Darwin':
+      linker_args.extend(['-rpath', parser_lib_dir])
+
   args = [swift_build_exec, '--package-path', package_dir, '-c', config, '--build-path', build_dir] + interleave('-Xswiftc', swiftc_args) + interleave('-Xlinker', linker_args)
   check_call(args, env=env, verbose=verbose)
 
@@ -178,12 +195,16 @@ def install(src, dest, rpaths_to_delete=[], rpaths_to_add=[], loadpath_changes={
     check_call(['install_name_tool', '-change', key, value, dest], verbose=verbose)
 
 
-def build_swiftsyntax(swift_build_exec, swiftc_exec, build_dir, config='release', verbose=False):
+def build_swiftsyntax(swift_build_exec, swiftc_exec, parser_header_dir, parser_lib_dir, build_dir, config='release', verbose=False):
   workspace = os.path.dirname(os.path.dirname(PACKAGE_DIR))
   cmd = [os.path.join(workspace, 'swift-syntax', 'build-script.py'),
     '--build-dir', os.path.join(PACKAGE_DIR, '.swiftsyntax_build'),
     '--swiftc-exec', swiftc_exec,
     '--swift-build-exec', swift_build_exec]
+  if parser_header_dir:
+    cmd += ['--syntax-parser-header-dir', parser_header_dir]
+  if parser_lib_dir:
+    cmd += ['--syntax-parser-lib-dir', parser_lib_dir]
 
   if config == 'release':
     cmd += ['--release']

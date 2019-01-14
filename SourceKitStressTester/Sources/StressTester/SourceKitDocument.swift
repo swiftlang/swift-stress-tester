@@ -21,7 +21,6 @@ struct SourceKitDocument {
   let containsErrors: Bool
   let connection: SourceKitdService
 
-  private var deserializer: SyntaxTreeDeserializer? = nil
   private var tree: SourceFileSyntax? = nil
   private var sourceState: SourceState? = nil
 
@@ -52,8 +51,6 @@ struct SourceKitDocument {
     request.addParameter(.key_Name, value: file)
     request.addParameter(.key_EnableSyntaxMap, value: 0)
     request.addParameter(.key_EnableStructure, value: 0)
-    request.addParameter(.key_SyntaxTreeTransferMode, value: .kind_SyntaxTreeFull)
-    request.addParameter(.key_SyntaxTreeSerializationFormat, value: .kind_SyntaxTreeSerializationJSON)
     request.addParameter(.key_SyntacticOnly, value: 1)
 
     let compilerArgs = request.addArrayParameter(.key_CompilerArgs)
@@ -63,8 +60,7 @@ struct SourceKitDocument {
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
-    deserializer = SyntaxTreeDeserializer()
-    try updateSyntaxTree(response, request: info)
+    try updateSyntaxTree(request: info)
 
     return (tree!, response)
   }
@@ -201,7 +197,7 @@ struct SourceKitDocument {
 
     // update expected source content and syntax tree
     sourceState?.replace(range, with: text)
-    try updateSyntaxTree(response, request: info)
+    try updateSyntaxTree(request: info)
 
     return (tree!, response)
   }
@@ -233,23 +229,23 @@ struct SourceKitDocument {
   }
 
   @discardableResult
-  private mutating func updateSyntaxTree(_ response: SourceKitdResponse, request: RequestInfo) throws -> SourceFileSyntax? {
-    precondition(deserializer != nil)
-
-    guard let treeJSON = response.value.getOptional(.key_SerializedSyntaxTree)?.getString() else {
-      return nil
-    }
-    guard let treeData = treeJSON.data(using: .utf8) else {
-      throw SourceKitError.failed(.errorDeserializingSyntaxTree, request: request, response: response.description)
+  private mutating func updateSyntaxTree(request: RequestInfo) throws -> SourceFileSyntax {
+    let reparseLookup: IncrementalEditTransition?
+    switch request {
+    case .editorReplaceText(_, let offset, let length, let text):
+      let edits = [SourceEdit(range: ByteSourceRange(offset: offset, length: length), replacementLength: text.utf8.count)]
+      reparseLookup = IncrementalEditTransition(previousTree: self.tree!, edits: edits)
+    default:
+      reparseLookup = nil
     }
 
     let tree: SourceFileSyntax
-    do {
-      tree = try deserializer!.deserialize(treeData, serializationFormat: .json)
-      self.tree = tree
-    } catch {
-      throw SourceKitError.failed(.errorDeserializingSyntaxTree, request: request, response: response.description)
+    if let state = sourceState {
+      tree = try SyntaxParser.parse(source: state.source, parseLookup: reparseLookup)
+    } else {
+      tree = try SyntaxParser.parse(URL(fileURLWithPath: file))
     }
+    self.tree = tree
 
     /// When we should be able to fully parse the file, we verify the syntax tree
     if !containsErrors {
@@ -263,7 +259,6 @@ struct SourceKitDocument {
     if let state = sourceState, state.source != tree.description {
       // FIXME: add state and tree descriptions in their own field
       let comparison = """
-        \(response.description)
         --source-state------
         \(state.source)
         --tree-description--

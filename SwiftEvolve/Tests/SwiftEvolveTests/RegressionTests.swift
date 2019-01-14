@@ -1,6 +1,5 @@
 import XCTest
 import SwiftSyntax
-import SwiftLang
 @testable import SwiftEvolve
 
 class RegressionTests: XCTestCase {
@@ -10,7 +9,7 @@ class RegressionTests: XCTestCase {
     // Checks that we don't mess up the order of declarations we're not trying
     // to shuffle. In particular, if we store the properties in a Set or other
     // unordered collection, we could screw this up.
-    try SwiftLang.withParsedCode(
+    let code = try SyntaxParser.parse(source:
       """
       @_fixed_layout struct X {
         var p0: Int
@@ -25,40 +24,40 @@ class RegressionTests: XCTestCase {
         var p9: Int
       }
       """
-    ) { code in
-      let evo = ShuffleMembersEvolution(mapping: [])
+    )
+    let evo = ShuffleMembersEvolution(mapping: [])
 
-      for node in code.filter(whereIs: MemberDeclListSyntax.self) {
-        let evolved = evo.evolve(node)
-        let evolvedCode = evolved.description
+    for node in code.filter(whereIs: MemberDeclListSyntax.self) {
+      let evolved = evo.evolve(node)
+      let evolvedCode = evolved.description
 
-        let locs = (0...9).compactMap {
-          evolvedCode.range(of: "p\($0)")?.lowerBound
-        }
+      let locs = (0...9).compactMap {
+        evolvedCode.range(of: "p\($0)")?.lowerBound
+      }
 
-        XCTAssertEqual(locs.count, 10, "All ten properties were preserved")
+      XCTAssertEqual(locs.count, 10, "All ten properties were preserved")
 
-        for (prev, next) in zip(locs, locs.dropFirst()) {
-          XCTAssertLessThan(prev, next, "Adjacent properties are in order")
-        }
+      for (prev, next) in zip(locs, locs.dropFirst()) {
+        XCTAssertLessThan(prev, next, "Adjacent properties are in order")
       }
     }
   }
 
   func testStoredIfConfigBlocksMemberwiseInitSynthesis() throws {
-    // FIXME: Crashes when run in Xcode because of a version mismatch between
-    // SwiftSyntax and the compiler it uses (specifically, how they represent
-    // accessor blocks). Should pass in "env PATH=... swift build".
-    try SwiftLang.withParsedCode(
-      """
-      struct A {
-        #if os(iOS)
-          var a1: Int
-        #endif
-        var a2: Int { fatalError() }
-      }
-      """
-    ) { code in
+    do {
+      // FIXME: Crashes when run in Xcode because of a version mismatch between
+      // SwiftSyntax and the compiler it uses (specifically, how they represent
+      // accessor blocks). Should pass in "env PATH=... swift build".
+      let code = try SyntaxParser.parse(source:
+        """
+        struct A {
+          #if os(iOS)
+            var a1: Int
+          #endif
+          var a2: Int { fatalError() }
+        }
+        """
+      )
       for decl in code.filter(whereIs: StructDeclSyntax.self) {
         let dc = DeclContext(declarationChain: [code, decl])
 
@@ -83,16 +82,17 @@ class RegressionTests: XCTestCase {
       }
     }
 
-    try SwiftLang.withParsedCode(
-      """
-      struct B {
-        var b1: Int
-        #if os(iOS)
-          var b2: Int { fatalError() }
-        #endif
-      }
-      """
-    ) { code in
+    do {
+      let code = try SyntaxParser.parse(source:
+        """
+        struct B {
+          var b1: Int
+          #if os(iOS)
+            var b2: Int { fatalError() }
+          #endif
+        }
+        """
+      )
       for decl in code.filter(whereIs: StructDeclSyntax.self) {
         let dc = DeclContext(declarationChain: [code, decl])
 
@@ -117,17 +117,18 @@ class RegressionTests: XCTestCase {
       }
     }
 
-    try SwiftLang.withParsedCode(
-      """
-      struct C {
-        #if os(iOS)
-          var c1: Int
-        #endif
-        var c2: Int { fatalError() }
-        init() { c1 = 1 }
-      }
-      """
-    ) { code in
+    do {
+      let code = try SyntaxParser.parse(source:
+        """
+        struct C {
+          #if os(iOS)
+            var c1: Int
+          #endif
+          var c2: Int { fatalError() }
+          init() { c1 = 1 }
+        }
+        """
+      )
       for decl in code.filter(whereIs: StructDeclSyntax.self) {
         let dc = DeclContext(declarationChain: [code, decl])
 
