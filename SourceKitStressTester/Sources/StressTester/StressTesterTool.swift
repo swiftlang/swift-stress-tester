@@ -113,7 +113,7 @@ public struct StressTesterTool {
     let tester = StressTester(for: absoluteFile, compilerArgs: args, options: options)
     do {
       if dryRun {
-        let tree = try! SyntaxTreeParser.parse(absoluteFile)
+        let tree = try! SyntaxParser.parse(absoluteFile)
         try report(tester.computeStartStateAndActions(from: tree).actions, as: format)
       } else {
         try tester.run()
