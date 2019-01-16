@@ -1,8 +1,8 @@
 {
   "shuffleMembers": [
-    "(file).(extension _CocoaSet).Iterator",
+    "(file).(extension __CocoaSet).Iterator",
     "(file)._SwiftDeferredNSSet",
-    "(file).(extension _CocoaDictionary).Iterator",
+    "(file).(extension __CocoaDictionary).Iterator",
     "(file)._SwiftDeferredNSDictionary",
     "(file)._StringSwitchContext",
     "(file).RawKeyPathComponent",
