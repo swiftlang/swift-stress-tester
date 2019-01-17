@@ -73,8 +73,10 @@ def parse_args(args):
 def run(args):
   if args.swiftsyntax_dir is None:
     print("** Building SwiftSyntax **")
-    swiftsyntax_build_dir = os.path.join(PACKAGE_DIR, '.swiftsyntax_build')
-    build_swiftsyntax(swift_build_exec=args.swift_build_exec,
+    workspace = os.path.dirname(os.path.dirname(args.package_dir))
+    swiftsyntax_build_dir = os.path.join(args.package_dir, '.swiftsyntax_build')
+    build_swiftsyntax(repo=os.path.join(workspace, 'swift-syntax'),
+      swift_build_exec=args.swift_build_exec,
       swiftc_exec=args.swiftc_exec,
       parser_header_dir=args.syntax_parser_header_dir,
       parser_lib_dir=args.syntax_parser_lib_dir,
@@ -195,10 +197,9 @@ def install(src, dest, rpaths_to_delete=[], rpaths_to_add=[], loadpath_changes={
     check_call(['install_name_tool', '-change', key, value, dest], verbose=verbose)
 
 
-def build_swiftsyntax(swift_build_exec, swiftc_exec, parser_header_dir, parser_lib_dir, build_dir, config='release', verbose=False):
-  workspace = os.path.dirname(os.path.dirname(PACKAGE_DIR))
-  cmd = [os.path.join(workspace, 'swift-syntax', 'build-script.py'),
-    '--build-dir', os.path.join(PACKAGE_DIR, '.swiftsyntax_build'),
+def build_swiftsyntax(repo, swift_build_exec, swiftc_exec, parser_header_dir, parser_lib_dir, build_dir, config='release', verbose=False):
+  cmd = [os.path.join(repo, 'build-script.py'),
+    '--build-dir', build_dir,
     '--swiftc-exec', swiftc_exec,
     '--swift-build-exec', swift_build_exec]
   if parser_header_dir:
@@ -224,7 +225,7 @@ def generate_xcodeproj(package_dir, swift_package_exec, sourcekit_searchpath, sw
     '''.format(sourcekit_searchpath=sourcekit_searchpath, swiftsyntax_searchpath=swiftsyntax_searchpath))
 
   env = dict(os.environ)
-  args = [swift_package_exec, 'generate-xcodeproj', '--xcconfig-overrides', config_path, '--output', os.path.join(package_dir, 'SourceKitStressTester.xcodeproj')]
+  args = [swift_package_exec, '--package-path', package_dir, 'generate-xcodeproj', '--xcconfig-overrides', config_path, '--output', os.path.join(package_dir, 'SourceKitStressTester.xcodeproj')]
   check_call(args, env=env, verbose=verbose)
 
 def add_rpath(binary, rpath, verbose=False):
