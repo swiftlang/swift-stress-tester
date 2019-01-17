@@ -24,7 +24,7 @@ import os
 
 def main():
   print("(Using swift-stress-tester build compatibility shim...)")
-  impl_script = ImplScript(__file__)
+  impl_script = ImplScript(os.path.realpath(__file__))
   impl_main = impl_script.get_local('main')
   impl_main(['--package-dir', impl_script.package_dir])
 
