@@ -12,53 +12,65 @@
 
 import Common
 
-struct ExpectedFailure: Equatable, Codable {
+struct ExpectedIssue: Equatable, Codable {
   let applicableConfigs: Set<String>
   let issueUrl: String
   let path: String
   let modification: String?
-  let request: Request
+  let issueDetail: IssueDetail
 
-  /// Checks if this expected failure matches the given request
+  /// Checks if this expected issue matches the given issue
   ///
   /// - parameters:
-  ///   - info: the request to match against
-  /// - returns: true if the request matches
-  func matches(_ info: RequestInfo) -> Bool {
+  ///   - issue: the issue to match against
+  /// - returns: true if the issue matches
+  func matches(_ issue: StressTesterIssue) -> Bool {
+    switch issue {
+    case .failed(let sourceKitError):
+      return matches(sourceKitError.request)
+    case .errored(let status, let file, let arguments):
+      guard case .stressTesterCrash(let xStatus, let xArguments) = issueDetail else { return false }
+      return match(file, against: path) &&
+        match(status, against: xStatus) &&
+        match(arguments, against: xArguments)
+    }
+  }
+
+  private func matches(_ info: RequestInfo) -> Bool {
     switch info {
     case .editorOpen(let document):
-      guard case .editorOpen = request else { return false }
+      guard case .editorOpen = issueDetail else { return false }
       return match(document.path, against: path) &&
         match(document.modification?.summaryCode, against: modification)
     case .editorClose(let document):
-      guard case .editorClose = request else { return false }
+      guard case .editorClose = issueDetail else { return false }
       return match(document.path, against: path) &&
         match(document.modification?.summaryCode, against: modification)
     case .editorReplaceText(let document, let offset, let length, let text):
-      guard case .editorReplaceText(let spec) = request else { return false }
+      guard case .editorReplaceText(let spec) = issueDetail else { return false }
       return match(document.path, against: path) &&
         match(document.modification?.summaryCode, against: modification) &&
         match(offset, against: spec.offset) &&
         match(length, against: spec.length) &&
         match(text, against: spec.text)
     case .cursorInfo(let document, let offset, _):
-      guard case .cursorInfo(let specOffset) = request else { return false }
+      guard case .cursorInfo(let specOffset) = issueDetail else { return false }
       return match(document.path, against: path) &&
         match(document.modification?.summaryCode, against: modification) &&
         match(offset, against: specOffset)
     case .codeComplete(let document, let offset, _):
-      guard case .codeComplete(let specOffset) = request else { return false }
+      guard case .codeComplete(let specOffset) = issueDetail else { return false }
       return match(document.path, against: path) &&
         match(document.modification?.summaryCode, against: modification) &&
         match(offset, against: specOffset)
     case .rangeInfo(let document, let offset, let length, _):
-      guard case .rangeInfo(let spec) = request else { return false }
+      guard case .rangeInfo(let spec) = issueDetail else { return false }
       return match(document.path, against: path) &&
         match(document.modification?.summaryCode, against: modification) &&
         match(offset, against: spec.offset) &&
         match(length, against: spec.length)
     case .semanticRefactoring(let document, let offset, let refactoring, _):
-      guard case .semanticRefactoring(let spec) = request else { return false }
+      guard case .semanticRefactoring(let spec) = issueDetail else { return false }
       return match(document.path, against: path) &&
         match(document.modification?.summaryCode, against: modification) &&
         match(offset, against: spec.offset) &&
@@ -106,45 +118,52 @@ struct ExpectedFailure: Equatable, Codable {
   }
 }
 
-extension ExpectedFailure {
+extension ExpectedIssue {
 
-  init(matching requestInfo: RequestInfo, issueUrl: String, config: String) {
+  init(matching stressTesterIssue: StressTesterIssue, issueUrl: String, config: String) {
     self.issueUrl = issueUrl
     self.applicableConfigs = [config]
 
-    switch requestInfo {
-    case .editorOpen(let document):
-      path = document.path
-      modification = document.modification?.summaryCode
-      request = .editorOpen
-    case .editorClose(let document):
-      path = document.path
-      modification = document.modification?.summaryCode
-      request = .editorClose
-    case .editorReplaceText(let document, let offset, let length, let text):
-      path = document.path
-      modification = document.modification?.summaryCode
-      request = .editorReplaceText(offset: offset, length: length, text: text)
-    case .cursorInfo(let document, let offset, _):
-      path = document.path
-      modification = document.modification?.summaryCode
-      request = .cursorInfo(offset: offset)
-    case .codeComplete(let document, let offset, _):
-      path = document.path
-      modification = document.modification?.summaryCode
-      request = .codeComplete(offset: offset)
-    case .rangeInfo(let document, let offset, let length, _):
-      path = document.path
-      modification = document.modification?.summaryCode
-      request = .rangeInfo(offset: offset, length: length)
-    case .semanticRefactoring(let document, let offset, let refactoring, _):
-      path = document.path
-      modification = document.modification?.summaryCode
-      request = .semanticRefactoring(offset: offset, refactoring: refactoring)
+    switch stressTesterIssue {
+    case .errored(let status, let file, let arguments):
+      path = file
+      modification = nil
+      issueDetail = .stressTesterCrash(status: status, arguments: arguments)
+    case .failed(let failure):
+      switch failure.request {
+      case .editorOpen(let document):
+        path = document.path
+        modification = document.modification?.summaryCode
+        issueDetail = .editorOpen
+      case .editorClose(let document):
+        path = document.path
+        modification = document.modification?.summaryCode
+        issueDetail = .editorClose
+      case .editorReplaceText(let document, let offset, let length, let text):
+        path = document.path
+        modification = document.modification?.summaryCode
+        issueDetail = .editorReplaceText(offset: offset, length: length, text: text)
+      case .cursorInfo(let document, let offset, _):
+        path = document.path
+        modification = document.modification?.summaryCode
+        issueDetail = .cursorInfo(offset: offset)
+      case .codeComplete(let document, let offset, _):
+        path = document.path
+        modification = document.modification?.summaryCode
+        issueDetail = .codeComplete(offset: offset)
+      case .rangeInfo(let document, let offset, let length, _):
+        path = document.path
+        modification = document.modification?.summaryCode
+        issueDetail = .rangeInfo(offset: offset, length: length)
+      case .semanticRefactoring(let document, let offset, let refactoring, _):
+        path = document.path
+        modification = document.modification?.summaryCode
+        issueDetail = .semanticRefactoring(offset: offset, refactoring: refactoring)
+      }
     }
   }
 
-  enum Request: Equatable, Codable {
+  enum IssueDetail: Equatable, Codable {
     case editorOpen
     case editorClose
     case editorReplaceText(offset: Int?, length: Int?, text: String?)
@@ -152,6 +171,7 @@ extension ExpectedFailure {
     case codeComplete(offset: Int?)
     case rangeInfo(offset: Int?, length: Int?)
     case semanticRefactoring(offset: Int?, refactoring: String?)
+    case stressTesterCrash(status: Int32?, arguments: String?)
 
     init(from decoder: Decoder) throws {
       let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -184,6 +204,10 @@ extension ExpectedFailure {
           offset: try container.decodeIfPresent(Int.self, forKey: .offset),
           refactoring: try container.decodeIfPresent(String.self, forKey: .refactoring)
         )
+      case .stressTesterCrash:
+        self = .stressTesterCrash(
+          status: try container.decodeIfPresent(Int32.self, forKey: .status),
+          arguments: try container.decodeIfPresent(String.self, forKey: .arguments))
       }
     }
 
@@ -213,16 +237,21 @@ extension ExpectedFailure {
         try container.encode(RequestBase.semanticRefactoring, forKey: .kind)
         try container.encode(offset, forKey: .offset)
         try container.encode(refactoring, forKey: .refactoring)
+      case .stressTesterCrash(let status, let arguments):
+        try container.encode(RequestBase.stressTesterCrash, forKey: .kind)
+        try container.encode(status, forKey: .status)
+        try container.encode(arguments, forKey: .arguments)
       }
     }
 
     private enum CodingKeys: String, CodingKey {
-      case kind, offset, length, text, refactoring
+      case kind, offset, length, text, refactoring, status, arguments
     }
 
     private enum RequestBase: String, Codable {
       case editorOpen, editorClose, editorReplaceText
       case cursorInfo, codeComplete, rangeInfo, semanticRefactoring
+      case stressTesterCrash
     }
   }
 }
