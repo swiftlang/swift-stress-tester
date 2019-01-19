@@ -27,28 +27,22 @@ class ProcessRunner {
   }
 
   func run(capturingOutput: Bool = true) -> ProcessResult {
-    let out = Pipe(), err = Pipe()
-    var outData = Data(), errData = Data()
+    let out = Pipe()
+    var outData = Data()
 
     if capturingOutput {
-      out.fileHandleForReading.readabilityHandler = {outData.append($0.availableData)}
-      err.fileHandleForReading.readabilityHandler = {errData.append($0.availableData)}
       process.standardOutput = out
-      process.standardError = err
     }
-
     ProcessRunner.serialQueue.sync {
       process.launch()
       launched = true
     }
+    if capturingOutput {
+      outData = out.fileHandleForReading.readDataToEndOfFile()
+    }
     process.waitUntilExit()
 
-    if capturingOutput {
-      out.fileHandleForReading.readabilityHandler = nil
-      err.fileHandleForReading.readabilityHandler = nil
-    }
-
-    return ProcessResult(status: process.terminationStatus, stdout: outData, stderr: errData)
+    return ProcessResult(status: process.terminationStatus, stdout: outData)
   }
 
   func terminate() {
@@ -64,5 +58,4 @@ class ProcessRunner {
 struct ProcessResult {
   let status: Int32
   let stdout: Data
-  let stderr: Data
 }
