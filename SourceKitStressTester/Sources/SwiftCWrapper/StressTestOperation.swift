@@ -15,10 +15,16 @@ import Common
 
 final class StressTestOperation: Operation {
   enum Status {
+    /// Indicates the operation is still pending
     case unexecuted
+    /// Indicates the operation was cancelled
     case cancelled
+    /// Indicates the operation was executed and no issues were found
     case passed
-    case failed(error: SourceKitError)
+    /// Indicates the operation was executed and issues were found
+    case failed(SourceKitError)
+    /// Indicates the operation was executed, but the stress tester itself failed
+    case errored(status: Int32, arguments: [String])
 
     var name: String {
       switch self {
@@ -30,6 +36,8 @@ final class StressTestOperation: Operation {
         return "passed"
       case .failed:
         return "failed"
+      case .errored:
+        return "errored"
       }
     }
 
@@ -53,6 +61,7 @@ final class StressTestOperation: Operation {
     if let limit = limit {
       stressTesterArgs += ["--limit", String(limit)]
     }
+
     self.file = file
     self.mode = rewriteMode
     self.part = part
@@ -75,15 +84,10 @@ final class StressTestOperation: Operation {
       status = .passed
     } else if isCancelled {
       status = .cancelled
-    } else if let message = StressTesterMessage(from:result.stdout), case .detected(let error) = message {
-      status = .failed(error: error)
+    } else if let message = StressTesterMessage(from:result.stdout), case .detected(let sourceKitError) = message {
+      status = .failed(sourceKitError)
     } else {
-      fatalError("""
-        unknown stress tester failure \(process.process.terminationStatus):
-          status: \(status)
-          args: \(process.process.arguments?.joined(separator: " ") ?? "")
-          stdout: \(String(data: result.stdout, encoding: .utf8) ?? "")
-        """)
+      status = .errored(status: result.status, arguments: process.process.arguments ?? [])
     }
   }
 

@@ -20,17 +20,17 @@ struct SwiftCWrapper {
   let swiftcPath: String
   let stressTesterPath: String
   let astBuildLimit: Int?
-  let ignoreFailures: Bool
-  let failureManager: FailureManager?
+  let ignoreIssues: Bool
+  let issueManager: IssueManager?
   let failFast: Bool
 
-  init(swiftcArgs: [String], swiftcPath: String, stressTesterPath: String, astBuildLimit: Int?, ignoreFailures: Bool, failureManager: FailureManager?, failFast: Bool) {
+  init(swiftcArgs: [String], swiftcPath: String, stressTesterPath: String, astBuildLimit: Int?, ignoreIssues: Bool, issueManager: IssueManager?, failFast: Bool) {
     self.arguments = swiftcArgs
     self.swiftcPath = swiftcPath
     self.stressTesterPath = stressTesterPath
     self.astBuildLimit = astBuildLimit
-    self.ignoreFailures = ignoreFailures
-    self.failureManager = failureManager
+    self.ignoreIssues = ignoreIssues
+    self.issueManager = issueManager
     self.failFast = failFast
   }
 
@@ -85,46 +85,48 @@ struct SwiftCWrapper {
 
     // Determine the set of processed files and the first failure (if any)
     var processedFiles = Set<String>()
-    var detectedError: SourceKitError? = nil
-    for operation in operations where detectedError == nil {
+    var detectedIssue: StressTesterIssue? = nil
+    for operation in operations where detectedIssue == nil {
       switch operation.status {
       case .cancelled:
         fatalError("cancelled operation before failed operation")
       case .unexecuted:
         fatalError("unterminated operation")
-      case .failed(let error):
-        detectedError = error
-        fallthrough
+      case .failed(let sourceKitError):
+        detectedIssue = .failed(sourceKitError)
+        processedFiles.insert(operation.file)
+      case .errored(let status, let arguments):
+        detectedIssue = .errored(status: status, file: operation.file, arguments: arguments.joined(separator: " "))
       case .passed:
         processedFiles.insert(operation.file)
       }
     }
 
-    let matchingSpec = try failureManager?.update(for: processedFiles, error: detectedError)
-    try report(detectedError, matching: matchingSpec)
+    let matchingSpec = try issueManager?.update(for: processedFiles, issue: detectedIssue)
+    try report(detectedIssue, matching: matchingSpec)
 
-    if detectedError == nil || matchingSpec != nil {
+    if detectedIssue == nil || matchingSpec != nil {
       return EXIT_SUCCESS
     }
-    return ignoreFailures ? swiftcResult.status : EXIT_FAILURE
+    return ignoreIssues ? swiftcResult.status : EXIT_FAILURE
   }
 
-  private func report(_ error: SourceKitError?, matching xfail: ExpectedFailure? = nil) throws {
+  private func report(_ issue: StressTesterIssue?, matching xIssue: ExpectedIssue? = nil) throws {
     defer { stderrStream.flush() }
 
-    guard let error = error else {
+    guard let issue = issue else {
       stderrStream <<< "No failures detected.\n"
       return
     }
 
-    if let xfail = xfail {
-      stderrStream <<< "Detected expected failure [\(xfail.issueUrl)]: \(error)\n\n"
+    if let xIssue = xIssue {
+      stderrStream <<< "Detected expected failure [\(xIssue.issueUrl)]: \(issue)\n\n"
     } else {
-      stderrStream <<< "Detected unexpected failure: \(error)\n\n"
-      if let failureManager = failureManager {
-        let xfail = ExpectedFailure(matching: error.request, issueUrl: "<issue url>",
-                                    config: failureManager.activeConfig)
-        let json = try failureManager.encoder.encode(xfail)
+      stderrStream <<< "Detected unexpected failure: \(issue)\n\n"
+      if let issueManager = issueManager {
+        let xfail = ExpectedIssue(matching: issue, issueUrl: "<issue url>",
+                                    config: issueManager.activeConfig)
+        let json = try issueManager.encoder.encode(xfail)
         stderrStream <<< "Add the following entry to the expected failures JSON file to mark it as expected:\n"
         stderrStream <<< json <<< "\n\n"
       }
@@ -164,5 +166,24 @@ fileprivate extension TimeInterval {
     formatter.unitsStyle = .abbreviated
 
     return formatter.string(from: self)
+  }
+}
+
+enum StressTesterIssue: CustomStringConvertible {
+  case failed(SourceKitError)
+  case errored(status: Int32, file: String, arguments: String)
+
+  var description: String {
+    switch self {
+    case .failed(let error):
+      return String(describing: error)
+    case .errored(let status, let file, let arguments):
+      return """
+        sk-stress-test errored
+          exit code: \(status)
+          file: \(file)
+          arguments: \(arguments)
+        """
+    }
   }
 }

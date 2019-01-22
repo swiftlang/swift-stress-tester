@@ -24,10 +24,10 @@ public struct SwiftCWrapperTool {
   public func run() throws -> Int32 {
     let swiftcEnv = EnvOption("SK_STRESS_SWIFTC", type: String.self)
     let stressTesterEnv = EnvOption("SK_STRESS_TEST", type: String.self)
-    let ignoreFailuresEnv = EnvOption("SK_STRESS_SILENT", type: Bool.self)
+    let ignoreIssuesEnv = EnvOption("SK_STRESS_SILENT", type: Bool.self)
     let astBuildLimitEnv = EnvOption("SK_STRESS_AST_BUILD_LIMIT", type: Int.self)
 
-    // FailureManager params
+    // IssueManager params
     let expectedFailuresPathEnv = EnvOption("SK_XFAILS_PATH", type: String.self)
     let outputPathEnv = EnvOption("SK_STRESS_OUTPUT", type: String.self)
     let activeConfigEnv = EnvOption("SK_STRESS_ACTIVE_CONFIG", type: String.self)
@@ -38,16 +38,16 @@ public struct SwiftCWrapperTool {
     guard let stressTester = (try stressTesterEnv.get(from: environment) ?? defaultStressTesterPath) else {
       throw EnvOptionError.noFallback(key: stressTesterEnv.key, target: "sk-stress-test")
     }
-    let ignoreFailures = try ignoreFailuresEnv.get(from: environment) ?? false
+    let ignoreIssues = try ignoreIssuesEnv.get(from: environment) ?? false
     let astBuildLimit = try astBuildLimitEnv.get(from: environment)
 
-    var failureManager: FailureManager? = nil
+    var issueManager: IssueManager? = nil
     if let expectedFailuresPath = try expectedFailuresPathEnv.get(from: environment),
       let outputPath = try outputPathEnv.get(from: environment),
       let activeConfig = try activeConfigEnv.get(from: environment) {
-      failureManager = FailureManager(
+      issueManager = IssueManager(
         activeConfig: activeConfig,
-        expectedFailuresFile: URL(fileURLWithPath: expectedFailuresPath, isDirectory: false),
+        expectedIssuesFile: URL(fileURLWithPath: expectedFailuresPath, isDirectory: false),
         resultsFile: URL(fileURLWithPath: outputPath, isDirectory: false)
       )
     }
@@ -56,8 +56,8 @@ public struct SwiftCWrapperTool {
                                 swiftcPath: swiftc,
                                 stressTesterPath: stressTester,
                                 astBuildLimit: astBuildLimit,
-                                ignoreFailures: ignoreFailures,
-                                failureManager: failureManager,
+                                ignoreIssues: ignoreIssues,
+                                issueManager: issueManager,
                                 failFast: true)
     return try wrapper.run()
   }
