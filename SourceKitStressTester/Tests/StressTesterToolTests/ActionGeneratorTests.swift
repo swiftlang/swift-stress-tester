@@ -41,6 +41,27 @@ class ActionGeneratorTests: XCTestCase {
     verify(actions, rewriteMode: .insideOut)
   }
 
+  func testRequests() {
+    let actions = RequestActionGenerator().generate(forContent: "var x = 2")
+    let expected: [Action] = [
+      .cursorInfo(position: SourcePosition(offset: 4, line: 1, column: 5)),
+      .codeComplete(position: SourcePosition(offset: 5, line: 1, column: 6)),
+      .rangeInfo(range: SourceRange(
+        start: SourcePosition(offset: 6, line: 1, column: 7),
+        end: SourcePosition(offset: 9, line: 1, column: 10),
+        length: 3)),
+      .rangeInfo(range: SourceRange(
+        start: SourcePosition(offset: 4, line: 1, column: 5),
+        end: SourcePosition(offset: 9, line: 1, column: 10),
+        length: 5)),
+      .rangeInfo(range: SourceRange(
+        start: SourcePosition(offset: 0, line: 1, column: 1),
+        end: SourcePosition(offset: 9, line: 1, column: 10),
+        length: 9))
+    ]
+    XCTAssertEqual(actions, expected)
+  }
+
   func verify(_ actions: [Action], rewriteMode: RewriteMode) {
     var state = SourceState(rewriteMode: rewriteMode, content: testFileContent)
 
@@ -126,5 +147,15 @@ class ActionGeneratorTests: XCTestCase {
       """
 
     FileManager.default.createFile(atPath: testFile.path, contents: testFileContent.data(using: .utf8))
+  }
+}
+
+extension ActionGenerator {
+  func generate(forContent content: String) -> [Action] {
+    let tempFile = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+      .appendingPathComponent("ActionGeneratorTests", isDirectory: true)
+      .appendingPathComponent("temp.swift", isDirectory: false)
+    FileManager.default.createFile(atPath: tempFile.path, contents: content.data(using: .utf8))
+    return generate(for: tempFile)
   }
 }

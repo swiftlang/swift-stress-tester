@@ -58,9 +58,10 @@ extension ActionGenerator {
     if parentsAreValid {
       var node: Syntax = token
       while let parent = node.parent, !(parent is SourceFileSyntax),
-        parent.endPosition.utf8Offset == node.endPosition.utf8Offset,
-        parent.positionAfterSkippingLeadingTrivia.utf8Offset != node.positionAfterSkippingLeadingTrivia.utf8Offset {
-          actions.append(.rangeInfo(range: SourceRange(of: parent, includingTrivia: false)))
+        parent.endPosition.utf8Offset == node.endPosition.utf8Offset {
+          if parent.positionAfterSkippingLeadingTrivia.utf8Offset != node.positionAfterSkippingLeadingTrivia.utf8Offset {
+            actions.append(.rangeInfo(range: SourceRange(of: parent, includingTrivia: false)))
+          }
           node = parent
       }
     }
@@ -126,7 +127,7 @@ final class RequestActionGenerator: SyntaxVisitor, ActionGenerator {
   }
 
   override func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
-    actions.append(contentsOf: generateActions(for: token, withReplaceTexts: false))
+    actions.append(contentsOf: generateActions(for: token, withReplaceTexts: false, parentsAreValid: true))
     return .visitChildren
   }
 }
@@ -144,7 +145,7 @@ final class RewriteActionGenerator: SyntaxVisitor, ActionGenerator {
   }
 
   override func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
-    actions.append(contentsOf: generateActions(for: token, withReplaceTexts: true))
+    actions.append(contentsOf: generateActions(for: token, withReplaceTexts: true, parentsAreValid: true))
     return .visitChildren
   }
 }
