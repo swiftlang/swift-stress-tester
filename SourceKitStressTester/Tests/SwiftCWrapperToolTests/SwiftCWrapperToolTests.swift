@@ -28,7 +28,8 @@ class SwiftCWrapperToolTests: XCTestCase {
     let specs: [WrapperSpec] = [
       (compilerExit: 2, stressTesterExit: 1, expectedExit: 2),
       (compilerExit: 0, stressTesterExit: 1, expectedExit: 1),
-      (compilerExit: 0, stressTesterExit: 0, expectedExit: 0)
+      (compilerExit: 0, stressTesterExit: 0, expectedExit: 0),
+      (compilerExit: 0, stressTesterExit: 6, expectedExit: 1)
     ]
 
     let environment: [String: String] = ["SK_STRESS_SWIFTC": testSwiftCPath]
@@ -99,22 +100,47 @@ class SwiftCWrapperToolTests: XCTestCase {
     XCTAssertTrue(fourth.isCancelled, "fourth wasn't cancelled")
   }
 
-  func testFailureManager() {
-    let xfail = ExpectedFailure(
+  func testIssueManager() {
+    let xfail = ExpectedIssue(
       applicableConfigs: ["master"], issueUrl: "<issue-url>",
       path: "*/foo/bar.swift", modification: nil,
-      request: .editorReplaceText(offset: 42, length: 0, text: nil)
+      issueDetail: .editorReplaceText(offset: 42, length: 0, text: nil)
     )
 
-    let document1 = DocumentInfo(path: "/baz/foo/bar.swift", modification: nil)
-    let failure1 = RequestInfo.editorReplaceText(document: document1, offset: 42, length: 0, text: ".")
-    let failure2 = RequestInfo.editorReplaceText(document: document1, offset: 42, length: 2, text: "hello")
-    let document2 = DocumentInfo(path: "/baz/bar.swift", modification: nil)
-    let failure3 = RequestInfo.editorReplaceText(document: document2, offset: 42, length: 0, text: ".")
+    let xfail2 = ExpectedIssue(
+      applicableConfigs: ["master"], issueUrl: "<issue-url",
+      path: "*/foo/bar.swift", modification: nil,
+      issueDetail: .stressTesterCrash(status: 2, arguments: "*concurrent*"))
 
-    XCTAssertTrue(xfail.matches(failure1))
-    XCTAssertFalse(xfail.matches(failure2))
-    XCTAssertFalse(xfail.matches(failure3))
+    let document1 = DocumentInfo(path: "/baz/foo/bar.swift", modification: nil)
+    let request1 = RequestInfo.editorReplaceText(document: document1, offset: 42, length: 0, text: ".")
+    let error1 = SourceKitError.crashed(request: request1)
+    let issue1 = StressTesterIssue.failed(error1)
+
+    let request2 = RequestInfo.editorReplaceText(document: document1, offset: 42, length: 2, text: "hello")
+    let error2 = SourceKitError.crashed(request: request2)
+    let issue2 = StressTesterIssue.failed(error2)
+
+    let document2 = DocumentInfo(path: "/baz/bar.swift", modification: nil)
+    let request3 = RequestInfo.editorReplaceText(document: document2, offset: 42, length: 0, text: ".")
+    let error3 = SourceKitError.crashed(request: request3)
+    let issue3 = StressTesterIssue.failed(error3)
+
+    let error4 = SourceKitError.failed(.errorResponse, request: request1, response: "foo")
+    let issue4 = StressTesterIssue.failed(error4)
+
+    let issue5 = StressTesterIssue.errored(status: 2, file: "/bob/foo/bar.swift",
+                                          arguments: "--rewrite-mode concurrent /bob/foo/bar.swift swiftc /bob/foo/bar.swift")
+    let issue6 = StressTesterIssue.errored(status: 2,
+                                            file: "/bob/foo/bar.swift",
+                                            arguments: "--rewrite-mode basic /bob/foo/bar.swift swiftc /bob/foo/bar.swift")
+
+    XCTAssertTrue(xfail.matches(issue1))
+    XCTAssertFalse(xfail.matches(issue2))
+    XCTAssertFalse(xfail.matches(issue3))
+    XCTAssertTrue(xfail.matches(issue4))
+    XCTAssertTrue(xfail2.matches(issue5))
+    XCTAssertFalse(xfail2.matches(issue6))
   }
 
   override func setUp() {
