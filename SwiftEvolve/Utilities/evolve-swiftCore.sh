@@ -26,7 +26,8 @@ if ! git -C swift diff --exit-code --quiet -- stdlib; then
 fi
 
 # Set up a few globals.
-BUILD_SCRIPT_ARGS="--build-subdir=buildbot_evolve-swiftCore" "$@"
+ITERATIONS="${1-1}"
+BUILD_SCRIPT_ARGS="--build-subdir=buildbot_evolve-swiftCore --release"
 ROOT="$(pwd)"
 BUILD=$ROOT/build/buildbot_evolve-swiftCore
 BUILD_SWIFT=$BUILD/swift-macosx-x86_64
@@ -37,6 +38,11 @@ set -e
 #
 # HELPERS
 #
+
+# Make sure we don't have stdlib changes from a previous run.
+function resetStdlib() {
+  git -C swift checkout HEAD -- stdlib
+}
 
 # Run a command with pass/fail messages.
 function run() {
@@ -65,8 +71,11 @@ function testSwift() {
 }
 
 # Modify swift/stdlib source code.
-function evolveSwift() {
-  run "Evolving Swift source code" env SWIFT_EXEC="$BUILD_SWIFT/bin/swiftc" $BUILD/swiftevolve-macosx-x86_64/debug/swift-evolve --replace --rules=$EVOLVE/Utilities/swiftCore-exclude.json $ROOT/swift/stdlib/public/core/*.swift
+function evolveStdlib() {
+  # Temporarily re-link lib/swift to lib/swiftCurrentCurrent
+  linkLibs Current Current
+  run "Evolving Swift source code" env SWIFT_EXEC="$BUILD_SWIFT/bin/swiftc" $BUILD/swiftevolve-macosx-x86_64/release/swift-evolve --replace --rules=$EVOLVE/Utilities/swiftCore-exclude.json $ROOT/swift/stdlib/public/core/*.swift
+  rm $(libs)
 }
 
 # Generate a diff of swift/stdlib.
@@ -118,27 +127,30 @@ function mixLibs() {
 
 # Build and test a stock version of Swift.
 phase="Current Modules, Current Binaries"
+
 buildSwift --swiftsyntax --swiftevolve
 testSwift
-
-# Modify the standard library.
-# We have to run this before we move the libraries out of the way.
-evolveSwift
-diffStdlib stdlib.diff
-
-# Move the stock version's libraries to lib/swiftCurrentCurrent.
 saveLibs 'Current' 'Current'
 
-# Build and test a version of Swift with the evolved libraries, then move them
-# to lib/swiftEvolvedEvolved.
-phase="Evolved Modules, Evolved Binaries"
-buildSwift
-testSwift --param swift_evolve
-saveLibs 'Evolved' 'Evolved'
+for iteration in $(seq $ITERATIONS); do
+  phase="Evolving ($iteration)"
 
-# Combine the Current interfaces with the Evolved implementations, then test
-# the combination.
-phase="Current Modules, Evolved Binaries"
-mixLibs 'Current' 'Evolved'
-linkLibs 'Current' 'Evolved'
-testSwift --param swift_evolve
+  # Modify the standard library.
+  resetStdlib
+  evolveStdlib
+  diffStdlib "stdlib-$iteration.diff"
+
+  # Build and test a version of Swift with the evolved libraries, then move them
+  # to lib/swiftEvolvedEvolved.
+  phase="Evolved Modules, Evolved Binaries ($iteration)"
+  buildSwift
+  testSwift --param swift_evolve
+  saveLibs "Evolved$iteration" "Evolved$iteration"
+
+  # Combine the Current interfaces with the Evolved implementations, then test
+  # the combination.
+  phase="Current Modules, Evolved Binaries ($iteration)"
+  mixLibs 'Current' "Evolved$iteration"
+  linkLibs 'Current' "Evolved$iteration"
+  testSwift --param swift_evolve
+done
