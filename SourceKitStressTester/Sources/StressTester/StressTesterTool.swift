@@ -65,7 +65,7 @@ public struct StressTesterTool {
     // option. There is no support for '--' to separate positionals at present.
     compilerArgs = parser.add(
       positional: "swiftc <compiler-args>", kind: [String].self, strategy: .remaining,
-      usage: "swift compiler arguments for the provided file", completion: .none)
+      usage: "swift compiler arguments for the provided file")
 
   }
 

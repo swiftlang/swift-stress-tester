@@ -45,54 +45,22 @@ class ActionGeneratorTests: XCTestCase {
     var state = SourceState(rewriteMode: rewriteMode, content: testFileContent)
 
     for action in actions {
+      let eof = state.source.utf8.count
       switch action {
-      case .cursorInfo(let position):
-        verify(position, in: state.source)
-      case .codeComplete(let position):
-        verify(position, in: state.source)
-      case .rangeInfo(let range):
-        verify(range.start, in: state.source)
-        verify(range.end, in: state.source)
-      case .replaceText(let range, let text):
-        verify(range.start, in: state.source)
-        verify(range.end, in: state.source)
-        state.replace(range, with: text)
+      case .cursorInfo(let offset):
+        XCTAssertTrue(offset >= 0 && offset <= eof)
+      case .codeComplete(let offset):
+        XCTAssertTrue(offset >= 0 && offset <= eof)
+      case .rangeInfo(let offset, let length):
+        XCTAssertTrue(offset >= 0 && offset <= eof)
+        XCTAssertTrue(length >= 0 && offset + length <= eof)
+      case .replaceText(let offset, let length, let text):
+        XCTAssertTrue(offset >= 0 && offset <= eof)
+        XCTAssertTrue(length >= 0 && offset + length <= eof)
+        state.replace(offset: offset, length: length, with: text)
       }
     }
     XCTAssertEqual(state.source, testFileContent)
-  }
-
-  func verify(_ position: SourcePosition, in source: String) {
-    if position.offset == 0 {
-      XCTAssertEqual(position.line, 1)
-      XCTAssertEqual(position.column, 1)
-      return
-    }
-
-    var newLines = 0
-    var columnsAtLastLine = 0
-    var utf8Length = 0
-
-    for char in source {
-      let charLength = String(char).utf8.count
-      utf8Length += charLength
-      switch char {
-      case "\n", "\r\n", "\r":
-        newLines += 1
-        columnsAtLastLine = 0
-      default:
-        columnsAtLastLine += charLength
-      }
-
-      if utf8Length == position.offset || (newLines + 1 == position.line && columnsAtLastLine + 1 == position.column) {
-        XCTAssertEqual(position.offset, utf8Length, "offset doesn't match line and column")
-        XCTAssertEqual(position.line, newLines + 1, "line doesn't match offset")
-        XCTAssertEqual(position.column, columnsAtLastLine + 1, "column doesn't match")
-        return
-      }
-    }
-
-    XCTFail("position (offset: \(position.offset), line: \(position.line), col: \(position.column)) not in file")
   }
 
   override func setUp() {

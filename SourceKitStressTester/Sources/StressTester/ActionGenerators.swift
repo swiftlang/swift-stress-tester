@@ -36,23 +36,23 @@ extension ActionGenerator {
     var actions = [Action]()
 
     if !pieces.leadingTrivia.isEmpty, withReplaceTexts {
-      actions.append(.replaceText(range: SourceRange(of: pieces.triviaStart), text: pieces.leadingTrivia))
+      actions.append(.replaceText(offset: pieces.triviaStart, length: 0, text: pieces.leadingTrivia))
     }
 
     if token.isReference, hasBoundaryBefore {
-      actions.append(.codeComplete(position: pieces.contentStart))
+      actions.append(.codeComplete(offset: pieces.contentStart))
     }
     if withReplaceTexts {
-      actions.append(.replaceText(range: SourceRange(of: pieces.contentStart), text: pieces.content))
+      actions.append(.replaceText(offset: pieces.contentStart, length: 0, text: pieces.content))
     }
 
     if token.isIdentifier {
-      actions.append(.cursorInfo(position: pieces.contentStart))
+      actions.append(.cursorInfo(offset: pieces.contentStart))
       if hasBoundaryAfter {
-        actions.append(.codeComplete(position: pieces.contentEnd))
+        actions.append(.codeComplete(offset: pieces.contentEnd))
       }
     } else if token.isLiteralExprClose {
-      actions.append(.codeComplete(position: pieces.contentEnd))
+      actions.append(.codeComplete(offset: pieces.contentEnd))
     }
 
     if parentsAreValid {
@@ -60,13 +60,13 @@ extension ActionGenerator {
       while let parent = node.parent, !(parent is SourceFileSyntax),
         parent.endPosition.utf8Offset == node.endPosition.utf8Offset,
         parent.positionAfterSkippingLeadingTrivia.utf8Offset != node.positionAfterSkippingLeadingTrivia.utf8Offset {
-          actions.append(.rangeInfo(range: SourceRange(of: parent, includingTrivia: false)))
+          actions.append(.rangeInfo(offset: parent.positionAfterSkippingLeadingTrivia.utf8Offset, length: parent.contentLength.utf8Length))
           node = parent
       }
     }
 
     if !pieces.trailingTrivia.isEmpty, withReplaceTexts {
-      actions.append(.replaceText(range: SourceRange(of: pieces.contentEnd), text: pieces.trailingTrivia))
+      actions.append(.replaceText(offset: pieces.contentEnd, length: 0, text: pieces.trailingTrivia))
     }
 
     return actions
@@ -138,7 +138,7 @@ final class RewriteActionGenerator: SyntaxVisitor, ActionGenerator {
   var actions = [Action]()
 
   func generate(for tree: SourceFileSyntax) -> [Action] {
-    actions = [.replaceText(range: SourceRange(of: tree, includingTrivia: true), text: "")]
+    actions = [.replaceText(offset: 0, length: tree.totalLength.utf8Length, text: "")]
     tree.walk(self)
     return actions
   }
@@ -154,7 +154,7 @@ final class ConcurrentRewriteActionGenerator: ActionGenerator {
 
   func generate(for tree: SourceFileSyntax) -> [Action] {
     // clear the file contents
-    actions = [.replaceText(range: SourceRange(of: tree, includingTrivia: true), text: "")]
+    actions = [.replaceText(offset: 0, length: tree.totalLength.utf8Length, text: "")]
 
     var groupedTokens = tree.statements.map { (length: SourceLength.zero, remaining: TokenData(of: $0).tokens[...]) }
     var tokensRemain = true
@@ -162,7 +162,7 @@ final class ConcurrentRewriteActionGenerator: ActionGenerator {
     while tokensRemain {
       tokensRemain = false
 
-      var position = AbsolutePosition(line: 1, column: 1, utf8Offset: 0)
+      var position = AbsolutePosition(utf8Offset: 0)
       groupedTokens = groupedTokens.map { group in
         position += group.length
         guard let next = group.remaining.first else { return group }
@@ -188,7 +188,7 @@ final class InsideOutRewriteActionGenerator: ActionGenerator {
 
   func generate(for tree: SourceFileSyntax) -> [Action] {
     // clear the file contents
-    actions = [.replaceText(range: SourceRange(of: tree, includingTrivia: true), text: "")]
+    actions = [.replaceText(offset: 0, length: tree.totalLength.utf8Length, text: "")]
 
     // compute the index to insert each token at, given we want to insert the most deeply
     // nested tokens first into a flat token list and end up with the tokens in their original
@@ -207,7 +207,7 @@ final class InsideOutRewriteActionGenerator: ActionGenerator {
     // work through the tokens from the most deeply nested to the least,
     // inserting them into a token list at the indices computed above
     var worklist = [(token: TokenSyntax, endPos: AbsolutePosition)]()
-    let fileStart = AbsolutePosition(line: 1, column: 1, utf8Offset: 0)
+    let fileStart = AbsolutePosition(utf8Offset: 0)
     for depth in seenByDepth.keys.sorted(by: >) {
       var lastInsertion: (endPos: AbsolutePosition, nextIndex: Int)? = nil
       for (token, index) in insertions where tokenData.depths[token] == depth {
@@ -261,51 +261,21 @@ fileprivate final class TokenData: SyntaxVisitor {
   }
 }
 
-
-fileprivate extension SourcePosition {
-  init(of syntax: Syntax, includingTrivia: Bool = false) {
-    let pos = includingTrivia ? syntax.position : syntax.positionAfterSkippingLeadingTrivia
-    self.init(offset: pos.utf8Offset, line: pos.line, column: pos.column)
-  }
-
-  init(atEndOf syntax: Syntax, includingTrivia: Bool = false) {
-    let pos = includingTrivia ? syntax.endPositionAfterTrailingTrivia : syntax.endPosition
-    self.init(offset: pos.utf8Offset, line: pos.line, column: pos.column)
-  }
-
-  init(_ position: AbsolutePosition) {
-    self.init(offset: position.utf8Offset, line: position.line, column: position.column)
-  }
-}
-
-fileprivate extension SourceRange {
-  init(of syntax: Syntax, includingTrivia: Bool = false) {
-    let start = SourcePosition(of: syntax, includingTrivia: includingTrivia)
-    let end = SourcePosition(atEndOf: syntax, includingTrivia: includingTrivia)
-    let length = includingTrivia ? syntax.byteSize : syntax.byteSizeAfterTrimmingTrivia
-    self.init(start: start, end: end, length: length)
-  }
-
-  init(of position: SourcePosition) {
-    self.init(start: position, end: position, length: 0)
-  }
-}
-
 fileprivate struct DecomposedToken {
-  let triviaStart: SourcePosition
-  let contentStart: SourcePosition
-  let contentEnd: SourcePosition
-  let triviaEnd: SourcePosition
+  let triviaStart: Int
+  let contentStart: Int
+  let contentEnd: Int
+  let triviaEnd: Int
 
   let leadingTrivia: String
   let content: String
   let trailingTrivia: String
 
   init(from token: TokenSyntax, at position: AbsolutePosition) {
-    self.triviaStart = SourcePosition(position)
-    self.contentStart = SourcePosition(position + token.leadingTriviaLength)
-    self.contentEnd = SourcePosition(position + token.leadingTriviaLength + token.contentLength)
-    self.triviaEnd = SourcePosition(position + token.totalLength)
+    self.triviaStart = position.utf8Offset
+    self.contentStart = (position + token.leadingTriviaLength).utf8Offset
+    self.contentEnd = (position + token.leadingTriviaLength + token.contentLength).utf8Offset
+    self.triviaEnd = (position + token.totalLength).utf8Offset
 
     let text = token.description.utf8
     self.leadingTrivia = String(text.prefix(token.leadingTriviaLength.utf8Length))!
