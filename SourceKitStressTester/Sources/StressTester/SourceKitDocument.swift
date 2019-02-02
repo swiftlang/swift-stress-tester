@@ -22,6 +22,7 @@ struct SourceKitDocument {
   let connection: SourceKitdService
 
   private var tree: SourceFileSyntax? = nil
+  private var converter: SourceLocationConverter? = nil
   private var sourceState: SourceState? = nil
 
   private var documentInfo: DocumentInfo {
@@ -41,7 +42,6 @@ struct SourceKitDocument {
 
   mutating func open(state: SourceState? = nil) throws -> (SourceFileSyntax, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_EditorOpen)
-
     if let state = state {
       sourceState = state
       request.addParameter(.key_SourceText, value: state.source)
@@ -78,18 +78,18 @@ struct SourceKitDocument {
     return response
   }
 
-  func rangeInfo(start: SourcePosition, length: Int) throws -> SourceKitdResponse {
+  func rangeInfo(offset: Int, length: Int) throws -> SourceKitdResponse {
     let request = SourceKitdRequest(uid: .request_RangeInfo)
 
     request.addParameter(.key_SourceFile, value: file)
-    request.addParameter(.key_Offset, value: start.offset)
+    request.addParameter(.key_Offset, value: offset)
     request.addParameter(.key_Length, value: length)
     request.addParameter(.key_RetrieveRefactorActions, value: 1)
 
     let compilerArgs = request.addArrayParameter(.key_CompilerArgs)
     for arg in args { compilerArgs.add(arg) }
 
-    let info = RequestInfo.rangeInfo(document: documentInfo, offset: start.offset, length: length, args: args)
+    let info = RequestInfo.rangeInfo(document: documentInfo, offset: offset, length: length, args: args)
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
@@ -99,24 +99,24 @@ struct SourceKitDocument {
         let actionName = action.getString(.key_ActionName)
         let kind = action.getUID(.key_ActionUID)
         _ = try semanticRefactoring(actionKind: kind, actionName: actionName,
-                                    position: start)
+                                    offset: offset)
       }
     }
 
     return response
   }
 
-  func cursorInfo(position: SourcePosition) throws -> SourceKitdResponse {
+  func cursorInfo(offset: Int) throws -> SourceKitdResponse {
     let request = SourceKitdRequest(uid: .request_CursorInfo)
 
     request.addParameter(.key_SourceFile, value: file)
-    request.addParameter(.key_Offset, value: position.offset)
+    request.addParameter(.key_Offset, value: offset)
     request.addParameter(.key_RetrieveRefactorActions, value: 1)
 
     let compilerArgs = request.addArrayParameter(.key_CompilerArgs)
     for arg in args { compilerArgs.add(arg) }
 
-    let info = RequestInfo.cursorInfo(document: documentInfo, offset: position.offset, args: args)
+    let info = RequestInfo.cursorInfo(document: documentInfo, offset: offset, args: args)
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
@@ -134,7 +134,7 @@ struct SourceKitDocument {
         guard actionName != "Global Rename" else { continue }
         let kind = action.getUID(.key_ActionUID)
         _ = try semanticRefactoring(actionKind: kind, actionName: actionName,
-                                    position: position, newName: symbolName)
+                                    offset: offset, newName: symbolName)
       }
     }
 
@@ -142,20 +142,22 @@ struct SourceKitDocument {
   }
 
   func semanticRefactoring(actionKind: SourceKitdUID, actionName: String,
-                           position: SourcePosition, newName: String? = nil) throws -> SourceKitdResponse {
+                           offset: Int, newName: String? = nil) throws -> SourceKitdResponse {
     let request = SourceKitdRequest(uid: .request_SemanticRefactoring)
+    guard let converter = self.converter else { fatalError("didn't call open?") }
 
     request.addParameter(.key_ActionUID, value: actionKind)
     request.addParameter(.key_SourceFile, value: file)
-    request.addParameter(.key_Line, value: position.line)
-    request.addParameter(.key_Column, value: position.column)
+    let location = converter.location(for: AbsolutePosition(utf8Offset: offset))
+    request.addParameter(.key_Line, value: location.line)
+    request.addParameter(.key_Column, value: location.column)
     if let newName = newName, actionName == "Local Rename" {
       request.addParameter(.key_Name, value: newName)
     }
     let compilerArgs = request.addArrayParameter(.key_CompilerArgs)
     for arg in args { compilerArgs.add(arg) }
 
-    let info = RequestInfo.semanticRefactoring(document: documentInfo, offset: position.offset, kind: actionName, args: args)
+    let info = RequestInfo.semanticRefactoring(document: documentInfo, offset: offset, kind: actionName, args: args)
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
@@ -178,23 +180,23 @@ struct SourceKitDocument {
     return response
   }
 
-  mutating func replaceText(range: SourceRange, text: String) throws -> (SourceFileSyntax, SourceKitdResponse) {
+  mutating func replaceText(offset: Int, length: Int, text: String) throws -> (SourceFileSyntax, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_EditorReplaceText)
     request.addParameter(.key_Name, value: file)
-    request.addParameter(.key_Offset, value: range.start.offset)
-    request.addParameter(.key_Length, value: range.length)
+    request.addParameter(.key_Offset, value: offset)
+    request.addParameter(.key_Length, value: length)
     request.addParameter(.key_SourceText, value: text)
 
     request.addParameter(.key_EnableSyntaxMap, value: 0)
     request.addParameter(.key_EnableStructure, value: 0)
     request.addParameter(.key_SyntacticOnly, value: 1)
 
-    let info = RequestInfo.editorReplaceText(document: documentInfo, offset: range.start.offset, length: range.length, text: text)
+    let info = RequestInfo.editorReplaceText(document: documentInfo, offset: offset, length: length, text: text)
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
     // update expected source content and syntax tree
-    sourceState?.replace(range, with: text)
+    sourceState?.replace(offset: offset, length: length, with: text)
     try updateSyntaxTree(request: info)
 
     return (tree!, response)
@@ -254,6 +256,7 @@ struct SourceKitDocument {
       throw SourceKitError.failed(.errorDeserializingSyntaxTree, request: request, response: error.localizedDescription)
     }
     self.tree = tree
+    self.converter = SourceLocationConverter(file: "", tree: tree)
 
     /// When we should be able to fully parse the file, we verify the syntax tree
     if !containsErrors {
@@ -294,12 +297,12 @@ struct SourceState {
 
   /// - returns: true if source state changed
   @discardableResult
-  mutating func replace(_ range: SourceRange, with text: String) -> Bool {
+  mutating func replace(offset: Int, length: Int, with text: String) -> Bool {
     let bytes = source.utf8
-    let prefix = bytes.prefix(upTo: bytes.index(bytes.startIndex, offsetBy: range.start.offset))
-    let suffix = bytes.suffix(from: bytes.index(bytes.startIndex, offsetBy: range.end.offset))
+    let prefix = bytes.prefix(upTo: bytes.index(bytes.startIndex, offsetBy: offset))
+    let suffix = bytes.suffix(from: bytes.index(bytes.startIndex, offsetBy: offset + length))
     source = String(prefix)! + text + String(suffix)!
-    let changed = !range.isEmpty || !text.isEmpty
+    let changed = length > 0 || !text.isEmpty
     wasModified = wasModified || changed
     return changed
   }

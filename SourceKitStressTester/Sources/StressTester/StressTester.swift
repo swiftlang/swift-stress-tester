@@ -80,8 +80,8 @@ struct StressTester {
     // Compute the initial state of the source file for this page
     var state = SourceState(rewriteMode: options.rewriteMode, content: source)
     pages[0..<options.page.index].joined().forEach {
-      if case .replaceText(let range, let text) = $0 {
-        state.replace(range, with: text)
+      if case .replaceText(let offset, let length, let text) = $0 {
+        state.replace(offset: offset, length: length, with: text)
       }
     }
     return (state, page)
@@ -114,29 +114,29 @@ struct StressTester {
 
     // Run all requests that can reuse a single AST together for improved
     // runtime
-    let cursorInfos = actions.compactMap { action -> SourcePosition? in
-      guard case .cursorInfo(let position) = action else { return nil }
-      return position
+    let cursorInfos = actions.compactMap { action -> Int? in
+      guard case .cursorInfo(let offset) = action else { return nil }
+      return offset
     }
-    let rangeInfos = actions.compactMap { action -> SourceRange? in
+    let rangeInfos = actions.compactMap { action -> (offset: Int, length: Int)? in
       guard case .rangeInfo(let range) = action else { return nil }
       return range
     }
-    let codeCompletions = actions.compactMap { action -> SourcePosition? in
-      guard case .codeComplete(let position) = action else { return nil }
-      return position
+    let codeCompletions = actions.compactMap { action -> Int? in
+      guard case .codeComplete(let offset) = action else { return nil }
+      return offset
     }
 
-    for position in cursorInfos {
-      _ = try document.cursorInfo(position: position)
+    for offset in cursorInfos {
+      _ = try document.cursorInfo(offset: offset)
     }
 
     for range in rangeInfos {
-      _ = try document.rangeInfo(start: range.start, length: range.length)
+      _ = try document.rangeInfo(offset: range.offset, length: range.length)
     }
 
-    for position in codeCompletions {
-      _ = try document.codeComplete(offset: position.offset)
+    for offset in codeCompletions {
+      _ = try document.codeComplete(offset: offset)
     }
 
     _ = try document.close()
@@ -155,14 +155,14 @@ struct StressTester {
 
     for action in actions {
       switch action {
-      case .cursorInfo(let position):
-        _ = try document.cursorInfo(position: position)
-      case .codeComplete(let position):
-        _ = try document.codeComplete(offset: position.offset)
-      case .rangeInfo(let range):
-        _ = try document.rangeInfo(start: range.start, length: range.length)
-      case .replaceText(let range, let text):
-        _ = try document.replaceText(range: range, text: text)
+      case .cursorInfo(let offset):
+        _ = try document.cursorInfo(offset: offset)
+      case .codeComplete(let offset):
+        _ = try document.codeComplete(offset: offset)
+      case .rangeInfo(let offset, let length):
+        _ = try document.rangeInfo(offset: offset, length: length)
+      case .replaceText(let offset, let length, let text):
+        _ = try document.replaceText(offset: offset, length: length, text: text)
       }
     }
 
