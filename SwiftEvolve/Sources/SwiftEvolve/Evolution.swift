@@ -104,6 +104,7 @@ extension AnyEvolution {
   enum Kind: String, Codable, CaseIterable {
     case shuffleMembers
     case synthesizeMemberwiseInitializer
+    case shuffleGenericRequirements
 
     var type: Evolution.Type {
       switch self {
@@ -111,6 +112,8 @@ extension AnyEvolution {
         return ShuffleMembersEvolution.self
       case .synthesizeMemberwiseInitializer:
         return SynthesizeMemberwiseInitializerEvolution.self
+      case .shuffleGenericRequirements:
+        return ShuffleGenericRequirementsEvolution.self
       }
     }
   }
@@ -138,6 +141,12 @@ struct SynthesizeMemberwiseInitializerEvolution: Evolution {
   var inits: [[StoredProperty]]
   
   var kind: AnyEvolution.Kind { return .synthesizeMemberwiseInitializer }
+}
+
+/// An evolution which shuffles the constraints in a generic where clause.
+struct ShuffleGenericRequirementsEvolution: Evolution {
+  var mapping: [Int]
+  var kind: AnyEvolution.Kind { return .shuffleGenericRequirements }
 }
 
 // MARK: Implementations
@@ -319,5 +328,34 @@ extension SynthesizeMemberwiseInitializerEvolution {
         $0.useDecl(newInitializer)
       })
     }
+  }
+}
+
+extension ShuffleGenericRequirementsEvolution {
+  init?<G>(for node: Syntax, in decl: DeclContext, using rng: inout G) throws
+    where G: RandomNumberGenerator
+  {
+    guard
+      let requirements = node as? GenericRequirementListSyntax
+    else { throw EvolutionError.unsupported }
+
+    let indices = requirements.indices
+
+    let mapping = indices.shuffled(using: &rng)
+
+    if mapping.count <= 1 { return nil }
+
+    self.init(mapping: mapping)
+  }
+
+  func evolve(_ node: Syntax) -> Syntax {
+    let requirements = node as! GenericRequirementListSyntax
+
+    precondition(requirements.count == mapping.count,
+                 "ShuffleGenericRequirementsEvolution mapping does not match node it's being applied to")
+
+    return SyntaxFactory.makeGenericRequirementList(
+      mapping.map { requirements[$0] }.withCorrectTrailingCommas()
+    )
   }
 }

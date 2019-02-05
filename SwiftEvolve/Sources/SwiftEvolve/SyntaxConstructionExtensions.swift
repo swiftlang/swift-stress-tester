@@ -16,6 +16,33 @@
 
 import SwiftSyntax
 
+protocol TrailingCommaSyntax: Syntax {
+  func withTrailingComma(_ token: TokenSyntax?) -> Self
+}
+
+extension FunctionParameterSyntax: TrailingCommaSyntax {}
+extension ConformanceRequirementSyntax: TrailingCommaSyntax {}
+extension SameTypeRequirementSyntax: TrailingCommaSyntax {}
+
+// We cannot use Element: TrailingCommaSyntax here because
+// GenericRequirementListSyntax has untyped Syntax elements.
+extension BidirectionalCollection where Element == Syntax {
+  func withCorrectTrailingCommas(betweenTrivia: Trivia = [.spaces(1)]) -> [Element] {
+    var elems: [Element] = []
+
+    for elem in dropLast() {
+      let newComma = SyntaxFactory.makeCommaToken(trailingTrivia: betweenTrivia)
+      let newElem = (elem as! TrailingCommaSyntax).withTrailingComma(newComma)
+      elems.append(newElem)
+    }
+    if let last = last {
+      elems.append((last as! TrailingCommaSyntax).withTrailingComma(nil))
+    }
+
+    return elems
+  }
+}
+
 extension Collection {
   func mapToFunctionParameterClause(
     outerLeadingTrivia: Trivia = [],
@@ -25,17 +52,10 @@ extension Collection {
     outerTrailingTrivia: Trivia = [],
     _ transform: (Element) throws -> FunctionParameterSyntax
   ) rethrows -> ParameterClauseSyntax {
-    var params = try map(transform)
-    
-    // Add commas
-    for i in params.indices.dropLast() {
-      let comma = (
-        i == params.indices.last ? nil :
-          SyntaxFactory.makeCommaToken(trailingTrivia: betweenTrivia)
-      )
-      params[i] = params[i].withTrailingComma(comma)
-    }
-    
+    let params = try map(transform)
+      .withCorrectTrailingCommas(betweenTrivia: betweenTrivia)
+        as! [FunctionParameterSyntax]
+
     return SyntaxFactory.makeParameterClause(
       leftParen: SyntaxFactory.makeLeftParenToken(
         leadingTrivia: outerLeadingTrivia, trailingTrivia: innerLeadingTrivia
