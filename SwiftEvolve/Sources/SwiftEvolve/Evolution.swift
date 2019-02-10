@@ -156,8 +156,9 @@ extension ShuffleMembersEvolution {
     where G: RandomNumberGenerator
   {
     guard
-      let members = node as? MemberDeclListSyntax
+      let membersList = node as? MemberDeclListSyntax
     else { throw EvolutionError.unsupported }
+    let members = Array(membersList)
 
     func shouldShuffleMember(at i: Int) -> Bool {
       guard let memberDecl = members[i].decl as? Decl else {
@@ -186,7 +187,7 @@ extension ShuffleMembersEvolution {
   }
 
   func evolve(_ node: Syntax) -> Syntax {
-    let members = node as! MemberDeclListSyntax
+    let members = Array(node as! MemberDeclListSyntax)
 
     let inMapping = Set(mapping)
     let missing = members.indices.filter { !inMapping.contains($0) }
@@ -336,8 +337,9 @@ extension ShuffleGenericRequirementsEvolution {
     where G: RandomNumberGenerator
   {
     guard
-      let requirements = node as? GenericRequirementListSyntax
+      let requirementsList = node as? GenericRequirementListSyntax
     else { throw EvolutionError.unsupported }
+    let requirements = Array(requirementsList)
 
     let indices = requirements.indices
 
@@ -349,7 +351,7 @@ extension ShuffleGenericRequirementsEvolution {
   }
 
   func evolve(_ node: Syntax) -> Syntax {
-    let requirements = node as! GenericRequirementListSyntax
+    let requirements = Array(node as! GenericRequirementListSyntax)
 
     precondition(requirements.count == mapping.count,
                  "ShuffleGenericRequirementsEvolution mapping does not match node it's being applied to")

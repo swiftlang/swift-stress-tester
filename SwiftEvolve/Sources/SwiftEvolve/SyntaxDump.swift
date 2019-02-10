@@ -22,7 +22,7 @@ import SwiftSyntax
 /// S-expression-style dump of it and its descendents.
 struct SyntaxDump: TextOutputStreamable {
   let node: Syntax
-  let file: URL?
+  let locationConverter: SourceLocationConverter
   
   func write<Target>(_ node: Syntax, to target: inout Target, indentation: Int)
     where Target : TextOutputStream
@@ -45,7 +45,7 @@ struct SyntaxDump: TextOutputStreamable {
       write("\(loc.column)")
     }
 
-    let startLoc = file.map { node.startLocation(in: $0) }
+    let startLoc = node.startLocation(converter: locationConverter)
     write("(")
     switch node {
     case let node as TokenSyntax:

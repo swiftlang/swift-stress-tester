@@ -209,3 +209,9 @@ fileprivate class TokenTextFormatter: SyntaxVisitor {
     return .skipChildren
   }
 }
+
+extension SyntaxCollection {
+  var first: Element? {
+    return self.first(where:{_ in true})
+  }
+}
