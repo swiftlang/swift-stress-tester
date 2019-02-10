@@ -37,6 +37,8 @@ public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
   public var includeLineAndColumn: Bool
 
   var url: URL!
+  var fileTree: SourceFileSyntax!
+  var locationConverter: SourceLocationConverter!
   var context = Context()
   var error: Error?
 
@@ -62,6 +64,8 @@ public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
 
   public func planEvolution(in file: SourceFileSyntax, at url: URL) throws {
     self.url = url.absoluteURL
+    self.fileTree = file
+    self.locationConverter = SourceLocationConverter(file: url.path, tree: file)
     context = Context()
     error = nil
 
@@ -73,8 +77,10 @@ public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
   }
 
   func makeLocationString(for node: Syntax) -> String {
+    precondition(node.root == self.fileTree,
+      "querying for location of node of a different tree than the one we started with")
     if includeLineAndColumn {
-      return "at \(node.startLocation(in: url))"
+      return "at \(node.startLocation(converter: locationConverter))"
     }
     else {
       return "in \(url.path)"
