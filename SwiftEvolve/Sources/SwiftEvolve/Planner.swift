@@ -25,7 +25,7 @@ public struct PlannedEvolution: Codable {
   var evolution: AnyEvolution
 }
 
-public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
+public class Planner<G: RandomNumberGenerator>: SyntaxAnyVisitor {
   var rng: G
   let rules: EvolutionRules
   
@@ -69,7 +69,8 @@ public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
     context = Context()
     error = nil
 
-    file.walk(self)
+    var visitor = self
+    file.walk(&visitor)
 
     if let error = error {
       throw error
@@ -110,16 +111,17 @@ public class Planner<G: RandomNumberGenerator>: SyntaxVisitor {
     }
   }
   
-  public override func visitPre(_ node: Syntax) {
-    guard error == nil else { return }
+  public func visitAny(_ node: Syntax) -> SyntaxVisitorContinueKind {
+    guard error == nil else { return .visitChildren }
 
     if context.enter(node) {
       potentialEvolutionsStack.append([])
     }
     plan(node)
+    return .visitChildren
   }
   
-  public override func visitPost(_ node: Syntax) {
+  public func visitAnyPost(_ node: Syntax) {
     guard error == nil else { return }
 
     if context.leave(node) {

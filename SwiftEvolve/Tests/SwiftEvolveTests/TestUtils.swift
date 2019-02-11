@@ -5,13 +5,13 @@ import Basic
 
 extension Syntax {
   func filter<T: Syntax>(whereIs type: T.Type) -> [T] {
-    let visitor = FilterVisitor { $0 is T }
-    walk(visitor)
+    var visitor = FilterVisitor { $0 is T }
+    walk(&visitor)
     return visitor.passing as! [T]
   }
 }
 
-class FilterVisitor: SyntaxVisitor {
+struct FilterVisitor: SyntaxAnyVisitor {
   let predicate: (Syntax) -> Bool
   var passing: [Syntax] = []
 
@@ -19,8 +19,9 @@ class FilterVisitor: SyntaxVisitor {
     self.predicate = predicate
   }
 
-  override func visitPre(_ node: Syntax) {
+  mutating func visitAny(_ node: Syntax) -> SyntaxVisitorContinueKind {
     if predicate(node) { passing.append(node) }
+    return .visitChildren
   }
 }
 
