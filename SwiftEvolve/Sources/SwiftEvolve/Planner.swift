@@ -112,7 +112,7 @@ public class Planner<G: RandomNumberGenerator>: SyntaxAnyVisitor {
   }
   
   public func visitAny(_ node: Syntax) -> SyntaxVisitorContinueKind {
-    guard error == nil else { return .visitChildren }
+    guard error == nil else { return .skipChildren }
 
     if context.enter(node) {
       potentialEvolutionsStack.append([])
