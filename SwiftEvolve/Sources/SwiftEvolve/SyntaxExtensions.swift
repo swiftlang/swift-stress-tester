@@ -166,8 +166,8 @@ extension TypeSyntax {
 
 extension TypeSyntax {
   var typeText: String {
-    let formatter = TokenTextFormatter()
-    walk(formatter)
+    var formatter = TokenTextFormatter()
+    walk(&formatter)
     return formatter.text
   }
 }
@@ -184,15 +184,11 @@ extension TokenKind {
   }
 }
 
-fileprivate class TokenTextFormatter: SyntaxVisitor {
+fileprivate struct TokenTextFormatter: SyntaxVisitor {
   var previous: TokenKind?
   var text: String = ""
 
-  override init() {
-    super.init()
-  }
-
-  override func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
+  mutating func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
     switch token.tokenKind {
     case .comma:
       text += ", "

@@ -121,11 +121,12 @@ final class RequestActionGenerator: SyntaxVisitor, ActionGenerator {
 
   func generate(for tree: SourceFileSyntax) -> [Action] {
     actions.removeAll()
-    tree.walk(self)
+    var visitor = self
+    tree.walk(&visitor)
     return actions
   }
 
-  override func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
+  func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
     actions.append(contentsOf: generateActions(for: token, withReplaceTexts: false))
     return .visitChildren
   }
@@ -139,11 +140,12 @@ final class RewriteActionGenerator: SyntaxVisitor, ActionGenerator {
 
   func generate(for tree: SourceFileSyntax) -> [Action] {
     actions = [.replaceText(offset: 0, length: tree.totalLength.utf8Length, text: "")]
-    tree.walk(self)
+    var visitor = self
+    tree.walk(&visitor)
     return actions
   }
 
-  override func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
+  func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
     actions.append(contentsOf: generateActions(for: token, withReplaceTexts: true))
     return .visitChildren
   }
@@ -236,28 +238,29 @@ final class InsideOutRewriteActionGenerator: ActionGenerator {
 }
 
 /// Collects tokens and their depths within a given Syntax
-fileprivate final class TokenData: SyntaxVisitor {
+fileprivate final class TokenData: SyntaxAnyVisitor {
   private(set) var tokens = [TokenSyntax]()
   private(set) var depths = [TokenSyntax: Int]()
   private var depth = -1
 
   init(of syntax: Syntax) {
-    super.init()
-    syntax.walk(self)
+    var visitor = self
+    syntax.walk(&visitor)
   }
 
-  override func visitPre(_ node: Syntax) {
+  func visitAny(_ node: Syntax) -> SyntaxVisitorContinueKind {
     depth += 1
+    return .visitChildren
   }
 
-  override func visitPost(_ node: Syntax) {
+  func visitAnyPost(_ node: Syntax) {
     depth -= 1
   }
 
-  override func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
+  func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
     tokens.append(token)
     depths[token] = depth
-    return .visitChildren
+    return visitAny(token)
   }
 }
 
