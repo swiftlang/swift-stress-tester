@@ -229,18 +229,18 @@ struct SourceKitDocument {
   }
 
   private func parseSyntax(request: RequestInfo) throws -> SourceFileSyntax {
-    let reparseLookup: IncrementalEditTransition?
+    let reparseTransition: IncrementalParseTransition?
     switch request {
     case .editorReplaceText(_, let offset, let length, let text):
       let edits = [SourceEdit(range: ByteSourceRange(offset: offset, length: length), replacementLength: text.utf8.count)]
-      reparseLookup = IncrementalEditTransition(previousTree: self.tree!, edits: edits)
+      reparseTransition = IncrementalParseTransition(previousTree: self.tree!, edits: edits)
     default:
-      reparseLookup = nil
+      reparseTransition = nil
     }
 
     let tree: SourceFileSyntax
     if let state = sourceState {
-      tree = try SyntaxParser.parse(source: state.source, parseLookup: reparseLookup)
+      tree = try SyntaxParser.parse(source: state.source, parseTransition: reparseTransition)
     } else {
       tree = try SyntaxParser.parse(URL(fileURLWithPath: file))
     }
