@@ -58,8 +58,8 @@ extension ActionGenerator {
     if parentsAreValid {
       var node: Syntax = token
       while let parent = node.parent, !(parent is SourceFileSyntax),
-        parent.endPosition.utf8Offset == node.endPosition.utf8Offset,
-        parent.positionAfterSkippingLeadingTrivia.utf8Offset != node.positionAfterSkippingLeadingTrivia.utf8Offset {
+        parent.endPositionBeforeTrailingTrivia == node.endPositionBeforeTrailingTrivia,
+        parent.positionAfterSkippingLeadingTrivia != node.positionAfterSkippingLeadingTrivia {
           actions.append(.rangeInfo(offset: parent.positionAfterSkippingLeadingTrivia.utf8Offset, length: parent.contentLength.utf8Length))
           node = parent
       }
