@@ -21,6 +21,7 @@ struct SourceKitDocument {
   let containsErrors: Bool
   let connection: SourceKitdService
 
+  private let diagEngine = DiagnosticEngine()
   private var tree: SourceFileSyntax? = nil
   private var converter: SourceLocationConverter? = nil
   private var sourceState: SourceState? = nil
@@ -33,11 +34,20 @@ struct SourceKitDocument {
     return DocumentInfo(path: file, modification: modification)
   }
 
+  // An empty diagnostic consumer to practice the diagnostic APIs associated
+  // with SwiftSyntax parser.
+  class EmptyDiagConsumer: DiagnosticConsumer {
+    func handle(_ diagnostic: Diagnostic) {}
+    func finalize() {}
+    let needsLineColumn: Bool = true
+  }
+
   init(_ file: String, args: [String], connection: SourceKitdService, containsErrors: Bool = false) {
     self.file = file
     self.args = args
     self.containsErrors = containsErrors
     self.connection = connection
+    self.diagEngine.addConsumer(EmptyDiagConsumer())
   }
 
   mutating func open(state: SourceState? = nil) throws -> (SourceFileSyntax, SourceKitdResponse) {
@@ -240,9 +250,12 @@ struct SourceKitDocument {
 
     let tree: SourceFileSyntax
     if let state = sourceState {
-      tree = try SyntaxParser.parse(source: state.source, parseTransition: reparseTransition)
+      tree = try SyntaxParser.parse(source: state.source,
+                                    parseTransition: reparseTransition,
+                                    diagnosticEngine: diagEngine)
     } else {
-      tree = try SyntaxParser.parse(URL(fileURLWithPath: file))
+      tree = try SyntaxParser.parse(URL(fileURLWithPath: file),
+                                    diagnosticEngine: diagEngine)
     }
     return tree
   }
