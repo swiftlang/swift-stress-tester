@@ -36,9 +36,9 @@ struct SyntaxDump: TextOutputStreamable {
     func writeLoc(_ loc: SourceLocation?) {
       guard let loc = loc else { return }
       
-      let url = URL(fileURLWithPath: loc.file)
+      let url = loc.file.map(URL.init(fileURLWithPath:))
       write(" ")
-      write(url.lastPathComponent)
+      write(url?.lastPathComponent ?? "<unknown>")
       write(":")
       write("\(loc.line)")
       write(":")
