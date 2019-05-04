@@ -440,7 +440,17 @@ extension IfConfigDeclSyntax {
 
 extension Optional where Wrapped == AttributeListSyntax {
   func contains(named name: String) -> Bool {
-    return self?.contains { $0.attributeName.text == name } ?? false
+    return self?.contains { 
+      if let builtinAttribute = $0 as? AttributeSyntax {
+        return builtinAttribute.attributeName.text == name 
+      } else if let customAttribute = $0 as? CustomAttributeSyntax {
+        // FIXME: Attribute name is a TypeSyntax, so .description isn't quite
+        // right here (e.g. @MyCustomAttribute<MyTypeParam> is valid)
+        return customAttribute.attributeName.description == name
+      } else {
+        preconditionFailure("unhandled AttributeListSyntax element kind")
+      }
+    } ?? false
   }
 }
 
