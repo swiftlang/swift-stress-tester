@@ -26,6 +26,8 @@ public struct SwiftCWrapperTool {
     let stressTesterEnv = EnvOption("SK_STRESS_TEST", type: String.self)
     let ignoreIssuesEnv = EnvOption("SK_STRESS_SILENT", type: Bool.self)
     let astBuildLimitEnv = EnvOption("SK_STRESS_AST_BUILD_LIMIT", type: Int.self)
+    /// Output only what the wrapped compiler outputs
+    let suppressOutputEnv = EnvOption("SK_STRESS_SUPPRESS_OUTPUT", type: Bool.self)
 
     // IssueManager params
     let expectedFailuresPathEnv = EnvOption("SK_XFAILS_PATH", type: String.self)
@@ -39,6 +41,7 @@ public struct SwiftCWrapperTool {
       throw EnvOptionError.noFallback(key: stressTesterEnv.key, target: "sk-stress-test")
     }
     let ignoreIssues = try ignoreIssuesEnv.get(from: environment) ?? false
+    let suppressOutput = try suppressOutputEnv.get(from: environment) ?? false
     let astBuildLimit = try astBuildLimitEnv.get(from: environment)
 
     var issueManager: IssueManager? = nil
@@ -58,7 +61,8 @@ public struct SwiftCWrapperTool {
                                 astBuildLimit: astBuildLimit,
                                 ignoreIssues: ignoreIssues,
                                 issueManager: issueManager,
-                                failFast: true)
+                                failFast: true,
+                                suppressOutput: suppressOutput)
     return try wrapper.run()
   }
 
