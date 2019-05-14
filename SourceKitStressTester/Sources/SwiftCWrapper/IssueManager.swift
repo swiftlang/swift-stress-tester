@@ -44,7 +44,32 @@ struct IssueManager {
   func update(for files: Set<String>, issue: StressTesterIssue?) throws -> ExpectedIssue? {
     let failureSpecs = try getIssueSpecifications(applicableTo: files)
     var state = try getCurrentState()
-    let matchingSpec = state.add(processedFiles: files, issue: issue, specs: failureSpecs)
+
+    var matchingSpec: ExpectedIssue? = nil
+    let added = files.subtracting(state.processedFiles)
+    state.unmatchedExpectedIssues.append(contentsOf: failureSpecs.filter { spec in
+      added.contains {spec.isApplicable(toPath: $0)}
+    })
+    state.processedFiles.formUnion(files)
+    if let issue = issue {
+      if let match = failureSpecs.first(where: {$0.matches(issue)}) {
+        state.expectedIssues[match.issueUrl, default: []].append(issue)
+        state.expectedIssueMessages[match.issueUrl, default: []].append(String(describing: issue))
+        state.unmatchedExpectedIssues.removeAll(where: {$0 == match})
+        matchingSpec = match
+      } else {
+        let xfail = ExpectedIssue(matching: issue, issueUrl: "<issue url>",
+                                  config: activeConfig)
+        let json = try encoder.encode(xfail)
+        state.issues.append(issue)
+        state.issueMessages.append("""
+          \(String(describing: issue))
+          Add the following entry to the expected failures JSON file to mark it as expected:
+          \(String(data: json, encoding: .utf8)!)"
+          """)
+      }
+    }
+
     let data = try encoder.encode(state)
     FileManager.default.createFile(atPath: resultsFile.path, contents: data)
     return matchingSpec
@@ -71,33 +96,13 @@ struct IssueManager {
 /// Holds the state of the IssueManager that will be serialized across
 /// invocations
 fileprivate struct IssueManagerState: Codable {
-  var processedFiles = Set<String>()
   var expectedIssues = Dictionary<String, [StressTesterIssue]>()
+  var expectedIssueMessages = Dictionary<String, [String]>()
   var issues = [StressTesterIssue]()
-  var unmatchedExpectedIssues = [ExpectedIssue]()
+  var issueMessages = [String]()
 
-  /// Updates the state to account for the given set of files covered during
-  /// this invocation of the wrapper, and the first issue detected, if any.
-  ///
-  /// - returns: the expected issue that matches the given issue, if any
-  mutating func add(processedFiles: Set<String>, issue: StressTesterIssue?, specs: [ExpectedIssue]) -> ExpectedIssue? {
-    var result: ExpectedIssue? = nil
-    let added = processedFiles.subtracting(self.processedFiles)
-    unmatchedExpectedIssues.append(contentsOf: specs.filter { spec in
-      added.contains {spec.isApplicable(toPath: $0)}
-    })
-    self.processedFiles.formUnion(processedFiles)
-    if let issue = issue {
-      if let match = specs.first(where: {$0.matches(issue)}) {
-        expectedIssues[match.issueUrl] = (expectedIssues[match.issueUrl] ?? []) + [issue]
-        unmatchedExpectedIssues.removeAll(where: {$0 == match})
-        result = match
-      } else {
-        issues.append(issue)
-      }
-    }
-    return result
-  }
+  var processedFiles = Set<String>()
+  var unmatchedExpectedIssues = [ExpectedIssue]()
 }
 
 extension DocumentModification {
