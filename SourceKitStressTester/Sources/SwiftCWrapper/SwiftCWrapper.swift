@@ -13,6 +13,7 @@
 import Common
 import Foundation
 import func Utility.createProgressBar
+import protocol Utility.ProgressBarProtocol
 import Basic
 
 struct SwiftCWrapper {
@@ -23,8 +24,9 @@ struct SwiftCWrapper {
   let ignoreIssues: Bool
   let issueManager: IssueManager?
   let failFast: Bool
+  let suppressOutput: Bool
 
-  init(swiftcArgs: [String], swiftcPath: String, stressTesterPath: String, astBuildLimit: Int?, ignoreIssues: Bool, issueManager: IssueManager?, failFast: Bool) {
+  init(swiftcArgs: [String], swiftcPath: String, stressTesterPath: String, astBuildLimit: Int?, ignoreIssues: Bool, issueManager: IssueManager?, failFast: Bool, suppressOutput: Bool) {
     self.arguments = swiftcArgs
     self.swiftcPath = swiftcPath
     self.stressTesterPath = stressTesterPath
@@ -32,6 +34,7 @@ struct SwiftCWrapper {
     self.ignoreIssues = ignoreIssues
     self.issueManager = issueManager
     self.failFast = failFast
+    self.suppressOutput = suppressOutput
   }
 
   var swiftFiles: [String] {
@@ -66,22 +69,31 @@ struct SwiftCWrapper {
     guard !operations.isEmpty else { return swiftcResult.status }
 
     // Run the operations, reporting progress
-    let progress = createProgressBar(forStream: stderrStream, header: "Stress testing SourceKit...")
-    progress.update(percent: 0, text: "Scheduling \(operations.count) operations")
+    let progress: ProgressBarProtocol?
+    if !suppressOutput {
+      progress = createProgressBar(forStream: stderrStream, header: "Stress testing SourceKit...")
+      progress?.update(percent: 0, text: "Scheduling \(operations.count) operations")
+    } else {
+      progress = nil
+    }
+
     let queue = FailFastOperationQueue(operations: operations) { operation, completed, total -> Bool in
       let message = "\(operation.file) (\(operation.summary)): \(operation.status.name)"
-      progress.update(percent: completed * 100 / total, text: message)
+      progress?.update(percent: completed * 100 / total, text: message)
       return operation.status.isPassed
     }
     queue.waitUntilFinished()
-    progress.complete(success: operations.allSatisfy {$0.status.isPassed})
-    stderrStream <<< "\n"
-    stderrStream.flush()
 
-    // Report the overall runtime
-    let elapsedSeconds = -startTime.timeIntervalSinceNow
-    stderrStream <<< "Runtime: \(elapsedSeconds.formatted() ?? String(elapsedSeconds))\n\n"
-    stderrStream.flush()
+    if !suppressOutput {
+      progress?.complete(success: operations.allSatisfy {$0.status.isPassed})
+      stderrStream <<< "\n"
+      stderrStream.flush()
+
+      // Report the overall runtime
+      let elapsedSeconds = -startTime.timeIntervalSinceNow
+      stderrStream <<< "Runtime: \(elapsedSeconds.formatted() ?? String(elapsedSeconds))\n\n"
+      stderrStream.flush()
+    }
 
     // Determine the set of processed files and the first failure (if any)
     var processedFiles = Set<String>()
@@ -112,6 +124,7 @@ struct SwiftCWrapper {
   }
 
   private func report(_ issue: StressTesterIssue?, matching xIssue: ExpectedIssue? = nil) throws {
+    guard !suppressOutput else { return }
     defer { stderrStream.flush() }
 
     guard let issue = issue else {
