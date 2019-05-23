@@ -21,6 +21,7 @@ class SwiftCWrapperToolTests: XCTestCase {
   var testSwiftCPath: String!
   var testSwiftCWrapperPath: String!
   var testFilePath: String!
+  var testInvocationPath: String!
   var errorJson: String!
 
   func testStatus() throws {
@@ -100,6 +101,51 @@ class SwiftCWrapperToolTests: XCTestCase {
     XCTAssertTrue(fourth.isCancelled, "fourth wasn't cancelled")
   }
 
+  func testEnvParsing() {
+    makeScript(atPath: testSwiftCPath, exitCode: 0)
+    makeScript(atPath: testStressTesterPath, exitCode: 0, recordInvocationIn: testInvocationPath)
+
+    let defaultEnvironment: [String: String] = [
+      "SK_STRESS_SWIFTC": testSwiftCPath,
+      "SK_STRESS_TEST": testStressTesterPath,
+    ]
+
+    // check the produced invocations with default settings
+    let singleFileArgs: [String] = [testSwiftCWrapperPath, testFilePath]
+    XCTAssertNoThrow(XCTAssertEqual(try SwiftCWrapperTool(arguments: singleFileArgs, environment: defaultEnvironment).run(), 0))
+
+    let defaultInvocations = try! String(contentsOf: URL(fileURLWithPath: testInvocationPath)).split(separator: "\n")
+    let defaultExpected = [
+      "--format json --page 1/1 --rewrite-mode none --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) swiftc \(testFilePath!)",
+      "--format json --page 1/1 --rewrite-mode concurrent --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) swiftc \(testFilePath!)",
+      "--format json --page 1/1 --rewrite-mode insideOut --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) swiftc \(testFilePath!)"
+    ]
+
+    XCTAssertEqual(defaultExpected.count, defaultInvocations.count)
+    for invocation in defaultInvocations {
+      XCTAssertTrue(defaultExpected.contains(String(invocation)))
+    }
+
+    // check custom request kinds and rewrite modes are propagated through correctly
+    try! FileManager.default.removeItem(atPath: testInvocationPath)
+    let customEnvironment = defaultEnvironment.merging([
+      "SK_STRESS_REQUESTS": "CursorInfo RangeInfo CodeComplete TypeContextInfo ConformingMethodList CollectExpressionType all",
+      "SK_STRESS_REWRITE_MODES": "basic insideOut",
+      "SK_STRESS_CONFORMING_METHOD_TYPES": "s:SomeUSR s:OtherUSR s:ThirdUSR"
+    ], uniquingKeysWith: { _, new in new })
+    XCTAssertNoThrow(XCTAssertEqual(try SwiftCWrapperTool(arguments: singleFileArgs, environment: customEnvironment).run(), 0))
+
+    let customInvocations = try! String(contentsOf: URL(fileURLWithPath: testInvocationPath)).split(separator: "\n")
+    let customExpected = [
+      "--format json --page 1/1 --rewrite-mode basic --request CursorInfo --request RangeInfo --request CodeComplete --request TypeContextInfo --request ConformingMethodList --request CollectExpressionType --request All --type-list-item s:SomeUSR --type-list-item s:OtherUSR --type-list-item s:ThirdUSR \(testFilePath!) swiftc \(testFilePath!)",
+      "--format json --page 1/1 --rewrite-mode insideOut --request CursorInfo --request RangeInfo --request CodeComplete --request TypeContextInfo --request ConformingMethodList --request CollectExpressionType --request All --type-list-item s:SomeUSR --type-list-item s:OtherUSR --type-list-item s:ThirdUSR \(testFilePath!) swiftc \(testFilePath!)"
+    ]
+    XCTAssertEqual(customExpected.count, customInvocations.count)
+    for invocation in customInvocations {
+      XCTAssertTrue(customExpected.contains(String(invocation)), "Unexpected invocation: \(invocation)")
+    }
+  }
+
   func testIssueManager() {
     let xfail = ExpectedIssue(
       applicableConfigs: ["master"], issueUrl: "<issue-url>",
@@ -164,6 +210,9 @@ class SwiftCWrapperToolTests: XCTestCase {
     testFilePath = workspace
       .appendingPathComponent("test.swift", isDirectory: false)
       .path
+    testInvocationPath = workspace
+      .appendingPathComponent("invocations.txt", isDirectory: false)
+      .path
     errorJson = """
       {"message": "detected", "error": {
         "error": "timedOut",
@@ -184,13 +233,16 @@ class SwiftCWrapperToolTests: XCTestCase {
       """.data(using: .utf8))
   }
 
-  func makeScript(atPath path: String, exitCode: Int32, stdout: String? = nil, stderr: String? = nil) {
+  func makeScript(atPath path: String, exitCode: Int32, stdout: String? = nil, stderr: String? = nil, recordInvocationIn invocationPath: String? = nil) {
     var lines = ["#!/usr/bin/env bash"]
     if let stdout = stdout {
       lines.append("echo '\(stdout)'")
     }
     if let stderr = stderr {
       lines.append("echo '\(stderr)' >&2")
+    }
+    if let invocationPath = invocationPath {
+      lines.append("echo $@ >> \(invocationPath)")
     }
     lines.append("exit \(exitCode)")
     let content = lines.joined(separator: "\n").data(using: .utf8)

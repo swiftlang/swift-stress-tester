@@ -21,12 +21,15 @@ struct SwiftCWrapper {
   let swiftcPath: String
   let stressTesterPath: String
   let astBuildLimit: Int?
+  let rewriteModes: [RewriteMode]
+  let requestKinds: [RequestKind]
+  let conformingMethodTypes: [String]?
   let ignoreIssues: Bool
   let issueManager: IssueManager?
   let failFast: Bool
   let suppressOutput: Bool
 
-  init(swiftcArgs: [String], swiftcPath: String, stressTesterPath: String, astBuildLimit: Int?, ignoreIssues: Bool, issueManager: IssueManager?, failFast: Bool, suppressOutput: Bool) {
+  init(swiftcArgs: [String], swiftcPath: String, stressTesterPath: String, astBuildLimit: Int?, rewriteModes: [RewriteMode]?, requestKinds: [RequestKind]?, conformingMethodTypes: [String]?, ignoreIssues: Bool, issueManager: IssueManager?, failFast: Bool, suppressOutput: Bool) {
     self.arguments = swiftcArgs
     self.swiftcPath = swiftcPath
     self.stressTesterPath = stressTesterPath
@@ -35,6 +38,9 @@ struct SwiftCWrapper {
     self.issueManager = issueManager
     self.failFast = failFast
     self.suppressOutput = suppressOutput
+    self.rewriteModes = rewriteModes ?? [.none, .concurrent, .insideOut]
+    self.requestKinds = requestKinds ?? [.cursorInfo, .rangeInfo, .codeComplete, .collectExpressionType]
+    self.conformingMethodTypes = conformingMethodTypes
   }
 
   var swiftFiles: [String] {
@@ -58,10 +64,9 @@ struct SwiftCWrapper {
       // Split large files into multiple parts to improve load balancing
       let sizeInBytes = try! FileManager.default.attributesOfItem(atPath: file)[.size]! as! UInt64
       let partCount = max(Int(sizeInBytes / 1000), 1)
-      let modes: [RewriteMode] = [.none, .concurrent, .insideOut]
-      return modes.flatMap { mode in
+      return rewriteModes.flatMap { mode in
         (1...partCount).map { part in
-          StressTestOperation(file: file, rewriteMode: mode, limit: astBuildLimit, part: (part, of: partCount), compilerArgs: arguments, executable: stressTesterPath)
+          StressTestOperation(file: file, rewriteMode: mode, requests: requestKinds, conformingMethodTypes: conformingMethodTypes, limit: astBuildLimit, part: (part, of: partCount), compilerArgs: arguments, executable: stressTesterPath)
         }
       }
     }
@@ -145,6 +150,16 @@ struct SwiftCWrapper {
       }
     }
   }
+}
+
+enum RequestKind: String, CaseIterable {
+  case cursorInfo = "CursorInfo"
+  case rangeInfo = "RangeInfo"
+  case codeComplete = "CodeComplete"
+  case typeContextInfo = "TypeContextInfo"
+  case conformingMethodList = "ConformingMethodList"
+  case collectExpressionType = "CollectExpressionType"
+  case all = "All"
 }
 
 struct SwiftFile: Comparable {

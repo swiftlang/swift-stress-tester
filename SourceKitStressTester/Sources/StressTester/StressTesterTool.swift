@@ -30,6 +30,7 @@ public struct StressTesterTool {
   let page: OptionArgument<Page>
   let request: OptionArgument<[RequestSet]>
   let dryRun: OptionArgument<Bool>
+  let conformingMethodsTypeList: OptionArgument<[String]>
   let file: PositionalArgument<PathArgument>
   let compilerArgs: PositionalArgument<[String]>
 
@@ -52,10 +53,13 @@ public struct StressTesterTool {
       " and only performs the <PAGE>th group.")
     request = parser.add(
       option: "--request", shortName: "-r", kind: [RequestSet].self, strategy: .oneByOne,
-      usage: "<REQUEST> One of CursorInfo, RangeInfo, or CodeComplete")
+      usage: "<REQUEST> One of CursorInfo, RangeInfo, CodeComplete, TypeContextInfo, ConformingMethodList, CollectExpressionType, or All")
     dryRun = parser.add(
       option: "--dryrun", shortName: "-d", kind: Bool.self,
       usage: "Dump the actions the stress tester would perform instead of performing them")
+    conformingMethodsTypeList = parser.add(
+      option: "--type-list-item", shortName: "-t", kind: [String].self, strategy: .oneByOne,
+      usage: "The USR of a conformed-to protocol to use in the ConformingMethodList request")
     file = parser.add(
       positional: "<source-file>", kind: PathArgument.self, optional: false,
       usage: "A Swift source file to stress test", completion: .filename)
@@ -102,6 +106,9 @@ public struct StressTesterTool {
     }
     if let requests = arguments.get(request) {
       options.requests = requests.reduce([]) { result, next in result.union(next) }
+    }
+    if let typeList = arguments.get(conformingMethodsTypeList) {
+      options.conformingMethodsTypeList = typeList
     }
 
     let format = arguments.get(self.format) ?? .humanReadable
@@ -151,15 +158,21 @@ extension RequestSet: ArgumentKind {
   public init(argument: String) throws {
     switch argument.lowercased() {
     case "cursorinfo":
-        self = .cursorInfo
+      self = .cursorInfo
     case "rangeinfo":
-        self = .rangeInfo
+      self = .rangeInfo
     case "codecomplete":
-        self = .codeComplete
+      self = .codeComplete
+    case "typecontextinfo":
+      self = .typeContextInfo
+    case "conformingmethodlist":
+      self = .conformingMethodList
+    case "collectexpressiontype":
+      self = .collectExpressionType
     case "all":
-        self = .all
+      self = .all
     default:
-        throw ArgumentConversionError.unknown(value: argument)
+      throw ArgumentConversionError.unknown(value: argument)
     }
   }
 }
