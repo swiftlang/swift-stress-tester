@@ -40,19 +40,34 @@ extension ActionGenerator {
     }
 
     if token.isReference, hasBoundaryBefore {
-      actions.append(.codeComplete(offset: pieces.contentStart))
+      actions.append(contentsOf: [
+        .codeComplete(offset: pieces.contentStart),
+        .typeContextInfo(offset: pieces.contentStart),
+        .conformingMethodList(offset: pieces.contentStart)
+      ])
     }
     if withReplaceTexts {
       actions.append(.replaceText(offset: pieces.contentStart, length: 0, text: pieces.content))
+      if token.isIdentifier {
+        actions.append(.collectExpressionType)
+      }
     }
 
     if token.isIdentifier {
       actions.append(.cursorInfo(offset: pieces.contentStart))
       if hasBoundaryAfter {
-        actions.append(.codeComplete(offset: pieces.contentEnd))
+        actions.append(contentsOf: [
+          .codeComplete(offset: pieces.contentEnd),
+          .typeContextInfo(offset: pieces.contentEnd),
+          .conformingMethodList(offset: pieces.contentEnd)
+        ])
       }
     } else if token.isLiteralExprClose {
-      actions.append(.codeComplete(offset: pieces.contentEnd))
+      actions.append(contentsOf: [
+        .codeComplete(offset: pieces.contentEnd),
+        .typeContextInfo(offset: pieces.contentEnd),
+        .conformingMethodList(offset: pieces.contentEnd)
+      ])
     }
 
     if parentsAreValid {
@@ -123,11 +138,12 @@ final class RequestActionGenerator: SyntaxVisitor, ActionGenerator {
     actions.removeAll()
     var visitor = self
     tree.walk(&visitor)
+    actions.append(.collectExpressionType)
     return actions
   }
 
   func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
-    actions.append(contentsOf: generateActions(for: token, withReplaceTexts: false))
+    actions.append(contentsOf: generateActions(for: token, withReplaceTexts: false, parentsAreValid: true))
     return .visitChildren
   }
 }
@@ -146,7 +162,7 @@ final class RewriteActionGenerator: SyntaxVisitor, ActionGenerator {
   }
 
   func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
-    actions.append(contentsOf: generateActions(for: token, withReplaceTexts: true))
+    actions.append(contentsOf: generateActions(for: token, withReplaceTexts: true, parentsAreValid: true))
     return .visitChildren
   }
 }

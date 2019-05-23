@@ -23,25 +23,25 @@ class ActionGeneratorTests: XCTestCase {
 
   func testRequestActionGenerator() {
     let actions = RequestActionGenerator().generate(for: testFile)
-    verify(actions, rewriteMode: .none)
+    verify(actions, rewriteMode: .none, expectedActionTypes: [.codeComplete, .cursorInfo, .rangeInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType])
   }
 
   func testRewriteActionGenerator() {
     let actions = RewriteActionGenerator().generate(for: testFile)
-    verify(actions, rewriteMode: .basic)
+    verify(actions, rewriteMode: .basic, expectedActionTypes: [.codeComplete, .cursorInfo, .rangeInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText])
   }
 
   func testConcurrentRewriteActionGenerator() {
     let actions = ConcurrentRewriteActionGenerator().generate(for: testFile)
-    verify(actions, rewriteMode: .concurrent)
+    verify(actions, rewriteMode: .concurrent, expectedActionTypes: [.codeComplete, .cursorInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText])
   }
 
   func testInsideOutActionGenerator() {
     let actions = InsideOutRewriteActionGenerator().generate(for: testFile)
-    verify(actions, rewriteMode: .insideOut)
+    verify(actions, rewriteMode: .insideOut, expectedActionTypes: [.codeComplete, .cursorInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText])
   }
 
-  func verify(_ actions: [Action], rewriteMode: RewriteMode) {
+  func verify(_ actions: [Action], rewriteMode: RewriteMode, expectedActionTypes: [Action.BaseAction]) {
     var state = SourceState(rewriteMode: rewriteMode, content: testFileContent)
 
     for action in actions {
@@ -49,7 +49,7 @@ class ActionGeneratorTests: XCTestCase {
       switch action {
       case .cursorInfo(let offset):
         XCTAssertTrue(offset >= 0 && offset <= eof)
-      case .codeComplete(let offset):
+      case .codeComplete(let offset), .conformingMethodList(let offset), .typeContextInfo(let offset):
         XCTAssertTrue(offset >= 0 && offset <= eof)
       case .rangeInfo(let offset, let length):
         XCTAssertTrue(offset >= 0 && offset <= eof)
@@ -58,9 +58,35 @@ class ActionGeneratorTests: XCTestCase {
         XCTAssertTrue(offset >= 0 && offset <= eof)
         XCTAssertTrue(length >= 0 && offset + length <= eof)
         state.replace(offset: offset, length: length, with: text)
+      case .collectExpressionType:
+        break
       }
     }
     XCTAssertEqual(state.source, testFileContent)
+
+    let grouped = Dictionary(grouping: actions, by: { action -> Action.BaseAction in
+      switch action {
+      case .cursorInfo:
+        return .cursorInfo
+      case .codeComplete:
+        return .codeComplete
+      case .rangeInfo:
+        return .rangeInfo
+      case .replaceText:
+        return .replaceText
+      case .typeContextInfo:
+        return .typeContextInfo
+      case .conformingMethodList:
+        return .conformingMethodList
+      case .collectExpressionType:
+        return .collectExpressionType
+      }
+    })
+
+    XCTAssertEqual(grouped.keys.count, expectedActionTypes.count)
+    for key in expectedActionTypes {
+      XCTAssert(grouped.keys.contains(key), "\(key) not found")
+    }
   }
 
   override func setUp() {

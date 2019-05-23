@@ -62,6 +62,9 @@ public enum RequestInfo {
   case codeComplete(document: DocumentInfo, offset: Int, args: [String])
   case rangeInfo(document: DocumentInfo, offset: Int, length: Int, args: [String])
   case semanticRefactoring(document: DocumentInfo, offset: Int, kind: String, args: [String])
+  case typeContextInfo(document: DocumentInfo, offset: Int, args: [String])
+  case conformingMethodList(document: DocumentInfo, offset: Int, typeList: [String], args: [String])
+  case collectExpressionType(document: DocumentInfo, args: [String])
 }
 
 public struct DocumentInfo: Codable {
@@ -84,7 +87,7 @@ public struct DocumentModification: Codable {
   }
 }
 
-public enum RewriteMode: String, Codable {
+public enum RewriteMode: String, Codable, CaseIterable {
   /// Do not rewrite the file (only make non-modifying SourceKit requests)
   case none
   /// Rewrite the file token by token, top to bottom
@@ -184,10 +187,10 @@ extension SourceKitError: Codable {
 
 extension RequestInfo: Codable {
   enum CodingKeys: String, CodingKey {
-    case request, kind, document, offset, length, text, args
+    case request, kind, document, offset, length, text, args, typeList
   }
   enum BaseRequest: String, Codable {
-    case editorOpen, editorClose, replaceText, cursorInfo, codeComplete, rangeInfo, semanticRefactoring
+    case editorOpen, editorClose, replaceText, cursorInfo, codeComplete, rangeInfo, semanticRefactoring, typeContextInfo, conformingMethodList, collectExpressionType
   }
 
   public init(from decoder: Decoder) throws {
@@ -227,6 +230,21 @@ extension RequestInfo: Codable {
       let length = try container.decode(Int.self, forKey: .length)
       let text = try container.decode(String.self, forKey: .text)
       self = .editorReplaceText(document: document, offset: offset, length: length, text: text)
+    case .typeContextInfo:
+      let document = try container.decode(DocumentInfo.self, forKey: .document)
+      let offset = try container.decode(Int.self, forKey: .offset)
+      let args = try container.decode([String].self, forKey: .args)
+      self = .typeContextInfo(document: document, offset: offset, args: args)
+    case .conformingMethodList:
+      let document = try container.decode(DocumentInfo.self, forKey: .document)
+      let offset = try container.decode(Int.self, forKey: .offset)
+      let typeList = try container.decode([String].self, forKey: .typeList)
+      let args = try container.decode([String].self, forKey: .args)
+      self = .conformingMethodList(document: document, offset: offset, typeList: typeList, args: args)
+    case .collectExpressionType:
+      let document = try container.decode(DocumentInfo.self, forKey: .document)
+      let args = try container.decode([String].self, forKey: .args)
+      self = .collectExpressionType(document: document, args: args)
     }
   }
 
@@ -267,6 +285,21 @@ extension RequestInfo: Codable {
       try container.encode(offset, forKey: .offset)
       try container.encode(length, forKey: .length)
       try container.encode(text, forKey: .text)
+    case .typeContextInfo(let document, let offset, let args):
+      try container.encode(BaseRequest.typeContextInfo, forKey: .request)
+      try container.encode(document, forKey: .document)
+      try container.encode(offset, forKey: .offset)
+      try container.encode(args, forKey: .args)
+    case .conformingMethodList(let document, let offset, let typeList, let args):
+      try container.encode(BaseRequest.conformingMethodList, forKey: .request)
+      try container.encode(document, forKey: .document)
+      try container.encode(offset, forKey: .offset)
+      try container.encode(typeList, forKey: .typeList)
+      try container.encode(args, forKey: .args)
+    case .collectExpressionType(let document, let args):
+      try container.encode(BaseRequest.collectExpressionType, forKey: .request)
+      try container.encode(document, forKey: .document)
+      try container.encode(args, forKey: .args)
     }
   }
 }
@@ -288,6 +321,12 @@ extension RequestInfo: CustomStringConvertible {
       return "SemanticRefactoring (\(kind)) in \(document) at offset \(offset) with args: \(args.joined(separator: " "))"
     case .editorReplaceText(let document, let offset, let length, let text):
       return "ReplaceText in \(document) at offset \(offset) for length \(length) with text: \(text)"
+    case .typeContextInfo(let document, let offset, let args):
+      return "TypeContextInfo in \(document) at offset \(offset) with args: \(args.joined(separator: " "))"
+    case .conformingMethodList(let document, let offset, let typeList, let args):
+      return "ConformingMethodList in \(document) at offset \(offset) conforming to \(typeList.joined(separator: ", ")) with args: \(args.joined(separator: " "))"
+    case .collectExpressionType(let document, let args):
+      return "CollectExpressionType in \(document) with args: \(args.joined(separator: " "))"
     }
   }
 }
@@ -387,6 +426,20 @@ extension SourceKitError: CustomStringConvertible {
       let prefix = source.prefix(upTo: index)
       let suffix = source.suffix(from: index)
       return String(prefix) + "<refactor-offset>" + String(suffix)
+    case .typeContextInfo(let document, let offset, _):
+      guard let source = document.modification?.content else { return nil }
+      let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
+      let prefix = source.prefix(upTo: index)
+      let suffix = source.suffix(from: index)
+      return String(prefix) + "<type-context-info-offset>" + String(suffix)
+    case .conformingMethodList(let document, let offset, _, _):
+      guard let source = document.modification?.content else { return nil }
+      let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
+      let prefix = source.prefix(upTo: index)
+      let suffix = source.suffix(from: index)
+      return String(prefix) + "<conforming-method-list-offset>" + String(suffix)
+    case .collectExpressionType(let document, _):
+      return document.modification?.content
     }
   }
 }
