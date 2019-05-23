@@ -18,11 +18,16 @@ public final class FailFastOperationQueue<Item: Operation> {
   private let operations: [Item]
   private let completionHandler: (Item, Int, Int) -> Bool
 
-  init(operations: [Item], maxWorkers: Int = ProcessInfo.processInfo.activeProcessorCount,
+  init(operations: [Item], maxWorkers: Int? = nil,
        completionHandler: @escaping (Item, Int, Int) -> Bool) {
     self.operations = operations
     self.completionHandler = completionHandler
-    queue.maxConcurrentOperationCount = maxWorkers
+    let processorCount = ProcessInfo.processInfo.activeProcessorCount
+    if let maxWorkers = maxWorkers, maxWorkers < processorCount {
+      queue.maxConcurrentOperationCount = maxWorkers
+    } else {
+      queue.maxConcurrentOperationCount = processorCount
+    }
   }
 
   func waitUntilFinished() {
