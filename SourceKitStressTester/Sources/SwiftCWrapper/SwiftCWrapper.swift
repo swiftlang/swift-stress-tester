@@ -26,10 +26,11 @@ struct SwiftCWrapper {
   let conformingMethodTypes: [String]?
   let ignoreIssues: Bool
   let issueManager: IssueManager?
+  let maxJobs: Int?
   let failFast: Bool
   let suppressOutput: Bool
 
-  init(swiftcArgs: [String], swiftcPath: String, stressTesterPath: String, astBuildLimit: Int?, rewriteModes: [RewriteMode]?, requestKinds: [RequestKind]?, conformingMethodTypes: [String]?, ignoreIssues: Bool, issueManager: IssueManager?, failFast: Bool, suppressOutput: Bool) {
+  init(swiftcArgs: [String], swiftcPath: String, stressTesterPath: String, astBuildLimit: Int?, rewriteModes: [RewriteMode]?, requestKinds: [RequestKind]?, conformingMethodTypes: [String]?, ignoreIssues: Bool, issueManager: IssueManager?, maxJobs: Int?, failFast: Bool, suppressOutput: Bool) {
     self.arguments = swiftcArgs
     self.swiftcPath = swiftcPath
     self.stressTesterPath = stressTesterPath
@@ -41,6 +42,7 @@ struct SwiftCWrapper {
     self.rewriteModes = rewriteModes ?? [.none, .concurrent, .insideOut]
     self.requestKinds = requestKinds ?? [.cursorInfo, .rangeInfo, .codeComplete, .collectExpressionType]
     self.conformingMethodTypes = conformingMethodTypes
+    self.maxJobs = maxJobs
   }
 
   var swiftFiles: [String] {
@@ -82,7 +84,7 @@ struct SwiftCWrapper {
       progress = nil
     }
 
-    let queue = FailFastOperationQueue(operations: operations) { operation, completed, total -> Bool in
+    let queue = FailFastOperationQueue(operations: operations, maxWorkers: maxJobs) { operation, completed, total -> Bool in
       let message = "\(operation.file) (\(operation.summary)): \(operation.status.name)"
       progress?.update(percent: completed * 100 / total, text: message)
       return operation.status.isPassed

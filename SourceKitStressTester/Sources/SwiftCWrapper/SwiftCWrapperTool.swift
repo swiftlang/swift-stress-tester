@@ -39,6 +39,8 @@ public struct SwiftCWrapperTool {
     let requestKindsEnv = EnvOption("SK_STRESS_REQUESTS", type: [RequestKind].self)
     /// Non-default space-separated list of protocol USRs to use for the ConformingMethodList request
     let conformingMethodTypesEnv = EnvOption("SK_STRESS_CONFORMING_METHOD_TYPES", type: [String].self)
+    /// Limit the number of jobs
+    let maxJobsEnv = EnvOption("SK_STRESS_MAX_JOBS", type: Int.self)
 
     // IssueManager params:
     /// Non-default path to the json file containing expected failures
@@ -61,6 +63,7 @@ public struct SwiftCWrapperTool {
     let rewriteModes = try rewriteModesEnv.get(from: environment)
     let requestKinds = try requestKindsEnv.get(from: environment)
     let conformingMethodTypes = try conformingMethodTypesEnv.get(from: environment)
+    let maxJobs = try maxJobsEnv.get(from: environment)
 
     var issueManager: IssueManager? = nil
     if let expectedFailuresPath = try expectedFailuresPathEnv.get(from: environment),
@@ -82,6 +85,7 @@ public struct SwiftCWrapperTool {
                                 conformingMethodTypes: conformingMethodTypes,
                                 ignoreIssues: ignoreIssues,
                                 issueManager: issueManager,
+                                maxJobs: maxJobs,
                                 failFast: true,
                                 suppressOutput: suppressOutput)
     return try wrapper.run()
