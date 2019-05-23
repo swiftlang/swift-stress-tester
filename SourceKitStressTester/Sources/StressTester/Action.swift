@@ -15,6 +15,9 @@ enum Action {
   case codeComplete(offset: Int)
   case rangeInfo(offset: Int, length: Int)
   case replaceText(offset: Int, length: Int, text: String)
+  case typeContextInfo(offset: Int)
+  case conformingMethodList(offset: Int)
+  case collectExpressionType
 }
 
 extension Action: CustomStringConvertible {
@@ -28,6 +31,12 @@ extension Action: CustomStringConvertible {
       return "RangeInfo from offset \(from) for length \(length)"
     case .replaceText(let from, let length, let text):
       return "ReplaceText from offset \(from) for length \(length) with \(text.debugDescription)"
+    case .typeContextInfo(let offset):
+      return "TypeContextInfo at offset \(offset)"
+    case .conformingMethodList(let offset):
+      return "ConformingMethodList at offset \(offset)"
+    case .collectExpressionType:
+      return "CollectExpressionType"
     }
   }
 }
@@ -37,7 +46,7 @@ extension Action: Codable {
     case action, offset, length, text
   }
   enum BaseAction: String, Codable {
-    case cursorInfo, codeComplete, rangeInfo, replaceText
+    case cursorInfo, codeComplete, rangeInfo, replaceText, typeContextInfo, conformingMethodList, collectExpressionType
   }
 
   public init(from decoder: Decoder) throws {
@@ -58,6 +67,14 @@ extension Action: Codable {
       let length = try container.decode(Int.self, forKey: .length)
       let text = try container.decode(String.self, forKey: .text)
       self = .replaceText(offset: offset, length: length, text: text)
+    case .typeContextInfo:
+      let offset = try container.decode(Int.self, forKey: .offset)
+      self = .typeContextInfo(offset: offset)
+    case .conformingMethodList:
+      let offset = try container.decode(Int.self, forKey: .offset)
+      self = .conformingMethodList(offset: offset)
+    case .collectExpressionType:
+      self = .collectExpressionType
     }
   }
 
@@ -79,6 +96,14 @@ extension Action: Codable {
       try container.encode(offset, forKey: .offset)
       try container.encode(length, forKey: .length)
       try container.encode(text, forKey: .text)
+    case .typeContextInfo(let offset):
+      try container.encode(BaseAction.typeContextInfo, forKey: .action)
+      try container.encode(offset, forKey: .offset)
+    case .conformingMethodList(let offset):
+      try container.encode(BaseAction.conformingMethodList, forKey: .action)
+      try container.encode(offset, forKey: .offset)
+    case .collectExpressionType:
+      try container.encode(BaseAction.collectExpressionType, forKey: .action)
     }
   }
 }

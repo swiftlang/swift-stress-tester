@@ -75,6 +75,20 @@ struct ExpectedIssue: Equatable, Codable {
         match(document.modification?.summaryCode, against: modification) &&
         match(offset, against: spec.offset) &&
         match(refactoring, against: spec.refactoring)
+    case .typeContextInfo(let document, let offset, _):
+      guard case .typeContextInfo(let specOffset) = issueDetail else { return false }
+      return match(document.path, against: path) &&
+        match(document.modification?.summaryCode, against: modification) &&
+        match(offset, against: specOffset)
+    case .conformingMethodList(let document, let offset, _, _):
+      guard case .conformingMethodList(let specOffset) = issueDetail else { return false }
+      return match(document.path, against: path) &&
+        match (document.modification?.summaryCode, against: modification) &&
+        match (offset, against: specOffset)
+    case .collectExpressionType(let document, _):
+      guard case .collectExpressionType = issueDetail else { return false }
+      return match(document.path, against: path) &&
+        match (document.modification?.summaryCode, against: modification)
     }
   }
 
@@ -159,6 +173,18 @@ extension ExpectedIssue {
         path = document.path
         modification = document.modification?.summaryCode
         issueDetail = .semanticRefactoring(offset: offset, refactoring: refactoring)
+      case .typeContextInfo(let document, let offset, _):
+        path = document.path
+        modification = document.modification?.summaryCode
+        issueDetail = .typeContextInfo(offset: offset)
+      case .conformingMethodList(let document, let offset, _, _):
+        path = document.path
+        modification = document.modification?.summaryCode
+        issueDetail = .conformingMethodList(offset: offset)
+      case .collectExpressionType(let document, _):
+        path = document.path
+        modification = document.modification?.summaryCode
+        issueDetail = .collectExpressionType
       }
     }
   }
@@ -170,6 +196,9 @@ extension ExpectedIssue {
     case cursorInfo(offset: Int?)
     case codeComplete(offset: Int?)
     case rangeInfo(offset: Int?, length: Int?)
+    case typeContextInfo(offset: Int?)
+    case conformingMethodList(offset: Int?)
+    case collectExpressionType
     case semanticRefactoring(offset: Int?, refactoring: String?)
     case stressTesterCrash(status: Int32?, arguments: String?)
 
@@ -208,6 +237,16 @@ extension ExpectedIssue {
         self = .stressTesterCrash(
           status: try container.decodeIfPresent(Int32.self, forKey: .status),
           arguments: try container.decodeIfPresent(String.self, forKey: .arguments))
+      case .typeContextInfo:
+        self = .typeContextInfo(
+          offset: try container.decodeIfPresent(Int.self, forKey: .offset)
+        )
+      case .conformingMethodList:
+        self = .conformingMethodList(
+          offset: try container.decodeIfPresent(Int.self, forKey: .offset)
+        )
+      case .collectExpressionType:
+        self = .collectExpressionType
       }
     }
 
@@ -241,6 +280,14 @@ extension ExpectedIssue {
         try container.encode(RequestBase.stressTesterCrash, forKey: .kind)
         try container.encode(status, forKey: .status)
         try container.encode(arguments, forKey: .arguments)
+      case .typeContextInfo(let offset):
+        try container.encode(RequestBase.typeContextInfo, forKey: .kind)
+        try container.encode(offset, forKey: .offset)
+      case .conformingMethodList(let offset):
+        try container.encode(RequestBase.conformingMethodList, forKey: .kind)
+        try container.encode(offset, forKey: .offset)
+      case .collectExpressionType:
+        try container.encode(RequestBase.collectExpressionType, forKey: .kind)
       }
     }
 
@@ -250,7 +297,7 @@ extension ExpectedIssue {
 
     private enum RequestBase: String, Codable {
       case editorOpen, editorClose, editorReplaceText
-      case cursorInfo, codeComplete, rangeInfo, semanticRefactoring
+      case cursorInfo, codeComplete, rangeInfo, semanticRefactoring, typeContextInfo, conformingMethodList, collectExpressionType
       case stressTesterCrash
     }
   }

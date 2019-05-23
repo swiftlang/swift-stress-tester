@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import Common
 
 public struct SwiftCWrapperTool {
   let arguments: [String]
@@ -22,16 +23,30 @@ public struct SwiftCWrapperTool {
   }
 
   public func run() throws -> Int32 {
+    /// Non-default path to swiftc
     let swiftcEnv = EnvOption("SK_STRESS_SWIFTC", type: String.self)
+    /// Non-default path to sk-stress-test
     let stressTesterEnv = EnvOption("SK_STRESS_TEST", type: String.self)
+    /// Always return the same exit code as the underlying swiftc, even if stress testing uncovers failures
     let ignoreIssuesEnv = EnvOption("SK_STRESS_SILENT", type: Bool.self)
+    /// Limit the number of sourcekit requests made per-file based on the number of AST rebuilds they trigger
     let astBuildLimitEnv = EnvOption("SK_STRESS_AST_BUILD_LIMIT", type: Int.self)
     /// Output only what the wrapped compiler outputs
     let suppressOutputEnv = EnvOption("SK_STRESS_SUPPRESS_OUTPUT", type: Bool.self)
+    /// Non-default space-separated list of rewrite modes to use
+    let rewriteModesEnv = EnvOption("SK_STRESS_REWRITE_MODES", type: [RewriteMode].self)
+    /// Non-default space-separated list of request types to use
+    let requestKindsEnv = EnvOption("SK_STRESS_REQUESTS", type: [RequestKind].self)
+    /// Non-default space-separated list of protocol USRs to use for the ConformingMethodList request
+    let conformingMethodTypesEnv = EnvOption("SK_STRESS_CONFORMING_METHOD_TYPES", type: [String].self)
 
-    // IssueManager params
+    // IssueManager params:
+    /// Non-default path to the json file containing expected failures
     let expectedFailuresPathEnv = EnvOption("SK_XFAILS_PATH", type: String.self)
+    /// Non-default path to write the results json file to
     let outputPathEnv = EnvOption("SK_STRESS_OUTPUT", type: String.self)
+    /// The value of the 'config' field to use when suggesting entries to add to the expected
+    /// failures json file to mark an unexpected failure as expected.
     let activeConfigEnv = EnvOption("SK_STRESS_ACTIVE_CONFIG", type: String.self)
 
     guard let swiftc = (try swiftcEnv.get(from: environment) ?? getDefaultSwiftCPath()) else {
@@ -43,6 +58,9 @@ public struct SwiftCWrapperTool {
     let ignoreIssues = try ignoreIssuesEnv.get(from: environment) ?? false
     let suppressOutput = try suppressOutputEnv.get(from: environment) ?? false
     let astBuildLimit = try astBuildLimitEnv.get(from: environment)
+    let rewriteModes = try rewriteModesEnv.get(from: environment)
+    let requestKinds = try requestKindsEnv.get(from: environment)
+    let conformingMethodTypes = try conformingMethodTypesEnv.get(from: environment)
 
     var issueManager: IssueManager? = nil
     if let expectedFailuresPath = try expectedFailuresPathEnv.get(from: environment),
@@ -59,6 +77,9 @@ public struct SwiftCWrapperTool {
                                 swiftcPath: swiftc,
                                 stressTesterPath: stressTester,
                                 astBuildLimit: astBuildLimit,
+                                rewriteModes: rewriteModes,
+                                requestKinds: requestKinds,
+                                conformingMethodTypes: conformingMethodTypes,
                                 ignoreIssues: ignoreIssues,
                                 issueManager: issueManager,
                                 failFast: true,
@@ -89,7 +110,11 @@ public struct SwiftCWrapperTool {
   }
 }
 
-struct EnvOption<T: LosslessStringConvertible> {
+protocol EnvOptionKind: Equatable {
+  init(value: String, fromKey: String) throws
+}
+
+struct EnvOption<T: EnvOptionKind> {
   let key: String
   let type: T.Type
 
@@ -102,15 +127,13 @@ struct EnvOption<T: LosslessStringConvertible> {
     guard let value = environment[key] else {
       return nil
     }
-    guard let typed = type.init(value) else {
-      throw EnvOptionError.typeMismatch(key: key, value: value, expectedType: type)
-    }
-    return typed
+    return try type.init(value: value, fromKey: key)
   }
 }
 
 public enum EnvOptionError: Swift.Error, CustomStringConvertible {
   case typeMismatch(key: String, value: String, expectedType: Any.Type)
+  case unknownValue(key: String, value: String, validValues: [CustomStringConvertible])
   case noFallback(key: String, target: String)
 
   public var description: String {
@@ -119,6 +142,57 @@ public enum EnvOptionError: Swift.Error, CustomStringConvertible {
       return "environment variable '\(key)' should have a value of type '\(expectedType)'; given '\(value)'"
     case .noFallback(let key, let target):
       return "couldn't locate \(target); please set environment variable \(key) to its path"
+    case .unknownValue(let key, let value, let validValues):
+      return "unknown value \(value) provided via environment variable \(key); should be one of: '\(validValues.map{ String(describing: $0)}.joined(separator: "', '"))'"
     }
+  }
+}
+
+extension String: EnvOptionKind {
+  init(value: String, fromKey: String) throws { self.init(value) }
+}
+extension Int: EnvOptionKind {
+  init(value: String, fromKey key: String) throws {
+    guard let converted = Int(value) else {
+      throw EnvOptionError.typeMismatch(key: key, value: value, expectedType: Int.self)
+    }
+    self = converted
+  }
+}
+extension Bool: EnvOptionKind {
+  init(value: String, fromKey key: String) throws {
+    switch value.lowercased() {
+    case "true", "1":
+      self = true
+    case "false", "0":
+      self = false
+    default:
+      throw EnvOptionError.typeMismatch(key: key, value: value, expectedType: Bool.self)
+    }
+  }
+}
+extension RewriteMode: EnvOptionKind {
+  init(value: String, fromKey key: String) throws {
+    guard let mode = RewriteMode.allCases.first(where: { $0.rawValue.lowercased() == value.lowercased() }) else {
+      throw EnvOptionError.unknownValue(key: key, value: value, validValues: RewriteMode.allCases.map { $0.rawValue })
+    }
+    self = mode
+  }
+}
+
+extension Array: EnvOptionKind where Element: EnvOptionKind {
+  init(value: String, fromKey key: String) throws {
+    self = try value.split(separator: " ").map {
+      try Element.init(value: String($0), fromKey: key)
+    }
+  }
+}
+
+extension RequestKind: EnvOptionKind {
+  init(value: String, fromKey key: String) throws {
+    guard let kind = RequestKind.allCases.first(where: { $0.rawValue.lowercased() == value.lowercased() }) else {
+      throw EnvOptionError.unknownValue(key: key, value: value, validValues: RequestKind.allCases.map { $0.rawValue })
+    }
+    self = kind
   }
 }

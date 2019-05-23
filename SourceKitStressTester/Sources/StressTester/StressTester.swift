@@ -61,6 +61,16 @@ struct StressTester {
           guard options.requests.contains(.codeComplete), astRebuilds <= limit else { return false }
           astRebuilds += 1
           return true
+        case .typeContextInfo:
+          guard options.requests.contains(.typeContextInfo), astRebuilds <= limit else { return false}
+          astRebuilds += 1
+          return true
+        case .conformingMethodList:
+          guard options.requests.contains(.conformingMethodList), astRebuilds <= limit else { return false }
+          astRebuilds += 1
+          return true
+        case .collectExpressionType:
+          return options.requests.contains(.collectExpressionType)
         case .replaceText:
           guard astRebuilds <= limit else {
             locationsInvalidated = true
@@ -103,7 +113,8 @@ struct StressTester {
 
     // The action reording below requires no actions that modify the source
     // buffer are present
-    precondition(!state.wasModified && actions.allSatisfy {
+    precondition(!state.wasModified)
+    precondition(actions.allSatisfy {
       switch $0 {
       case .replaceText:
         return false
@@ -111,6 +122,16 @@ struct StressTester {
         return true
       }
     })
+    // It also doesn't make sense to have more than 1 CollectExpressionType action when
+    // the source buffer is never modified
+    precondition(actions.filter {
+      switch $0 {
+      case .collectExpressionType:
+        return true
+      default:
+        return false
+      }
+    }.count <= 1)
 
     // Run all requests that can reuse a single AST together for improved
     // runtime
@@ -126,6 +147,22 @@ struct StressTester {
       guard case .codeComplete(let offset) = action else { return nil }
       return offset
     }
+    let typeContextInfos = actions.compactMap { action -> Int? in
+      guard case .typeContextInfo(let offset) = action else { return nil }
+      return offset
+    }
+    let conformingMethodLists = actions.compactMap { action -> Int? in
+      guard case .conformingMethodList(let offset) = action else { return nil }
+      return offset
+    }
+    let collectExpressionType = actions.contains { action -> Bool in
+      guard case .collectExpressionType = action else { return false }
+      return true
+    }
+
+    if collectExpressionType {
+      _ = try document.collectExpressionType()
+    }
 
     for offset in cursorInfos {
       _ = try document.cursorInfo(offset: offset)
@@ -137,6 +174,14 @@ struct StressTester {
 
     for offset in codeCompletions {
       _ = try document.codeComplete(offset: offset)
+    }
+
+    for offset in typeContextInfos {
+      _ = try document.typeContextInfo(offset: offset)
+    }
+
+    for offset in conformingMethodLists {
+      _ = try document.conformingMethodList(offset: offset, typeList: options.conformingMethodsTypeList)
     }
 
     _ = try document.close()
@@ -163,6 +208,12 @@ struct StressTester {
         _ = try document.rangeInfo(offset: offset, length: length)
       case .replaceText(let offset, let length, let text):
         _ = try document.replaceText(offset: offset, length: length, text: text)
+      case .typeContextInfo(let offset):
+        _ = try document.typeContextInfo(offset: offset)
+      case .conformingMethodList(let offset):
+        _ = try document.conformingMethodList(offset: offset, typeList: options.conformingMethodsTypeList)
+      case .collectExpressionType:
+        _ = try document.collectExpressionType()
       }
     }
 
@@ -174,6 +225,7 @@ struct StressTesterOptions {
   var astBuildLimit: Int? = nil
   var requests: RequestSet = .all
   var rewriteMode: RewriteMode = .none
+  var conformingMethodsTypeList = ["s:SQ", "s:SH"] // Equatable and Hashable
   var page = Page(1, of: 1)
 }
 
@@ -195,12 +247,24 @@ public struct RequestSet: OptionSet {
     if self.contains(.rangeInfo) {
       requests.append("RangeInfo")
     }
+    if self.contains(.typeContextInfo) {
+      requests.append("TypeContextInfo")
+    }
+    if self.contains(.conformingMethodList) {
+      requests.append("ConformingMethodList")
+    }
+    if self.contains(.collectExpressionType) {
+      requests.append("CollectExpressionType")
+    }
     return requests
   }
 
   public static let cursorInfo = RequestSet(rawValue: 1 << 0)
   public static let rangeInfo = RequestSet(rawValue: 1 << 1)
   public static let codeComplete = RequestSet(rawValue: 1 << 2)
+  public static let typeContextInfo = RequestSet(rawValue: 1 << 3)
+  public static let conformingMethodList = RequestSet(rawValue: 1 << 4)
+  public static let collectExpressionType = RequestSet(rawValue: 1 << 5)
 
-  public static let all: RequestSet = [.cursorInfo, .rangeInfo, .codeComplete]
+  public static let all: RequestSet = [.cursorInfo, .rangeInfo, .codeComplete, .typeContextInfo, .conformingMethodList, .collectExpressionType]
 }
