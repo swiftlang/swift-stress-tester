@@ -56,6 +56,9 @@ class StressTesterToolTests: XCTestCase {
 
     let validRequest2: [String] = [stressTesterPath, "--request", "CURSORINFO"] + validSuffix
     XCTAssertNoThrow(try StressTesterTool(arguments: validRequest2).parse())
+
+    let validRequest3: [String] = [stressTesterPath, "--type-list-item", "s:SQ", "--type-list-item", "s:SH"] + validSuffix
+    XCTAssertNoThrow(try StressTesterTool(arguments: validRequest3).parse())
   }
 
   override func setUp() {

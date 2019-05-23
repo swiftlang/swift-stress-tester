@@ -190,6 +190,56 @@ struct SourceKitDocument {
     return response
   }
 
+  func typeContextInfo(offset: Int) throws -> SourceKitdResponse {
+    let request = SourceKitdRequest(uid: .request_TypeContextInfo)
+
+    request.addParameter(.key_SourceFile, value: file)
+    request.addParameter(.key_Offset, value: offset)
+
+    let compilerArgs = request.addArrayParameter(.key_CompilerArgs)
+    for arg in args { compilerArgs.add(arg) }
+
+    let info = RequestInfo.typeContextInfo(document: documentInfo, offset: offset, args: args)
+    let response = try sendWithTimeout(request, info: info)
+    try throwIfInvalid(response, request: info)
+
+    return response
+  }
+
+  func conformingMethodList(offset: Int, typeList: [String]) throws -> SourceKitdResponse {
+    let request = SourceKitdRequest(uid: .request_ConformingMethodList)
+
+    request.addParameter(.key_SourceFile, value: file)
+    request.addParameter(.key_Offset, value: offset)
+
+    let expressionTypeList = request.addArrayParameter(.key_ExpressionTypeList)
+    for type in typeList { expressionTypeList.add(type) }
+
+    let compilerArgs = request.addArrayParameter(.key_CompilerArgs)
+    for arg in args { compilerArgs.add(arg) }
+
+    let info = RequestInfo.conformingMethodList(document: documentInfo, offset: offset, typeList: typeList, args: args)
+    let response = try sendWithTimeout(request, info: info)
+    try throwIfInvalid(response, request: info)
+
+    return response
+  }
+
+  func collectExpressionType() throws -> SourceKitdResponse {
+    let request = SourceKitdRequest(uid: .request_CollectExpressionType)
+
+    request.addParameter(.key_SourceFile, value: file)
+
+    let compilerArgs = request.addArrayParameter(.key_CompilerArgs)
+    for arg in args { compilerArgs.add(arg) }
+
+    let info = RequestInfo.collectExpressionType(document: documentInfo, args: args)
+    let response = try sendWithTimeout(request, info: info)
+    try throwIfInvalid(response, request: info)
+
+    return response
+  }
+
   mutating func replaceText(offset: Int, length: Int, text: String) throws -> (SourceFileSyntax, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_EditorReplaceText)
     request.addParameter(.key_Name, value: file)
