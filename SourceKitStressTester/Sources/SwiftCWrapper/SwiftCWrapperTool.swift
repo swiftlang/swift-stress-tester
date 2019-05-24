@@ -41,6 +41,8 @@ public struct SwiftCWrapperTool {
     let conformingMethodTypesEnv = EnvOption("SK_STRESS_CONFORMING_METHOD_TYPES", type: [String].self)
     /// Limit the number of jobs
     let maxJobsEnv = EnvOption("SK_STRESS_MAX_JOBS", type: Int.self)
+    /// Dump sourcekitd's responses to the supplied path
+    let dumpResponsesPathEnv = EnvOption("SK_STRESS_DUMP_RESPONSES_PATH", type: String.self)
 
     // IssueManager params:
     /// Non-default path to the json file containing expected failures
@@ -64,6 +66,7 @@ public struct SwiftCWrapperTool {
     let requestKinds = try requestKindsEnv.get(from: environment)
     let conformingMethodTypes = try conformingMethodTypesEnv.get(from: environment)
     let maxJobs = try maxJobsEnv.get(from: environment)
+    let dumpResponsesPath = try dumpResponsesPathEnv.get(from: environment)
 
     var issueManager: IssueManager? = nil
     if let expectedFailuresPath = try expectedFailuresPathEnv.get(from: environment),
@@ -86,6 +89,7 @@ public struct SwiftCWrapperTool {
                                 ignoreIssues: ignoreIssues,
                                 issueManager: issueManager,
                                 maxJobs: maxJobs,
+                                dumpResponsesPath: dumpResponsesPath,
                                 failFast: true,
                                 suppressOutput: suppressOutput)
     return try wrapper.run()

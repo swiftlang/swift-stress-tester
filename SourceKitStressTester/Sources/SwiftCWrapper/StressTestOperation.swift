@@ -20,9 +20,9 @@ final class StressTestOperation: Operation {
     /// Indicates the operation was cancelled
     case cancelled
     /// Indicates the operation was executed and no issues were found
-    case passed
+    case passed([SourceKitResponseData])
     /// Indicates the operation was executed and issues were found
-    case failed(SourceKitError)
+    case failed(SourceKitError, [SourceKitResponseData])
     /// Indicates the operation was executed, but the stress tester itself failed
     case errored(status: Int32, arguments: [String])
 
@@ -56,7 +56,7 @@ final class StressTestOperation: Operation {
 
   private let process: ProcessRunner
 
-  init(file: String, rewriteMode: RewriteMode, requests: [RequestKind]?, conformingMethodTypes: [String]?, limit: Int?, part: (Int, of: Int), compilerArgs: [String], executable: String) {
+  init(file: String, rewriteMode: RewriteMode, requests: [RequestKind]?, conformingMethodTypes: [String]?, limit: Int?, part: (Int, of: Int), reportResponses: Bool, compilerArgs: [String], executable: String) {
     var stressTesterArgs = ["--format", "json", "--page", "\(part.0)/\(part.of)", "--rewrite-mode", rewriteMode.rawValue]
     if let limit = limit {
       stressTesterArgs += ["--limit", String(limit)]
@@ -66,6 +66,9 @@ final class StressTestOperation: Operation {
     }
     if let types = conformingMethodTypes {
       stressTesterArgs += types.flatMap { ["--type-list-item", $0] }
+    }
+    if reportResponses {
+      stressTesterArgs += ["--report-responses"]
     }
 
     self.file = file
@@ -85,16 +88,37 @@ final class StressTestOperation: Operation {
     }
 
     let result = process.run()
-
-    if result.status == EXIT_SUCCESS {
-      status = .passed
-    } else if isCancelled {
+    if isCancelled {
       status = .cancelled
-    } else if let message = StressTesterMessage(from:result.stdout), case .detected(let sourceKitError) = message {
-      status = .failed(sourceKitError)
+    } else if let (error, responses) = parseMessages(result.stdout) {
+      if result.status == EXIT_SUCCESS {
+        status = .passed(responses)
+      } else if let error = error {
+        status = .failed(error, responses)
+      } else {
+        status = .errored(status: result.status, arguments: process.process.arguments ?? [])
+      }
     } else {
       status = .errored(status: result.status, arguments: process.process.arguments ?? [])
     }
+  }
+
+  private func parseMessages(_ data: Data) -> (error: SourceKitError?, responses: [SourceKitResponseData])? {
+    let terminator = UInt8(ascii: "\n")
+    var sourceKitError: SourceKitError? = nil
+    var sourceKitResponses = [SourceKitResponseData]()
+
+    for data in data.split(separator: terminator, omittingEmptySubsequences: true) {
+      guard let message = StressTesterMessage(from: data) else { return nil }
+      switch message {
+      case .detected(let error):
+        guard sourceKitError == nil else { return nil }
+        sourceKitError = error
+      case .produced(let responseData):
+        sourceKitResponses.append(responseData)
+      }
+    }
+    return (sourceKitError, sourceKitResponses)
   }
 
   override func cancel() {
