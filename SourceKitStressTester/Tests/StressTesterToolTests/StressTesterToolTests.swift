@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import XCTest
+import Common
 @testable import StressTester
 
 class StressTesterToolTests: XCTestCase {
@@ -59,6 +60,25 @@ class StressTesterToolTests: XCTestCase {
 
     let validRequest3: [String] = [stressTesterPath, "--type-list-item", "s:SQ", "--type-list-item", "s:SH"] + validSuffix
     XCTAssertNoThrow(try StressTesterTool(arguments: validRequest3).parse())
+  }
+
+  func testDumpResponses() {
+    var options = StressTesterOptions()
+    options.requests = .codeComplete
+    options.rewriteMode = .none
+    var responses = [SourceKitResponseData]()
+    options.responseHandler = { responseData in
+      responses.append(responseData)
+    }
+
+    let tester = StressTester(for: URL(fileURLWithPath: testFilePath, isDirectory: false), compilerArgs: [testFilePath], options: options)
+    XCTAssertNoThrow(try tester.run(), "no sourcekitd crashes in test program")
+    XCTAssertFalse(responses.isEmpty, "produces responses")
+    XCTAssertTrue(responses.allSatisfy { response in
+      if case .codeComplete = response.request { return true }
+      return false
+    }, "request filter is respected")
+    XCTAssertFalse(responses.allSatisfy { $0.results.isEmpty }, "responses have results")
   }
 
   override func setUp() {

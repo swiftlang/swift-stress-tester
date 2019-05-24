@@ -31,6 +31,17 @@ public extension Message {
 
 public enum StressTesterMessage: Message {
   case detected(SourceKitError)
+  case produced(SourceKitResponseData)
+}
+
+public struct SourceKitResponseData: Codable {
+  public let request: RequestInfo
+  public let results: [String]
+
+  public init(_ results: [String], for request: RequestInfo) {
+    self.results = results
+    self.request = request
+  }
 }
 
 public enum SourceKitError: Error {
@@ -117,10 +128,10 @@ public struct Page: Codable {
 
 extension StressTesterMessage: Codable {
   enum CodingKeys: String, CodingKey {
-    case message, error
+    case message, error, responseData
   }
   enum BaseMessage: String, Codable {
-    case detected
+    case detected, produced
   }
 
   public init(from decoder: Decoder) throws {
@@ -129,6 +140,9 @@ extension StressTesterMessage: Codable {
     case .detected:
       let error = try container.decode(SourceKitError.self, forKey: .error)
       self = .detected(error)
+    case .produced:
+      let responseData = try container.decode(SourceKitResponseData.self, forKey: .responseData)
+      self = .produced(responseData)
     }
   }
 
@@ -138,6 +152,9 @@ extension StressTesterMessage: Codable {
     case .detected(let error):
       try container.encode(BaseMessage.detected, forKey: .message)
       try container.encode(error, forKey: .error)
+    case .produced(let responseData):
+      try container.encode(BaseMessage.produced, forKey: .message)
+      try container.encode(responseData, forKey: .responseData)
     }
   }
 }
@@ -355,6 +372,18 @@ extension SourceKitErrorReason: CustomStringConvertible {
   }
 }
 
+extension SourceKitResponseData: CustomStringConvertible {
+  public var description: String {
+    let response = results.isEmpty ? "<empty>" : results.joined(separator: ",\n")
+    return """
+    Response for \(request)
+    -- begin response ------------
+    \(response)
+    -- end response --------------
+    """
+  }
+}
+
 extension SourceKitError: CustomStringConvertible {
   public var description: String {
     switch self {
@@ -449,6 +478,8 @@ extension StressTesterMessage: CustomStringConvertible {
     switch self {
     case .detected(let error):
       return "Failure detected: \(error)"
+    case .produced(let responseData):
+      return "Produced: \(responseData)"
     }
   }
 }

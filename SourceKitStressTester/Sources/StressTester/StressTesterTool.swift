@@ -21,7 +21,7 @@ public struct StressTesterTool {
   let arguments: [String]
 
   let usage = "<options> <source-file> swiftc <swiftc-args>"
-  let overview = "A utility for finding SourceKit crashes in a Swift source file"
+  let overview = "A utility for finding sourcekitd crashes in a Swift source file"
 
   /// Arguments
   let mode: OptionArgument<RewriteMode>
@@ -30,6 +30,7 @@ public struct StressTesterTool {
   let page: OptionArgument<Page>
   let request: OptionArgument<[RequestSet]>
   let dryRun: OptionArgument<Bool>
+  let reportResponses: OptionArgument<Bool>
   let conformingMethodsTypeList: OptionArgument<[String]>
   let file: PositionalArgument<PathArgument>
   let compilerArgs: PositionalArgument<[String]>
@@ -46,7 +47,7 @@ public struct StressTesterTool {
       usage: "<FORMAT> One of 'json' or 'humanReadable'")
     limit = parser.add(
       option: "--limit", shortName: "-l", kind: Int.self,
-      usage: "<N> The maximum number of AST builds (triggered by CodeComplete, and file modifications) to allow per file")
+      usage: "<N> The maximum number of AST builds (triggered by CodeComplete, TypeContextInfo, ConformingMethodList and file modifications) to allow per file")
     page = parser.add(
       option: "--page", shortName: "-p", kind: Page.self,
       usage: "<PAGE>/<TOTAL> Divides the work for each file into <TOTAL> equal parts" +
@@ -56,7 +57,10 @@ public struct StressTesterTool {
       usage: "<REQUEST> One of CursorInfo, RangeInfo, CodeComplete, TypeContextInfo, ConformingMethodList, CollectExpressionType, or All")
     dryRun = parser.add(
       option: "--dryrun", shortName: "-d", kind: Bool.self,
-      usage: "Dump the actions the stress tester would perform instead of performing them")
+      usage: "Dump the sourcekitd requests the stress tester would perform instead of performing them")
+    reportResponses = parser.add(
+      option: "--report-responses", kind: Bool.self,
+      usage: "Output sourcekitd's response to each request the stress tester makes")
     conformingMethodsTypeList = parser.add(
       option: "--type-list-item", shortName: "-t", kind: [String].self, strategy: .oneByOne,
       usage: "The USR of a conformed-to protocol to use in the ConformingMethodList request")
@@ -114,6 +118,12 @@ public struct StressTesterTool {
     let format = arguments.get(self.format) ?? .humanReadable
     let dryRun = arguments.get(self.dryRun) ?? false
 
+    if let reportResponses = arguments.get(self.reportResponses), reportResponses {
+      options.responseHandler = { responseData in
+        try self.report(StressTesterMessage.produced(responseData), as: format)
+      }
+    }
+
     let absoluteFile = URL(fileURLWithPath: arguments.get(file)!.path.asString)
     let args = Array(arguments.get(compilerArgs)!.dropFirst())
 
@@ -136,10 +146,10 @@ public struct StressTesterTool {
   private func report<T>(_ message: T, as format: OutputFormat) throws where T: Codable & CustomStringConvertible {
     switch format {
     case .humanReadable:
-      stdoutStream <<< String(describing: message)
+      stdoutStream <<< String(describing: message) <<< "\n"
     case .json:
       let data = try JSONEncoder().encode(message)
-      stdoutStream <<< data
+      stdoutStream <<< data <<< "\n".data(using: .ascii)!
     }
     stdoutStream.flush()
   }
