@@ -214,14 +214,14 @@ class SwiftCWrapperToolTests: XCTestCase {
       .appendingPathComponent("invocations.txt", isDirectory: false)
       .path
     errorJson = """
-      {"message": "detected", "error": {
-        "error": "timedOut",
-        "request": {
-          "document": {"path":"\(testFilePath!)"},
-          "offset": 5,
-          "args": ["\(testFilePath!)"],
-          "request": "cursorInfo"
-        }
+      {"message": "detected", "error": {\
+        "error": "timedOut",\
+        "request": {\
+          "document": {"path":"\(testFilePath!)"},\
+          "offset": 5,\
+          "args": ["\(testFilePath!)"],\
+          "request": "cursorInfo"\
+        }\
       }}
       """
 
