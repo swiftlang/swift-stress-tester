@@ -161,30 +161,44 @@ struct StressTester {
     }
 
     if collectExpressionType {
-      _ = try document.collectExpressionType()
+      try report(document.collectExpressionType())
     }
-
     for offset in cursorInfos {
-      _ = try document.cursorInfo(offset: offset)
+      try report(document.cursorInfo(offset: offset))
     }
-
     for range in rangeInfos {
-      _ = try document.rangeInfo(offset: range.offset, length: range.length)
+      try report(document.rangeInfo(offset: range.offset, length: range.length))
     }
-
     for offset in codeCompletions {
-      _ = try document.codeComplete(offset: offset)
+      try report(document.codeComplete(offset: offset))
     }
-
     for offset in typeContextInfos {
-      _ = try document.typeContextInfo(offset: offset)
+      try report(document.typeContextInfo(offset: offset))
     }
-
     for offset in conformingMethodLists {
-      _ = try document.conformingMethodList(offset: offset, typeList: options.conformingMethodsTypeList)
+      try report(document.conformingMethodList(offset: offset, typeList: options.conformingMethodsTypeList))
     }
 
     _ = try document.close()
+  }
+
+  private func report(_ result: (RequestInfo, SourceKitdResponse)) throws {
+    guard let handler = options.responseHandler else { return }
+
+    let (request, response) = result
+    switch request {
+    case .codeComplete: fallthrough
+    case .conformingMethodList: fallthrough
+    case .typeContextInfo:
+      var results = [String]()
+      response.value.getArray(.key_Results).enumerate { _, result -> Bool in
+        results.append(result.description)
+        return true
+      }
+      try handler(SourceKitResponseData(results, for: request))
+    default:
+      try handler(SourceKitResponseData([response.value.description], for: request))
+    }
   }
 
   private func rewriteRun() throws {
@@ -201,19 +215,19 @@ struct StressTester {
     for action in actions {
       switch action {
       case .cursorInfo(let offset):
-        _ = try document.cursorInfo(offset: offset)
+        try report(document.cursorInfo(offset: offset))
       case .codeComplete(let offset):
-        _ = try document.codeComplete(offset: offset)
+        try report(document.codeComplete(offset: offset))
       case .rangeInfo(let offset, let length):
-        _ = try document.rangeInfo(offset: offset, length: length)
+        try report(document.rangeInfo(offset: offset, length: length))
       case .replaceText(let offset, let length, let text):
         _ = try document.replaceText(offset: offset, length: length, text: text)
       case .typeContextInfo(let offset):
-        _ = try document.typeContextInfo(offset: offset)
+        try report(document.typeContextInfo(offset: offset))
       case .conformingMethodList(let offset):
-        _ = try document.conformingMethodList(offset: offset, typeList: options.conformingMethodsTypeList)
+        try report(document.conformingMethodList(offset: offset, typeList: options.conformingMethodsTypeList))
       case .collectExpressionType:
-        _ = try document.collectExpressionType()
+        try report(document.collectExpressionType())
       }
     }
 
@@ -226,6 +240,7 @@ struct StressTesterOptions {
   var requests: RequestSet = .all
   var rewriteMode: RewriteMode = .none
   var conformingMethodsTypeList = ["s:SQ", "s:SH"] // Equatable and Hashable
+  var responseHandler: ((SourceKitResponseData) throws -> Void)? = nil
   var page = Page(1, of: 1)
 }
 
