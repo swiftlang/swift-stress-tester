@@ -27,10 +27,11 @@ struct SwiftCWrapper {
   let ignoreIssues: Bool
   let issueManager: IssueManager?
   let maxJobs: Int?
+  let dumpResponsesPath: String?
   let failFast: Bool
   let suppressOutput: Bool
 
-  init(swiftcArgs: [String], swiftcPath: String, stressTesterPath: String, astBuildLimit: Int?, rewriteModes: [RewriteMode]?, requestKinds: [RequestKind]?, conformingMethodTypes: [String]?, ignoreIssues: Bool, issueManager: IssueManager?, maxJobs: Int?, failFast: Bool, suppressOutput: Bool) {
+  init(swiftcArgs: [String], swiftcPath: String, stressTesterPath: String, astBuildLimit: Int?, rewriteModes: [RewriteMode]?, requestKinds: [RequestKind]?, conformingMethodTypes: [String]?, ignoreIssues: Bool, issueManager: IssueManager?, maxJobs: Int?, dumpResponsesPath: String?, failFast: Bool, suppressOutput: Bool) {
     self.arguments = swiftcArgs
     self.swiftcPath = swiftcPath
     self.stressTesterPath = stressTesterPath
@@ -43,6 +44,7 @@ struct SwiftCWrapper {
     self.requestKinds = requestKinds ?? [.cursorInfo, .rangeInfo, .codeComplete, .collectExpressionType]
     self.conformingMethodTypes = conformingMethodTypes
     self.maxJobs = maxJobs
+    self.dumpResponsesPath = dumpResponsesPath
   }
 
   var swiftFiles: [String] {
@@ -68,7 +70,7 @@ struct SwiftCWrapper {
       let partCount = max(Int(sizeInBytes / 1000), 1)
       return rewriteModes.flatMap { mode in
         (1...partCount).map { part in
-          StressTestOperation(file: file, rewriteMode: mode, requests: requestKinds, conformingMethodTypes: conformingMethodTypes, limit: astBuildLimit, part: (part, of: partCount), compilerArgs: arguments, executable: stressTesterPath)
+          StressTestOperation(file: file, rewriteMode: mode, requests: requestKinds, conformingMethodTypes: conformingMethodTypes, limit: astBuildLimit, part: (part, of: partCount), reportResponses: dumpResponsesPath != nil, compilerArgs: arguments, executable: stressTesterPath)
         }
       }
     }
@@ -105,29 +107,47 @@ struct SwiftCWrapper {
     // Determine the set of processed files and the first failure (if any)
     var processedFiles = Set<String>()
     var detectedIssue: StressTesterIssue? = nil
+    var reportedResponses: [SourceKitResponseData] = []
     for operation in operations where detectedIssue == nil {
       switch operation.status {
       case .cancelled:
         fatalError("cancelled operation before failed operation")
       case .unexecuted:
         fatalError("unterminated operation")
-      case .failed(let sourceKitError):
-        detectedIssue = .failed(sourceKitError)
-        processedFiles.insert(operation.file)
       case .errored(let status, let arguments):
         detectedIssue = .errored(status: status, file: operation.file, arguments: arguments.joined(separator: " "))
-      case .passed:
+      case .failed(let sourceKitError, let responses):
+        detectedIssue = .failed(sourceKitError)
+        reportedResponses += responses
+        fallthrough
+      case .passed(let responses):
         processedFiles.insert(operation.file)
+        reportedResponses += responses
       }
     }
 
     let matchingSpec = try issueManager?.update(for: processedFiles, issue: detectedIssue)
     try report(detectedIssue, matching: matchingSpec)
 
+    if let dumpResponsesPath = dumpResponsesPath, !reportedResponses.isEmpty {
+      writeResponseData(reportedResponses, to: dumpResponsesPath)
+    }
+
     if detectedIssue == nil || matchingSpec != nil {
       return EXIT_SUCCESS
     }
     return ignoreIssues ? swiftcResult.status : EXIT_FAILURE
+  }
+
+  private func writeResponseData(_ responses: [SourceKitResponseData], to path: String) {
+    let data = responses.map { String(describing: $0) + "\n" }.joined().data(using: .utf8)!
+    if let fileHandle = FileHandle(forWritingAtPath: path) {
+      defer { fileHandle.closeFile() }
+      fileHandle.seekToEndOfFile()
+      fileHandle.write(data)
+    } else {
+      FileManager.default.createFile(atPath: path, contents: data)
+    }
   }
 
   private func report(_ issue: StressTesterIssue?, matching xIssue: ExpectedIssue? = nil) throws {

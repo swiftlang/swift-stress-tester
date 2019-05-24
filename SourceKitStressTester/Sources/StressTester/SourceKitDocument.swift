@@ -88,7 +88,7 @@ struct SourceKitDocument {
     return response
   }
 
-  func rangeInfo(offset: Int, length: Int) throws -> SourceKitdResponse {
+  func rangeInfo(offset: Int, length: Int) throws -> (RequestInfo, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_RangeInfo)
 
     request.addParameter(.key_SourceFile, value: file)
@@ -113,10 +113,10 @@ struct SourceKitDocument {
       }
     }
 
-    return response
+    return (info, response)
   }
 
-  func cursorInfo(offset: Int) throws -> SourceKitdResponse {
+  func cursorInfo(offset: Int) throws -> (RequestInfo, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_CursorInfo)
 
     request.addParameter(.key_SourceFile, value: file)
@@ -148,11 +148,11 @@ struct SourceKitDocument {
       }
     }
 
-    return response
+    return (info, response)
   }
 
   func semanticRefactoring(actionKind: SourceKitdUID, actionName: String,
-                           offset: Int, newName: String? = nil) throws -> SourceKitdResponse {
+                           offset: Int, newName: String? = nil) throws -> (RequestInfo, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_SemanticRefactoring)
     guard let converter = self.converter else { fatalError("didn't call open?") }
 
@@ -171,10 +171,10 @@ struct SourceKitDocument {
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
-    return response
+    return (info, response)
   }
 
-  func codeComplete(offset: Int) throws -> SourceKitdResponse {
+  func codeComplete(offset: Int) throws -> (RequestInfo, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_CodeComplete)
 
     request.addParameter(.key_SourceFile, value: file)
@@ -187,10 +187,10 @@ struct SourceKitDocument {
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
-    return response
+    return (info, response)
   }
 
-  func typeContextInfo(offset: Int) throws -> SourceKitdResponse {
+  func typeContextInfo(offset: Int) throws -> (RequestInfo, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_TypeContextInfo)
 
     request.addParameter(.key_SourceFile, value: file)
@@ -203,10 +203,10 @@ struct SourceKitDocument {
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
-    return response
+    return (info, response)
   }
 
-  func conformingMethodList(offset: Int, typeList: [String]) throws -> SourceKitdResponse {
+  func conformingMethodList(offset: Int, typeList: [String]) throws -> (RequestInfo, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_ConformingMethodList)
 
     request.addParameter(.key_SourceFile, value: file)
@@ -222,10 +222,10 @@ struct SourceKitDocument {
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
-    return response
+    return (info, response)
   }
 
-  func collectExpressionType() throws -> SourceKitdResponse {
+  func collectExpressionType() throws -> (RequestInfo, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_CollectExpressionType)
 
     request.addParameter(.key_SourceFile, value: file)
@@ -237,7 +237,7 @@ struct SourceKitDocument {
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
-    return response
+    return (info, response)
   }
 
   mutating func replaceText(offset: Int, length: Int, text: String) throws -> (SourceFileSyntax, SourceKitdResponse) {
