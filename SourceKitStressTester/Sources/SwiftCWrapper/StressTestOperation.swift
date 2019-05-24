@@ -96,13 +96,18 @@ final class StressTestOperation: Operation {
       } else if let error = error {
         status = .failed(error, responses)
       } else {
+        // A non-successful exit code with no error produced-> stress tester failure
         status = .errored(status: result.status, arguments: process.process.arguments ?? [])
       }
     } else {
+      // Non-empty unparseable output -> treat this as a stress tester failure
       status = .errored(status: result.status, arguments: process.process.arguments ?? [])
     }
   }
 
+  /// Parses the given data as a sequence of newline-separated, JSON-encoded `StressTesterMessage`s.
+  ///
+  /// - returns: A tuple of the detected `SourceKitError` (if one was produced) and a possibly-empty list of `SourceKitReponseData`s. If the input data was non-empty and couldn't be parsed, or if more than one detected error was produced, returns nil.
   private func parseMessages(_ data: Data) -> (error: SourceKitError?, responses: [SourceKitResponseData])? {
     let terminator = UInt8(ascii: "\n")
     var sourceKitError: SourceKitError? = nil
