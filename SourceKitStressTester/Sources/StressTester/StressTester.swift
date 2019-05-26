@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2014 - 2018 Apple Inc. and the Swift project authors
+// Copyright (c) 2014 - 2019 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -35,7 +35,7 @@ struct StressTester {
     case .none:
       return RequestActionGenerator()
     case .basic:
-      return RewriteActionGenerator()
+      return BasicRewriteActionGenerator()
     case .insideOut:
       return InsideOutRewriteActionGenerator()
     case .concurrent:
@@ -98,110 +98,6 @@ struct StressTester {
   }
 
   func run() throws {
-    if options.rewriteMode == .none {
-      try readOnlyRun()
-    } else {
-      try rewriteRun()
-    }
-  }
-
-  private func readOnlyRun() throws {
-    var document = SourceKitDocument(file.path, args: compilerArgs, connection: connection)
-
-    let (tree, _) = try document.open()
-    let (state, actions) = self.computeStartStateAndActions(from: tree)
-
-    // The action reording below requires no actions that modify the source
-    // buffer are present
-    precondition(!state.wasModified)
-    precondition(actions.allSatisfy {
-      switch $0 {
-      case .replaceText:
-        return false
-      default:
-        return true
-      }
-    })
-    // It also doesn't make sense to have more than 1 CollectExpressionType action when
-    // the source buffer is never modified
-    precondition(actions.filter {
-      switch $0 {
-      case .collectExpressionType:
-        return true
-      default:
-        return false
-      }
-    }.count <= 1)
-
-    // Run all requests that can reuse a single AST together for improved
-    // runtime
-    let cursorInfos = actions.compactMap { action -> Int? in
-      guard case .cursorInfo(let offset) = action else { return nil }
-      return offset
-    }
-    let rangeInfos = actions.compactMap { action -> (offset: Int, length: Int)? in
-      guard case .rangeInfo(let range) = action else { return nil }
-      return range
-    }
-    let codeCompletions = actions.compactMap { action -> Int? in
-      guard case .codeComplete(let offset) = action else { return nil }
-      return offset
-    }
-    let typeContextInfos = actions.compactMap { action -> Int? in
-      guard case .typeContextInfo(let offset) = action else { return nil }
-      return offset
-    }
-    let conformingMethodLists = actions.compactMap { action -> Int? in
-      guard case .conformingMethodList(let offset) = action else { return nil }
-      return offset
-    }
-    let collectExpressionType = actions.contains { action -> Bool in
-      guard case .collectExpressionType = action else { return false }
-      return true
-    }
-
-    if collectExpressionType {
-      try report(document.collectExpressionType())
-    }
-    for offset in cursorInfos {
-      try report(document.cursorInfo(offset: offset))
-    }
-    for range in rangeInfos {
-      try report(document.rangeInfo(offset: range.offset, length: range.length))
-    }
-    for offset in codeCompletions {
-      try report(document.codeComplete(offset: offset))
-    }
-    for offset in typeContextInfos {
-      try report(document.typeContextInfo(offset: offset))
-    }
-    for offset in conformingMethodLists {
-      try report(document.conformingMethodList(offset: offset, typeList: options.conformingMethodsTypeList))
-    }
-
-    _ = try document.close()
-  }
-
-  private func report(_ result: (RequestInfo, SourceKitdResponse)) throws {
-    guard let handler = options.responseHandler else { return }
-
-    let (request, response) = result
-    switch request {
-    case .codeComplete: fallthrough
-    case .conformingMethodList: fallthrough
-    case .typeContextInfo:
-      var results = [String]()
-      response.value.getArray(.key_Results).enumerate { _, result -> Bool in
-        results.append(result.description)
-        return true
-      }
-      try handler(SourceKitResponseData(results, for: request))
-    default:
-      try handler(SourceKitResponseData([response.value.description], for: request))
-    }
-  }
-
-  private func rewriteRun() throws {
     var document = SourceKitDocument(file.path, args: compilerArgs, connection: connection, containsErrors: true)
 
     // compute the actions for the entire tree
@@ -232,6 +128,25 @@ struct StressTester {
     }
 
     _ = try document.close()
+  }
+
+  private func report(_ result: (RequestInfo, SourceKitdResponse)) throws {
+    guard let handler = options.responseHandler else { return }
+
+    let (request, response) = result
+    switch request {
+    case .codeComplete: fallthrough
+    case .conformingMethodList: fallthrough
+    case .typeContextInfo:
+      var results = [String]()
+      response.value.getArray(.key_Results).enumerate { _, result -> Bool in
+        results.append(result.description)
+        return true
+      }
+      try handler(SourceKitResponseData(results, for: request))
+    default:
+      try handler(SourceKitResponseData([response.value.description], for: request))
+    }
   }
 }
 

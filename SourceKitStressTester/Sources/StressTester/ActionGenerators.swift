@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2014 - 2018 Apple Inc. and the Swift project authors
+// Copyright (c) 2014 - 2019 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -24,317 +24,400 @@ extension ActionGenerator {
     return generate(for: tree)
   }
 
-  fileprivate func generateActions(for token: TokenSyntax,
-                                   at position: AbsolutePosition? = nil,
-                                   withReplaceTexts: Bool = true,
-                                   parentsAreValid: Bool = false,
-                                   hasBoundaryBefore: Bool = true,
-                                   hasBoundaryAfter: Bool = true) -> [Action] {
-    precondition(position == nil || !parentsAreValid)
-
-    let pieces = token.decomposed(at: position)
+  fileprivate func generatePositionActions(
+    for actionToken: ActionToken,
+    at position: AbsolutePosition,
+    withReplaceTexts: Bool
+  ) -> [Action] {
     var actions = [Action]()
+    let token = actionToken.token
+    let (leadingTrivia, content, trailingTrivia) = token.pieces
 
-    if !pieces.leadingTrivia.isEmpty, withReplaceTexts {
-      actions.append(.replaceText(offset: pieces.triviaStart, length: 0, text: pieces.leadingTrivia))
+    // insert leading trivia
+    let triviaStart = position.utf8Offset
+    if withReplaceTexts && token.leadingTriviaLength.utf8Length > 0 {
+      actions.append(.replaceText(offset: triviaStart, length: 0, text: leadingTrivia))
+      actions.append(.collectExpressionType)
     }
 
-    if token.isReference, hasBoundaryBefore {
-      actions.append(contentsOf: [
-        .codeComplete(offset: pieces.contentStart),
-        .typeContextInfo(offset: pieces.contentStart),
-        .conformingMethodList(offset: pieces.contentStart)
-      ])
-    }
-    if withReplaceTexts {
-      actions.append(.replaceText(offset: pieces.contentStart, length: 0, text: pieces.content))
-      if token.isIdentifier {
-        actions.append(.collectExpressionType)
+    // actions to perform at the content-start position prior to content insertion
+    let contentStart = (position + token.leadingTriviaLength).utf8Offset
+    for frontAction in actionToken.frontActions {
+      switch frontAction {
+      case .codeComplete:
+        actions.append(.codeComplete(offset: contentStart))
+      case .conformingMethodList:
+        actions.append(.conformingMethodList(offset: contentStart))
+      case .typeContextInfo:
+        actions.append(.typeContextInfo(offset: contentStart))
+      case .cursorInfo:
+        break // handled after content insertion
       }
     }
 
-    if token.isIdentifier {
-      actions.append(.cursorInfo(offset: pieces.contentStart))
-      if hasBoundaryAfter {
-        actions.append(contentsOf: [
-          .codeComplete(offset: pieces.contentEnd),
-          .typeContextInfo(offset: pieces.contentEnd),
-          .conformingMethodList(offset: pieces.contentEnd)
-        ])
-      }
-    } else if token.isLiteralExprClose {
-      actions.append(contentsOf: [
-        .codeComplete(offset: pieces.contentEnd),
-        .typeContextInfo(offset: pieces.contentEnd),
-        .conformingMethodList(offset: pieces.contentEnd)
-      ])
+    // insert content
+    if withReplaceTexts && token.contentLength.utf8Length > 0 {
+      actions.append(.replaceText(offset: contentStart, length: 0, text: content))
     }
 
-    if parentsAreValid {
-      var node: Syntax = token
-      while let parent = node.parent, !(parent is SourceFileSyntax),
-        parent.endPositionBeforeTrailingTrivia == node.endPositionBeforeTrailingTrivia,
-        parent.positionAfterSkippingLeadingTrivia != node.positionAfterSkippingLeadingTrivia {
-          actions.append(.rangeInfo(offset: parent.positionAfterSkippingLeadingTrivia.utf8Offset, length: parent.contentLength.utf8Length))
-          node = parent
+    // actions to perform at the content-start position after content insertion
+    for frontAction in actionToken.frontActions {
+      switch frontAction {
+      case .codeComplete, .conformingMethodList, .typeContextInfo:
+      break // handled before content insertion
+      case .cursorInfo:
+        actions.append(.cursorInfo(offset: contentStart))
       }
     }
 
-    if !pieces.trailingTrivia.isEmpty, withReplaceTexts {
-      actions.append(.replaceText(offset: pieces.contentEnd, length: 0, text: pieces.trailingTrivia))
+    // actions to perform at the content-end position
+    let contentEnd = (position + token.leadingTriviaLength + token.contentLength).utf8Offset
+    for rearAction in actionToken.rearActions {
+      switch rearAction {
+      case .cursorInfo:
+        actions.append(.cursorInfo(offset: contentEnd))
+      case .codeComplete:
+        actions.append(.codeComplete(offset: contentEnd))
+      case .conformingMethodList:
+        actions.append(.conformingMethodList(offset: contentEnd))
+      case .typeContextInfo:
+        actions.append(.typeContextInfo(offset: contentEnd))
+      }
+    }
+
+    // insert trailing trivia
+    if withReplaceTexts && token.trailingTriviaLength.utf8Length > 0 {
+      actions.append(.replaceText(offset: contentEnd, length: 0, text: trailingTrivia))
     }
 
     return actions
-  }
-
-  /// - returns: true if the two tokens would combine when placed adjacent to
-  /// one another
-  fileprivate func willCombine(_ first: TokenSyntax?, _ second: TokenSyntax?) -> Bool {
-    guard let first = first, let second = second, first.trailingTrivia.isEmpty && second.leadingTrivia.isEmpty else { return true }
-
-    for tokenKind in [first.tokenKind, second.tokenKind] {
-      switch tokenKind {
-      case .leftParen: fallthrough
-      case .rightParen: fallthrough
-      case .leftBrace: fallthrough
-      case .rightBrace: fallthrough
-      case .leftSquareBracket: fallthrough
-      case .rightSquareBracket: fallthrough
-      case .leftAngle: fallthrough
-      case .rightAngle: fallthrough
-      case .period: fallthrough
-      case .prefixPeriod: fallthrough
-      case .comma: fallthrough
-      case .colon: fallthrough
-      case .semicolon: fallthrough
-      case .equal: fallthrough
-      case .pound: fallthrough
-      case .prefixAmpersand: fallthrough
-      case .arrow: fallthrough
-      case .backtick: fallthrough
-      case .backslash: fallthrough
-      case .exclamationMark: fallthrough
-      case .postfixQuestionMark: fallthrough
-      case .infixQuestionMark: fallthrough
-      case .stringQuote: fallthrough
-      case .multilineStringQuote: fallthrough
-      case .stringLiteral: fallthrough
-      case .stringInterpolationAnchor:
-        return false
-      default:
-        continue
-      }
-    }
-    return true
   }
 }
 
 /// Walks through the provided source files token by token, generating
 /// CursorInfo, RangeInfo, and CodeComplete actions as it goes.
-final class RequestActionGenerator: SyntaxVisitor, ActionGenerator {
-  var actions = [Action]()
+final class RequestActionGenerator: ActionGenerator {
 
   func generate(for tree: SourceFileSyntax) -> [Action] {
-    actions.removeAll()
-    var visitor = self
-    tree.walk(&visitor)
-    actions.append(.collectExpressionType)
+    var collector = ActionTokenCollector()
+    let actions: [Action] = [.collectExpressionType] + collector
+      .collect(from: tree)
+      .flatMap(generateActions)
+
+    // group actions that resuse a single AST together
+    return actions.sorted { rank($0) < rank($1) }
+  }
+
+  private func generateActions(for actionToken: ActionToken) -> [Action] {
+    let token = actionToken.token
+
+    // position actions
+    var actions = generatePositionActions(for: actionToken, at: token.position, withReplaceTexts: false)
+
+    // range actions
+    let rangeEnd = token.endPositionBeforeTrailingTrivia.utf8Offset
+    actions += actionToken.endedRangeStartTokens.map { startToken in
+      let rangeStart = startToken.positionAfterSkippingLeadingTrivia.utf8Offset
+      return Action.rangeInfo(offset: rangeStart, length: rangeEnd - rangeStart)
+    }
     return actions
   }
 
-  func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
-    actions.append(contentsOf: generateActions(for: token, withReplaceTexts: false, parentsAreValid: true))
-    return .visitChildren
+  private func rank(_ action: Action) -> Int {
+    switch action {
+    case .replaceText:
+      assertionFailure("The RequestActionGenerator produced a replaceText action")
+      return 0
+    case .collectExpressionType:
+      return 1
+    case .cursorInfo:
+      return 2
+    case .rangeInfo:
+      return 3
+    case .codeComplete:
+      return 4
+    case .typeContextInfo:
+      return 5
+    case .conformingMethodList:
+      return 6
+    }
   }
 }
 
 /// Works through the provided source files generating actions to first remove their
 /// content, and then add it back again token by token. CursorInfo, RangeInfo and
 /// CodeComplete actions are also emitted at applicable locations.
-final class RewriteActionGenerator: SyntaxVisitor, ActionGenerator {
-  var actions = [Action]()
+final class BasicRewriteActionGenerator: ActionGenerator {
 
   func generate(for tree: SourceFileSyntax) -> [Action] {
-    actions = [.replaceText(offset: 0, length: tree.totalLength.utf8Length, text: "")]
-    var visitor = self
-    tree.walk(&visitor)
-    return actions
+    var collector = ActionTokenCollector()
+    let tokens = collector.collect(from: tree)
+    return [.replaceText(offset: 0, length: tree.endPosition.utf8Offset, text: "")] +
+      tokens.flatMap(generateActions)
   }
 
-  func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
-    actions.append(contentsOf: generateActions(for: token, withReplaceTexts: true, parentsAreValid: true))
-    return .visitChildren
+  private func generateActions(for actionToken: ActionToken) -> [Action] {
+    // position actions
+    let token = actionToken.token
+    var actions = generatePositionActions(for: actionToken, at: token.position, withReplaceTexts: true)
+
+    // range actions
+    let contentEnd = token.endPositionBeforeTrailingTrivia.utf8Offset
+    actions += actionToken.endedRangeStartTokens.map { startToken in
+      let rangeStart = startToken.positionAfterSkippingLeadingTrivia.utf8Offset
+      return .rangeInfo(offset: rangeStart, length: contentEnd - rangeStart)
+    }
+
+    return actions
   }
 }
 
 final class ConcurrentRewriteActionGenerator: ActionGenerator {
-  var actions = [Action]()
-
   func generate(for tree: SourceFileSyntax) -> [Action] {
-    // clear the file contents
-    actions = [.replaceText(offset: 0, length: tree.totalLength.utf8Length, text: "")]
+    var actions: [Action] = [.replaceText(offset: 0, length: tree.totalLength.utf8Length, text: "")]
+    let groups = tree.statements.map { statement -> ActionTokenGroup in
+      var collector = ActionTokenCollector()
+      return ActionTokenGroup(collector.collect(from: statement))
+    }
 
-    var groupedTokens = tree.statements.map { (length: SourceLength.zero, remaining: TokenData(of: $0).tokens[...]) }
-    var tokensRemain = true
-
-    while tokensRemain {
-      tokensRemain = false
-
-      var position = AbsolutePosition(utf8Offset: 0)
-      groupedTokens = groupedTokens.map { group in
-        position += group.length
-        guard let next = group.remaining.first else { return group }
-
-        let tokenLength = next.totalLength
-        actions.append(contentsOf: generateActions(for: next, at: position))
-        position += tokenLength
-        tokensRemain = tokensRemain || group.remaining.count > 1
-        return (length: group.length + tokenLength, remaining: group.remaining.dropFirst())
+    var done = false
+    while !done {
+      done = true
+      var position = tree.position
+      for group in groups {
+        let nextPos = position + group.placedLength
+        if let next = group.next() {
+          actions += generateActions(for: next, at: nextPos, in: group, at: position)
+          done = false
+        }
+        position += group.placedLength
       }
+    }
+    return actions
+  }
+
+  private func generateActions(
+    for actionToken: ActionToken,
+    at position: AbsolutePosition,
+    in group: ActionTokenGroup,
+    at groupPos: AbsolutePosition
+  ) -> [Action] {
+    // position actions
+    let token = actionToken.token
+    var actions = generatePositionActions(for: actionToken, at: position, withReplaceTexts: true)
+
+    // range actions
+    let contentEnd = (position + token.leadingTriviaLength + token.contentLength).utf8Offset
+    actions += actionToken.endedRangeStartTokens.map { startToken in
+      let placedLength: SourceLength = group.actionTokens
+        .prefix { $0.token != startToken}
+        .map { $0.token.totalLength }
+        .reduce(.zero, +)
+      let rangeStart = (groupPos + placedLength + startToken.leadingTriviaLength).utf8Offset
+      return .rangeInfo(offset: rangeStart, length: contentEnd - rangeStart)
     }
 
     return actions
   }
 }
-
 
 /// Works through the given source files, first removing their content, then
 /// re-introducing it token by token, from the most deeply nested token to the
-/// least. CursorInfo, and CodeComplete actions are also emitted along the way.
+/// least. Actions are emitted before and after each inserted token as it is
+/// inserted.
 final class InsideOutRewriteActionGenerator: ActionGenerator {
-  var actions = [Action]()
 
   func generate(for tree: SourceFileSyntax) -> [Action] {
-    // clear the file contents
-    actions = [.replaceText(offset: 0, length: tree.totalLength.utf8Length, text: "")]
+    var actions: [Action] = [.replaceText(offset: 0, length: tree.totalLength.utf8Length, text: "")]
+    var collector = ActionTokenCollector()
+    let actionTokens = collector.collect(from: tree)
+    let depths = Set(actionTokens.map { $0.depth }).sorted(by: >)
+    let groups = actionTokens
+      .divide { $0.depth }
+      .map { ActionTokenGroup(Array($0)) }
 
-    // compute the index to insert each token at, given we want to insert the most deeply
-    // nested tokens first into a flat token list and end up with the tokens in their original
-    // source order.
-    let tokenData = TokenData(of: tree)
-    var seenByDepth = [Int: Int]()
-    let insertions = tokenData.tokens.map { token -> (TokenSyntax, Int) in
-      let depth = tokenData.depths[token]!
-      let insertionIndex = seenByDepth[depth] ?? 0
-      for depth in 0...depth {
-        seenByDepth[depth] = (seenByDepth[depth] ?? 0) + 1
+    for depth in depths {
+      var position = tree.position
+      for group in groups {
+        if group.unplaced.first?.depth == depth {
+          var nextPos = position + group.placedLength
+          while let next = group.next() {
+            actions += generateActions(for: next, at: nextPos, in: group, groups: groups)
+            nextPos = position + group.placedLength
+          }
+        }
+        position += group.placedLength
       }
-      return (token, insertionIndex)
     }
 
-    // work through the tokens from the most deeply nested to the least,
-    // inserting them into a token list at the indices computed above
-    var worklist = [(token: TokenSyntax, endPos: AbsolutePosition)]()
-    let fileStart = AbsolutePosition(utf8Offset: 0)
-    for depth in seenByDepth.keys.sorted(by: >) {
-      var lastInsertion: (endPos: AbsolutePosition, nextIndex: Int)? = nil
-      for (token, index) in insertions where tokenData.depths[token] == depth {
-        let fromIndex = lastInsertion?.nextIndex ?? 0
-        let initialPos = lastInsertion?.endPos ?? fileStart
-        let position = worklist[fromIndex..<index].reduce(initialPos) {
-          $0 + $1.token.totalLength
-        }
+    // This strategy may result in duplicate actions, so dedupe them
+    var previous: Action? = nil
+    return actions.filter { action in
+      defer { previous = action }
+      return action != previous
+    }
+  }
 
-        let endPos = position + token.totalLength
-        worklist.insert((token, endPos), at: index)
-        lastInsertion = (endPos, index + 1)
+  private func generateActions(
+    for actionToken: ActionToken,
+    at position: AbsolutePosition,
+    in group: ActionTokenGroup,
+    groups: [ActionTokenGroup]
+  ) -> [Action] {
+    // position actions
+    let token = actionToken.token
+    var actions = generatePositionActions(for: actionToken, at: position, withReplaceTexts: true)
 
-        let previousToken = worklist.indices.contains(index-1) ? worklist[index-1].token : nil
-        let nextToken = worklist.indices.contains(index+1) ? worklist[index+1].token : nil
-        actions.append(contentsOf: generateActions(for: token, at: position,
-                                                   withReplaceTexts: true,
-                                                   parentsAreValid: false,
-                                                   hasBoundaryBefore: !willCombine(previousToken, token),
-                                                   hasBoundaryAfter: !willCombine(token, nextToken)))
-      }
+    // range actions for ranges this token ends
+    let rangeEnd = (position + token.leadingTriviaLength + token.contentLength).utf8Offset
+    actions += actionToken.endedRangeStartTokens.compactMap { startToken in
+      guard let startTokenStart = getPlacedStart(of: startToken, in: groups) else { return nil }
+      let rangeStart = startTokenStart.utf8Offset
+      return Action.rangeInfo(offset: rangeStart, length: rangeEnd - rangeStart)
+    }
+
+    // range actions for ranges this token starts
+    let rangeStart = (position + token.leadingTriviaLength).utf8Offset
+    actions += actionToken.startedRangeEndTokens.compactMap { endToken in
+      guard let endTokenStart = getPlacedStart(of: endToken, in: groups) else { return nil }
+      let rangeEnd = (endTokenStart + endToken.contentLength).utf8Offset
+      return Action.rangeInfo(offset: rangeStart, length: rangeEnd - rangeStart)
     }
 
     return actions
   }
+
+  private func getPlacedStart(of token: TokenSyntax, in groups: [ActionTokenGroup]) -> AbsolutePosition? {
+    guard let groupIndex = groups.firstIndex(where: { $0.actionTokens.contains { $0.token == token } }) else {
+      preconditionFailure("token is contained in provided groups")
+    }
+    let group = groups[groupIndex]
+    let placedActionTokens = group.actionTokens[..<group.unplaced.startIndex]
+    guard let index = placedActionTokens.firstIndex(where: { $0.token == token }) else {
+      return nil // the token hasn't been placed yet
+    }
+    let totalLength: SourceLength = groups[..<groupIndex].map { $0.placedLength }.reduce(.zero, +) +
+      placedActionTokens[..<index].map { $0.token.totalLength }.reduce(.zero, +) +
+      token.leadingTriviaLength
+
+    return AbsolutePosition(utf8Offset: 0) + totalLength
+  }
 }
 
-/// Collects tokens and their depths within a given Syntax
-fileprivate final class TokenData: SyntaxAnyVisitor {
-  private(set) var tokens = [TokenSyntax]()
-  private(set) var depths = [TokenSyntax: Int]()
-  private var depth = -1
+private final class ActionTokenGroup {
+  var actionTokens: [ActionToken]
+  var unplaced: ArraySlice<ActionToken>
+  var placedLength: SourceLength = .zero
 
-  init(of syntax: Syntax) {
-    var visitor = self
-    syntax.walk(&visitor)
+  init(_ actionTokens: [ActionToken]) {
+    self.actionTokens = actionTokens
+    unplaced = self.actionTokens[...]
   }
 
-  func visitAny(_ node: Syntax) -> SyntaxVisitorContinueKind {
-    depth += 1
+  func next() -> ActionToken? {
+    if let next = unplaced.popFirst() {
+      placedLength += next.token.totalLength
+      return next
+    }
+    return nil
+  }
+}
+
+private enum SourcePosAction {
+  case cursorInfo, codeComplete, conformingMethodList, typeContextInfo
+}
+
+private struct ActionToken {
+  let token: TokenSyntax
+  let depth: Int
+  let frontActions: [SourcePosAction]
+  let rearActions: [SourcePosAction]
+  let endedRangeStartTokens: [TokenSyntax]
+  let startedRangeEndTokens: [TokenSyntax]
+
+  init(_ token: TokenSyntax, atDepth depth: Int, withFrontActions front: [SourcePosAction], withRearActions rear: [SourcePosAction]) {
+    self.token = token
+    self.depth = depth
+    self.frontActions = front
+    self.rearActions = rear
+
+    var previous: TokenSyntax? = token
+    self.endedRangeStartTokens = token.tokenKind == .eof ? [] : token.ancestors
+      .prefix { $0.lastToken == token }
+      .compactMap { ancestor in
+        defer { previous = ancestor.firstToken }
+        return ancestor.firstToken == previous ? nil : ancestor.firstToken
+      }
+    previous = token
+    self.startedRangeEndTokens = token.tokenKind == .eof ? [] : token.ancestors
+      .prefix { $0.firstToken == token }
+      .compactMap { ancestor in
+        defer { previous = ancestor.lastToken }
+        return ancestor.lastToken == previous ? nil : ancestor.lastToken
+      }
+  }
+}
+
+private struct ActionTokenCollector: SyntaxAnyVisitor {
+  var tokens = [ActionToken]()
+  var currentDepth = 0
+
+  mutating func visitAny(_ node: Syntax) -> SyntaxVisitorContinueKind {
+    if shouldIncreaseDepth(node) {
+      currentDepth += 1
+    }
     return .visitChildren
   }
 
-  func visitAnyPost(_ node: Syntax) {
-    depth -= 1
-  }
-
-  func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
-    tokens.append(token)
-    depths[token] = depth
-    return visitAny(token)
-  }
-}
-
-fileprivate struct DecomposedToken {
-  let triviaStart: Int
-  let contentStart: Int
-  let contentEnd: Int
-  let triviaEnd: Int
-
-  let leadingTrivia: String
-  let content: String
-  let trailingTrivia: String
-
-  init(from token: TokenSyntax, at position: AbsolutePosition) {
-    self.triviaStart = position.utf8Offset
-    self.contentStart = (position + token.leadingTriviaLength).utf8Offset
-    self.contentEnd = (position + token.leadingTriviaLength + token.contentLength).utf8Offset
-    self.triviaEnd = (position + token.totalLength).utf8Offset
-
-    let text = token.description.utf8
-    self.leadingTrivia = String(text.prefix(token.leadingTriviaLength.utf8Length))!
-    self.content = String(text.dropFirst(token.leadingTriviaLength.utf8Length).dropLast(token.trailingTriviaLength.utf8Length))!
-    self.trailingTrivia = String(text.suffix(token.trailingTriviaLength.utf8Length))!
-  }
-}
-
-fileprivate extension TokenSyntax {
-  func decomposed(at position: AbsolutePosition? = nil) -> DecomposedToken {
-    return DecomposedToken(from: self, at: position ?? self.position)
-  }
-
-  var isIdentifier: Bool {
-    switch tokenKind {
-    case .identifier: fallthrough
-    case .dollarIdentifier:
-      return true
-    default:
-      return false
+  mutating func visitAnyPost(_ node: Syntax) {
+    if shouldIncreaseDepth(node) {
+      currentDepth -= 1
     }
   }
 
-  var isReference: Bool {
-    guard isIdentifier else { return false }
-    guard let parent = parent else { return false }
-
-    return parent.isExpr || parent.isType
+  mutating func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
+    //guard token.tokenKind != .eof else { return .visitChildren }
+    let frontActions = getFrontActions(for: token)
+    let rearActions = getRearActions(for: token)
+    tokens.append(ActionToken(token, atDepth: currentDepth,
+                              withFrontActions: frontActions,
+                              withRearActions: rearActions))
+    return .visitChildren
   }
 
-  var isLiteralExprClose: Bool {
-    switch self.tokenKind {
-    case .rightParen:
-      return parent is TupleExprSyntax
-    case .rightBrace:
-      return parent is ClosureExprSyntax
-    case .rightSquareBracket:
-      return parent is ArrayExprSyntax || parent is DictionaryExprSyntax
-    default:
-      return false
+  private func getFrontActions(for token: TokenSyntax) -> [SourcePosAction] {
+    if token.isIdentifier {
+      return [.cursorInfo, .codeComplete, .typeContextInfo, .conformingMethodList]
     }
+    if !token.isOperator && token.ancestors.contains(where: {($0.isExpr || $0.isType) && $0.firstToken == token}) {
+      return [.codeComplete, .typeContextInfo, .conformingMethodList]
+    }
+    if case .contextualKeyword(let text) = token.tokenKind, ["get", "set", "didSet", "willSet"].contains(text) {
+      return [.codeComplete, .typeContextInfo, .conformingMethodList]
+    }
+    return []
+  }
+
+  private func getRearActions(for token: TokenSyntax) -> [SourcePosAction] {
+    if token.isIdentifier {
+      return [.codeComplete, .typeContextInfo, .conformingMethodList]
+    }
+    if !token.isOperator && token.ancestors.contains(where: {($0.isExpr || $0.isType) && $0.lastToken == token}) {
+      return [.codeComplete, .typeContextInfo, .conformingMethodList]
+    }
+    if case .contextualKeyword(let text) = token.tokenKind, ["get", "set", "didSet", "willSet"].contains(text) {
+      return [.codeComplete, .typeContextInfo, .conformingMethodList]
+    }
+    return []
+  }
+
+  private func shouldIncreaseDepth(_ node: Syntax) -> Bool {
+    return true
+  }
+
+  mutating func collect(from tree: Syntax) -> [ActionToken] {
+    tokens.removeAll()
+    tree.walk(&self)
+    return tokens
   }
 }
