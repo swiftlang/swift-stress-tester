@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2014 - 2018 Apple Inc. and the Swift project authors
+// Copyright (c) 2014 - 2019 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -24,21 +24,45 @@ class ActionGeneratorTests: XCTestCase {
   func testRequestActionGenerator() {
     let actions = RequestActionGenerator().generate(for: testFile)
     verify(actions, rewriteMode: .none, expectedActionTypes: [.codeComplete, .cursorInfo, .rangeInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType])
+
+    XCTAssertEqual(actions.filter{
+      if case .collectExpressionType = $0 { return true }
+      return false
+    }.count, 1, "there is a single CollectExpressionType action")
+
+    // I=CursorInfo, C=CodeComplete, T=TypeContextInfo, M=ConformingMethodList, R=RangeInfo(start), E=RangeInfo(end)
+    XCTAssertEqual(ActionMarkup(actions, in: testFileContent).markedUpSource, """
+    <RR>func <ICTM>minMax<RRCTM>(<IRCTM>array<CTM>: <RCTM>[<ICTM>Int<CTM>]<EECTM>)<E> <R>-> <RCTM>(<IRRCTM>min<CTM>: <ICTM>Int<CTM>,<E> <IRCTM>max<CTM>: <ICTM>Int<EECTM>)<EEECTM> <R>{
+        <RR>var <IRCTM>currentMin<CTM> <R>= <IRCTM>array<CTM>[<CTM>0<CTM>]<EEEECTM>
+        <R>var <IRCTM>currentMax<CTM> <R>= <IRCTM>array<CTM>[<CTM>0<CTM>]<EEEECTM>
+        <R>for <ICTM>value<CTM> in <IRCTM>array<CTM>[<RCTM>1<CTM>..<<IRCTM>array<CTM>.<ICTM>count<EECTM>]<ECTM> <R>{
+            <R>if <IRCTM>value<CTM> < <ICTM>currentMin<ECTM> <R>{
+                <IRCTM>currentMin<CTM> = <ICTM>value<ECTM>
+            }<E> else <R>if <IRCTM>value<CTM> > <ICTM>currentMax<ECTM> <R>{
+                <IRCTM>currentMax<CTM> = <ICTM>value<ECTM>
+            }<EEE>
+        }<EE>
+        <R>return <RCTM>(<IRRCTM>currentMin<CTM>,<E> <ICTM>currentMax<ECTM>)<EEECTM>
+    }<EE>
+
+    <R>let <IRCTM>result<CTM> <R>= <IRCTM>minMax<CTM>(<IRCTM>array<CTM>: <RCTM>[<RRCTM>10<CTM>,<E> <RCTM>43<CTM>,<E> <RCTM>1<CTM>,<E> <CTM>2018<ECTM>]<EECTM>)<EEEECTM>
+    <IRCTM>print<CTM>(<RCTM>"<R>range: <R>\\(<IRCTM>result<CTM>.<ICTM>min<ECTM>)<E> – <R>\\(<IRCTM>result<CTM>.<ICTM>max<ECTM>)<EE>"<ECTM>)<EECTM>
+    """)
   }
 
   func testRewriteActionGenerator() {
-    let actions = RewriteActionGenerator().generate(for: testFile)
+    let actions = BasicRewriteActionGenerator().generate(for: testFile)
     verify(actions, rewriteMode: .basic, expectedActionTypes: [.codeComplete, .cursorInfo, .rangeInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText])
   }
 
   func testConcurrentRewriteActionGenerator() {
     let actions = ConcurrentRewriteActionGenerator().generate(for: testFile)
-    verify(actions, rewriteMode: .concurrent, expectedActionTypes: [.codeComplete, .cursorInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText])
+    verify(actions, rewriteMode: .concurrent, expectedActionTypes: [.codeComplete, .cursorInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText, .rangeInfo])
   }
 
   func testInsideOutActionGenerator() {
     let actions = InsideOutRewriteActionGenerator().generate(for: testFile)
-    verify(actions, rewriteMode: .insideOut, expectedActionTypes: [.codeComplete, .cursorInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText])
+    verify(actions, rewriteMode: .insideOut, expectedActionTypes: [.codeComplete, .cursorInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText, .rangeInfo])
   }
 
   func verify(_ actions: [Action], rewriteMode: RewriteMode, expectedActionTypes: [Action.BaseAction]) {
@@ -120,5 +144,60 @@ class ActionGeneratorTests: XCTestCase {
       """
 
     FileManager.default.createFile(atPath: testFile.path, contents: testFileContent.data(using: .utf8))
+  }
+}
+
+final class ActionMarkup {
+  let source: String
+  let actions: [Action]
+
+  init(_ actions: [Action], in source: String) {
+    self.source = source
+    self.actions = actions
+  }
+
+  var markedUpSource: String {
+    var result = ""
+    let insertions = actions
+      .flatMap { action -> [(Int, String)] in
+        switch action {
+        case .cursorInfo(let offset):
+          return [(offset, "I")]
+        case .codeComplete(let offset):
+          return [(offset, "C")]
+        case .rangeInfo(let offset, let length):
+          return [(offset, "R"), (offset + length, "E")]
+        case .replaceText:
+          preconditionFailure("actions do not modify the source")
+        case .typeContextInfo(let offset):
+          return [(offset, "T")]
+        case .conformingMethodList(let offset):
+          return [(offset, "M")]
+        case .collectExpressionType:
+          return [] // no associated location
+        }
+      }
+      .enumerated()
+      .sorted { a, b in
+        if a.element.0 < b.element.0 { return true }
+        return a.offset < b.offset
+      }
+      .map { $1 }
+      .divide { offset, _ in  offset }
+      .map { ($0.first!.0, $0.map{ $1 }.reduce("", +)) }
+
+    var lastIndex = source.utf8.startIndex
+    for (offset, label) in insertions {
+      let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
+      if index != lastIndex {
+        result += String(source.utf8[lastIndex..<index])!
+      }
+      result += "<\(label)>"
+      lastIndex = index
+    }
+    if lastIndex != source.utf8.endIndex {
+      result += String(source.utf8[lastIndex...])!
+    }
+    return result
   }
 }
