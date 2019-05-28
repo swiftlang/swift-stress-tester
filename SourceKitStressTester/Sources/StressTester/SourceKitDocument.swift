@@ -178,6 +178,9 @@ struct SourceKitDocument {
     let request = SourceKitdRequest(uid: .request_CodeComplete)
 
     request.addParameter(.key_SourceFile, value: file)
+    if let sourceState = sourceState {
+      request.addParameter(.key_SourceText, value: sourceState.source)
+    }
     request.addParameter(.key_Offset, value: offset)
 
     let compilerArgs = request.addArrayParameter(.key_CompilerArgs)
@@ -194,6 +197,9 @@ struct SourceKitDocument {
     let request = SourceKitdRequest(uid: .request_TypeContextInfo)
 
     request.addParameter(.key_SourceFile, value: file)
+    if let sourceState = sourceState {
+      request.addParameter(.key_SourceText, value: sourceState.source)
+    }
     request.addParameter(.key_Offset, value: offset)
 
     let compilerArgs = request.addArrayParameter(.key_CompilerArgs)
@@ -210,6 +216,9 @@ struct SourceKitDocument {
     let request = SourceKitdRequest(uid: .request_ConformingMethodList)
 
     request.addParameter(.key_SourceFile, value: file)
+    if let sourceState = sourceState {
+      request.addParameter(.key_SourceText, value: sourceState.source)
+    }
     request.addParameter(.key_Offset, value: offset)
 
     let expressionTypeList = request.addArrayParameter(.key_ExpressionTypeList)
