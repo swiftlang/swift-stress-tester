@@ -86,9 +86,19 @@ struct SwiftCWrapper {
       progress = nil
     }
 
-    let queue = FailFastOperationQueue(operations: operations, maxWorkers: maxJobs) { operation, completed, total -> Bool in
+    // Write out response data once it's received and all preceding operations are complete
+    var orderingHandler: OrderingBuffer<StressTestOperation>? = nil
+    if let dumpResponsesPath = dumpResponsesPath {
+      orderingHandler = OrderingBuffer(itemCount: operations.count) { operation in
+        self.writeResponseData(operation.responses, to: dumpResponsesPath)
+      }
+    }
+
+    let queue = FailFastOperationQueue(operations: operations, maxWorkers: maxJobs) { index, operation, completed, total -> Bool in
       let message = "\(operation.file) (\(operation.summary)): \(operation.status.name)"
       progress?.update(percent: completed * 100 / total, text: message)
+      orderingHandler?.complete(operation, at: index)
+      operation.responses.removeAll()
       return operation.status.isPassed
     }
     queue.waitUntilFinished()
@@ -107,7 +117,6 @@ struct SwiftCWrapper {
     // Determine the set of processed files and the first failure (if any)
     var processedFiles = Set<String>()
     var detectedIssue: StressTesterIssue? = nil
-    var reportedResponses: [SourceKitResponseData] = []
     for operation in operations where detectedIssue == nil {
       switch operation.status {
       case .cancelled:
@@ -116,22 +125,16 @@ struct SwiftCWrapper {
         fatalError("unterminated operation")
       case .errored(let status, let arguments):
         detectedIssue = .errored(status: status, file: operation.file, arguments: arguments.joined(separator: " "))
-      case .failed(let sourceKitError, let responses):
+      case .failed(let sourceKitError):
         detectedIssue = .failed(sourceKitError)
-        reportedResponses += responses
         fallthrough
-      case .passed(let responses):
+      case .passed:
         processedFiles.insert(operation.file)
-        reportedResponses += responses
       }
     }
 
     let matchingSpec = try issueManager?.update(for: processedFiles, issue: detectedIssue)
     try report(detectedIssue, matching: matchingSpec)
-
-    if let dumpResponsesPath = dumpResponsesPath, !reportedResponses.isEmpty {
-      writeResponseData(reportedResponses, to: dumpResponsesPath)
-    }
 
     if detectedIssue == nil || matchingSpec != nil {
       return EXIT_SUCCESS
@@ -170,6 +173,27 @@ struct SwiftCWrapper {
         stderrStream <<< "Add the following entry to the expected failures JSON file to mark it as expected:\n"
         stderrStream <<< json <<< "\n\n"
       }
+    }
+  }
+}
+
+private struct OrderingBuffer<T> {
+  private var items: [T?]
+  private var nextItemIndex: Int
+  private let completionHandler: (T) -> ()
+
+  init(itemCount: Int, completionHandler: @escaping (T) -> ()) {
+    items = Array.init(repeating: nil, count: itemCount)
+    nextItemIndex = items.startIndex
+    self.completionHandler = completionHandler
+  }
+
+  mutating func complete(_ item: T, at index: Int) {
+    precondition(index < items.endIndex && items[index] == nil && nextItemIndex < items.endIndex)
+    items[index] = item
+    while nextItemIndex < items.endIndex, let nextItem = items[nextItemIndex] {
+      completionHandler(nextItem)
+      nextItemIndex += 1
     }
   }
 }

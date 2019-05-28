@@ -90,7 +90,7 @@ class SwiftCWrapperToolTests: XCTestCase {
     let third = TestOperation(waitCount: 20)
     let fourth = TestOperation(waitCount: 30)
 
-    FailFastOperationQueue(operations: [first, second, third, fourth], maxWorkers: 2, completionHandler: { finishedOp, _, _ in
+    FailFastOperationQueue(operations: [first, second, third, fourth], maxWorkers: 2, completionHandler: { _, finishedOp, _, _ in
       // cancel later operations when the second operation completes
       return finishedOp !== second
     }).waitUntilFinished()
