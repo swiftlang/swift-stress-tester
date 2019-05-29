@@ -20,9 +20,9 @@ final class StressTestOperation: Operation {
     /// Indicates the operation was cancelled
     case cancelled
     /// Indicates the operation was executed and no issues were found
-    case passed([SourceKitResponseData])
+    case passed
     /// Indicates the operation was executed and issues were found
-    case failed(SourceKitError, [SourceKitResponseData])
+    case failed(SourceKitError)
     /// Indicates the operation was executed, but the stress tester itself failed
     case errored(status: Int32, arguments: [String])
 
@@ -53,6 +53,7 @@ final class StressTestOperation: Operation {
   let part: (Int, of: Int)
   let mode: RewriteMode
   var status: Status = .unexecuted
+  var responses = [SourceKitResponseData]()
 
   private let process: ProcessRunner
 
@@ -92,9 +93,11 @@ final class StressTestOperation: Operation {
       status = .cancelled
     } else if let (error, responses) = parseMessages(result.stdout) {
       if result.status == EXIT_SUCCESS {
-        status = .passed(responses)
+        status = .passed
+        self.responses = responses
       } else if let error = error {
-        status = .failed(error, responses)
+        status = .failed(error)
+        self.responses = responses
       } else {
         // A non-successful exit code with no error produced-> stress tester failure
         status = .errored(status: result.status, arguments: process.process.arguments ?? [])
