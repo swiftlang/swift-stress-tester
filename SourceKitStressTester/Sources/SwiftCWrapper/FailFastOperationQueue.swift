@@ -16,10 +16,10 @@ public final class FailFastOperationQueue<Item: Operation> {
   private let serialQueue = DispatchQueue(label: "\(FailFastOperationQueue.self)")
   private let queue = OperationQueue()
   private let operations: [Item]
-  private let completionHandler: (Item, Int, Int) -> Bool
+  private let completionHandler: (Int, Item, Int, Int) -> Bool
 
   init(operations: [Item], maxWorkers: Int? = nil,
-       completionHandler: @escaping (Item, Int, Int) -> Bool) {
+       completionHandler: @escaping (Int, Item, Int, Int) -> Bool) {
     self.operations = operations
     self.completionHandler = completionHandler
     let processorCount = ProcessInfo.processInfo.activeProcessorCount
@@ -42,7 +42,7 @@ public final class FailFastOperationQueue<Item: Operation> {
 
         self.serialQueue.sync {
           completed += 1
-          if !self.completionHandler(operation, completed, self.operations.count) {
+          if !self.completionHandler(index, operation, completed, self.operations.count) {
             self.cancelAfter(index)
           }
         }

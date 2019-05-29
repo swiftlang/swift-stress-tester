@@ -140,10 +140,13 @@ struct StressTester {
     case .typeContextInfo:
       var results = [String]()
       response.value.getArray(.key_Results).enumerate { _, result -> Bool in
-        results.append(result.description)
+        let value = result.getDictionary()
+        let sourceText = value.getString(.key_SourceText)
+        let typeName = value.getString(.key_TypeName)
+        results.append("\(sourceText) (\(typeName))")
         return true
       }
-      try handler(SourceKitResponseData(results, for: request))
+      try handler(SourceKitResponseData(results.sorted(), for: request))
     default:
       try handler(SourceKitResponseData([response.value.description], for: request))
     }
