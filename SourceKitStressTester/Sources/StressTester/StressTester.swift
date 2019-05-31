@@ -89,7 +89,7 @@ struct StressTester {
 
     // Compute the initial state of the source file for this page
     var state = SourceState(rewriteMode: options.rewriteMode, content: source)
-    pages[0..<options.page.index].joined().forEach {
+    pages[..<options.page.index].joined().forEach {
       if case .replaceText(let offset, let length, let text) = $0 {
         state.replace(offset: offset, length: length, with: text)
       }
