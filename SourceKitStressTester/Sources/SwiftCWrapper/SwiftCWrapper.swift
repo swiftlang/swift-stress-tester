@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2014 - 2018 Apple Inc. and the Swift project authors
+// Copyright (c) 2014 - 2019 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -87,17 +87,17 @@ struct SwiftCWrapper {
     }
 
     // Write out response data once it's received and all preceding operations are complete
-    var orderingHandler: OrderingBuffer<StressTestOperation>? = nil
+    var orderingHandler: OrderingBuffer<[SourceKitResponseData]>? = nil
     if let dumpResponsesPath = dumpResponsesPath {
-      orderingHandler = OrderingBuffer(itemCount: operations.count) { operation in
-        self.writeResponseData(operation.responses, to: dumpResponsesPath)
+      orderingHandler = OrderingBuffer(itemCount: operations.count) { responses in
+        self.writeResponseData(responses, to: dumpResponsesPath)
       }
     }
 
     let queue = FailFastOperationQueue(operations: operations, maxWorkers: maxJobs) { index, operation, completed, total -> Bool in
       let message = "\(operation.file) (\(operation.summary)): \(operation.status.name)"
       progress?.update(percent: completed * 100 / total, text: message)
-      orderingHandler?.complete(operation, at: index)
+      orderingHandler?.complete(operation.responses, at: index, setLast: !operation.status.isPassed)
       operation.responses.removeAll()
       return operation.status.isPassed
     }
@@ -180,6 +180,7 @@ struct SwiftCWrapper {
 private struct OrderingBuffer<T> {
   private var items: [T?]
   private var nextItemIndex: Int
+  private var endIndex: Int? = nil
   private let completionHandler: (T) -> ()
 
   init(itemCount: Int, completionHandler: @escaping (T) -> ()) {
@@ -188,10 +189,13 @@ private struct OrderingBuffer<T> {
     self.completionHandler = completionHandler
   }
 
-  mutating func complete(_ item: T, at index: Int) {
+  mutating func complete(_ item: T, at index: Int, setLast: Bool) {
     precondition(index < items.endIndex && items[index] == nil && nextItemIndex < items.endIndex)
     items[index] = item
-    while nextItemIndex < items.endIndex, let nextItem = items[nextItemIndex] {
+    if setLast && (endIndex == nil || (index + 1) < endIndex!) {
+      endIndex = index + 1
+    }
+    while nextItemIndex < (endIndex ?? items.endIndex), let nextItem = items[nextItemIndex] {
       completionHandler(nextItem)
       nextItemIndex += 1
     }
