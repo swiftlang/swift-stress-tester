@@ -88,9 +88,10 @@ struct SwiftCWrapper {
 
     // Write out response data once it's received and all preceding operations are complete
     var orderingHandler: OrderingBuffer<[SourceKitResponseData]>? = nil
+    var seenResponses = Set<UInt64>()
     if let dumpResponsesPath = dumpResponsesPath {
       orderingHandler = OrderingBuffer(itemCount: operations.count) { responses in
-        self.writeResponseData(responses, to: dumpResponsesPath)
+        self.writeResponseData(responses, to: dumpResponsesPath, seenResponses: &seenResponses)
       }
     }
 
@@ -142,8 +143,26 @@ struct SwiftCWrapper {
     return ignoreIssues ? swiftcResult.status : EXIT_FAILURE
   }
 
-  private func writeResponseData(_ responses: [SourceKitResponseData], to path: String) {
-    let data = responses.map { String(describing: $0) + "\n" }.joined().data(using: .utf8)!
+  private func writeResponseData(_ responses: [SourceKitResponseData], to path: String, seenResponses: inout Set<UInt64>) {
+    // Only write the first of identical responses
+    let data = responses
+      .map { response -> String in
+        let results = response.results.map { result in
+          let hash = result.stableHash
+          if !seenResponses.insert(hash).inserted {
+            return "See <\(hash)>.\n"
+          }
+          return "<\(hash)> \(result)\n"
+        }.joined()
+        return """
+          \(response.request)"
+          \(results)
+
+          """
+      }
+      .joined()
+      .data(using: .utf8)!
+
     if let fileHandle = FileHandle(forWritingAtPath: path) {
       defer { fileHandle.closeFile() }
       fileHandle.seekToEndOfFile()

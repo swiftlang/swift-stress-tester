@@ -138,19 +138,40 @@ struct StressTester {
     case .codeComplete: fallthrough
     case .conformingMethodList: fallthrough
     case .typeContextInfo:
-      var results = [String]()
-      response.value.getArray(.key_Results).enumerate { _, result -> Bool in
-        let value = result.getDictionary()
-        let sourceText = value.getString(.key_SourceText)
-        let typeName = value.getString(.key_TypeName)
-        results.append("\(sourceText) (\(typeName))")
-        return true
-      }
-      try handler(SourceKitResponseData(results.sorted(), for: request))
+      let results = getCompletionResults(from: response.value.getArray(.key_Results))
+      try handler(SourceKitResponseData(results, for: request))
     default:
       try handler(SourceKitResponseData([response.value.description], for: request))
     }
   }
+
+  private func getCompletionResults(from results: SourceKitdResponse.Array) -> [String] {
+    var global = [String]()
+    var module = [String]()
+    var local = [String]()
+    results.enumerate { _, result -> Bool in
+      let value = result.getDictionary()
+      let name = value.getString(.key_Name)
+      switch value.getUID(.key_Context) {
+      case .kind_CompletionContextOtherModule:
+        global.append(name)
+      case .kind_CompletionContextThisModule:
+        module.append(name)
+      default:
+        local.append(name)
+      }
+      return true
+    }
+
+    return [("global", global), ("module", module), ("local", local)].map { label, results in
+      "\(label): \(results.isEmpty ? "<empty>" : results.sorted().joined(separator: ", "))"
+    }
+  }
+}
+
+private extension SourceKitdUID {
+  static let kind_CompletionContextOtherModule = SourceKitdUID(string: "source.codecompletion.context.othermodule")
+  static let kind_CompletionContextThisModule = SourceKitdUID(string: "source.codecompletion.context.thismodule")
 }
 
 struct StressTesterOptions {
