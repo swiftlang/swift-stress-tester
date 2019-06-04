@@ -187,7 +187,7 @@ final class ConcurrentRewriteActionGenerator: ActionGenerator {
       for group in groups {
         let nextPos = position + group.placedLength
         if let next = group.next() {
-          actions += generateActions(for: next, at: nextPos, in: group, at: position)
+          actions += generateActions(for: next, at: nextPos, in: group, at: position, from: groups)
           done = false
         }
         position += group.placedLength
@@ -200,7 +200,8 @@ final class ConcurrentRewriteActionGenerator: ActionGenerator {
     for actionToken: ActionToken,
     at position: AbsolutePosition,
     in group: ActionTokenGroup,
-    at groupPos: AbsolutePosition
+    at groupPos: AbsolutePosition,
+    from groups: [ActionTokenGroup]
   ) -> [Action] {
     // position actions
     let token = actionToken.token
@@ -209,11 +210,20 @@ final class ConcurrentRewriteActionGenerator: ActionGenerator {
     // range actions
     let contentEnd = (position + token.leadingTriviaLength + token.contentLength).utf8Offset
     actions += actionToken.endedRangeStartTokens.map { startToken in
-      let placedLength: SourceLength = group.actionTokens
-        .prefix { $0.token != startToken}
-        .map { $0.token.totalLength }
-        .reduce(.zero, +)
-      let rangeStart = (groupPos + placedLength + startToken.leadingTriviaLength).utf8Offset
+      // The start token should be:
+      // 1) from the same group, or
+      // 2) from the very first group (if this is the last token of the last group)
+      let rangeStart: Int
+      if groups.first?.actionTokens.first?.token == startToken {
+        rangeStart = (AbsolutePosition(utf8Offset: 0) + startToken.leadingTriviaLength).utf8Offset
+      } else {
+        assert(group.actionTokens.contains { $0.token == startToken })
+        let placedLength: SourceLength = group.actionTokens
+          .prefix { $0.token != startToken }
+          .map { $0.token.totalLength }
+          .reduce(.zero, +)
+        rangeStart = (groupPos + placedLength + startToken.leadingTriviaLength).utf8Offset
+      }
       return .rangeInfo(offset: rangeStart, length: contentEnd - rangeStart)
     }
 

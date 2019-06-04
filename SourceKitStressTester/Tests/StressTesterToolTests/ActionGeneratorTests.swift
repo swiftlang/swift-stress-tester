@@ -77,7 +77,7 @@ class ActionGeneratorTests: XCTestCase {
         XCTAssertTrue(offset >= 0 && offset <= eof)
       case .rangeInfo(let offset, let length):
         XCTAssertTrue(offset >= 0 && offset <= eof)
-        XCTAssertTrue(length >= 0 && offset + length <= eof)
+        XCTAssertTrue(length > 0 && offset + length <= eof)
       case .replaceText(let offset, let length, let text):
         XCTAssertTrue(offset >= 0 && offset <= eof)
         XCTAssertTrue(length >= 0 && offset + length <= eof)
