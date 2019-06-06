@@ -118,6 +118,7 @@ final class RequestActionGenerator: ActionGenerator {
     let rangeEnd = token.endPositionBeforeTrailingTrivia.utf8Offset
     actions += actionToken.endedRangeStartTokens.map { startToken in
       let rangeStart = startToken.positionAfterSkippingLeadingTrivia.utf8Offset
+      assert(rangeEnd - rangeStart > 0)
       return Action.rangeInfo(offset: rangeStart, length: rangeEnd - rangeStart)
     }
     return actions
@@ -162,10 +163,11 @@ final class BasicRewriteActionGenerator: ActionGenerator {
     var actions = generatePositionActions(for: actionToken, at: token.position, withReplaceTexts: true)
 
     // range actions
-    let contentEnd = token.endPositionBeforeTrailingTrivia.utf8Offset
+    let rangeEnd = token.endPositionBeforeTrailingTrivia.utf8Offset
     actions += actionToken.endedRangeStartTokens.map { startToken in
       let rangeStart = startToken.positionAfterSkippingLeadingTrivia.utf8Offset
-      return .rangeInfo(offset: rangeStart, length: contentEnd - rangeStart)
+      assert(rangeEnd - rangeStart > 0)
+      return .rangeInfo(offset: rangeStart, length: rangeEnd - rangeStart)
     }
 
     return actions
@@ -208,7 +210,7 @@ final class ConcurrentRewriteActionGenerator: ActionGenerator {
     var actions = generatePositionActions(for: actionToken, at: position, withReplaceTexts: true)
 
     // range actions
-    let contentEnd = (position + token.leadingTriviaLength + token.contentLength).utf8Offset
+    let rangeEnd = (position + token.leadingTriviaLength + token.contentLength).utf8Offset
     actions += actionToken.endedRangeStartTokens.map { startToken in
       // The start token should be:
       // 1) from the same group, or
@@ -224,7 +226,8 @@ final class ConcurrentRewriteActionGenerator: ActionGenerator {
           .reduce(.zero, +)
         rangeStart = (groupPos + placedLength + startToken.leadingTriviaLength).utf8Offset
       }
-      return .rangeInfo(offset: rangeStart, length: contentEnd - rangeStart)
+      assert(rangeEnd - rangeStart > 0)
+      return .rangeInfo(offset: rangeStart, length: rangeEnd - rangeStart)
     }
 
     return actions
@@ -283,6 +286,7 @@ final class InsideOutRewriteActionGenerator: ActionGenerator {
     actions += actionToken.endedRangeStartTokens.compactMap { startToken in
       guard let startTokenStart = getPlacedStart(of: startToken, in: groups) else { return nil }
       let rangeStart = startTokenStart.utf8Offset
+      assert(rangeEnd - rangeStart > 0)
       return Action.rangeInfo(offset: rangeStart, length: rangeEnd - rangeStart)
     }
 
@@ -291,6 +295,7 @@ final class InsideOutRewriteActionGenerator: ActionGenerator {
     actions += actionToken.startedRangeEndTokens.compactMap { endToken in
       guard let endTokenStart = getPlacedStart(of: endToken, in: groups) else { return nil }
       let rangeEnd = (endTokenStart + endToken.contentLength).utf8Offset
+      assert(rangeEnd - rangeStart > 0)
       return Action.rangeInfo(offset: rangeStart, length: rangeEnd - rangeStart)
     }
 
