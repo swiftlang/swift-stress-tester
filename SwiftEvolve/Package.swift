@@ -10,7 +10,7 @@ let package = Package(
         .library(name: "SwiftEvolve", targets: ["SwiftEvolve"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-package-manager.git", from: "0.2.0")
+        .package(url: "https://github.com/apple/swift-package-manager.git", .exact("0.3.0"))
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
