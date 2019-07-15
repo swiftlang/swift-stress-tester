@@ -106,6 +106,7 @@ struct SourceKitDocument {
     if let actions = response.value.getOptional(.key_RefactorActions)?.getArray() {
       for i in 0 ..< actions.count {
         let action = actions.getDictionary(i)
+        guard action.getOptional(.key_ActionUnavailableReason) == nil else { continue }
         let actionName = action.getString(.key_ActionName)
         let kind = action.getUID(.key_ActionUID)
         _ = try semanticRefactoring(actionKind: kind, actionName: actionName,
@@ -140,6 +141,7 @@ struct SourceKitDocument {
     if let actions = response.value.getOptional(.key_RefactorActions)?.getArray() {
       for i in 0 ..< actions.count {
         let action = actions.getDictionary(i)
+        guard action.getOptional(.key_ActionUnavailableReason) == nil else { continue }
         let actionName = action.getString(.key_ActionName)
         guard actionName != "Global Rename" else { continue }
         let kind = action.getUID(.key_ActionUID)
