@@ -424,49 +424,49 @@ extension SourceKitError: CustomStringConvertible {
     case .editorReplaceText(let document, let offset, let length, _):
       guard let source = document.modification?.content else { return nil }
       let startIndex = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
-      let endIndex = source.utf8.index(source.utf8.startIndex, offsetBy: offset + length)
-      let prefix = source.prefix(upTo: startIndex)
-      let replace = source.dropFirst(offset).prefix(length)
-      let suffix = source.suffix(from: endIndex)
-      return String(prefix) + "<replace-start>" + String(replace) + "<replace-end>" + String(suffix)
+      let endIndex = source.utf8.index(startIndex, offsetBy: length)
+      let prefix = String(source.utf8.prefix(upTo: startIndex))!
+      let replace = String(source.utf8.dropFirst(offset).prefix(length))!
+      let suffix = String(source.utf8.suffix(from: endIndex))!
+      return prefix + "<replace-start>" + replace + "<replace-end>" + suffix
     case .cursorInfo(let document, let offset, _):
       guard let source = document.modification?.content else { return nil }
       let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
-      let prefix = source.prefix(upTo: index)
-      let suffix = source.suffix(from: index)
-      return String(prefix) + "<cursor-offset>" + String(suffix)
+      let prefix = String(source.utf8.prefix(upTo: index))!
+      let suffix = String(source.utf8.suffix(from: index))!
+      return prefix + "<cursor-offset>" + suffix
     case .codeComplete(let document, let offset, _):
       guard let source = document.modification?.content else { return nil }
       let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
-      let prefix = source.prefix(upTo: index)
-      let suffix = source.suffix(from: index)
-      return String(prefix) + "<complete-offset>" + String(suffix)
+      let prefix = String(source.utf8.prefix(upTo: index))!
+      let suffix = String(source.utf8.suffix(from: index))!
+      return prefix + "<complete-offset>" + suffix
     case .rangeInfo(let document, let offset, let length, _):
       guard let source = document.modification?.content else { return nil }
       let startIndex = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
-      let endIndex = source.utf8.index(source.utf8.startIndex, offsetBy: offset + length)
-      let prefix = source.prefix(upTo: startIndex)
-      let replace = source.dropFirst(offset).prefix(length)
-      let suffix = source.suffix(from: endIndex)
-      return String(prefix) + "<range-start>" + String(replace) + "<range-end>" + String(suffix)
+      let endIndex = source.utf8.index(startIndex, offsetBy: length)
+      let prefix = String(source.utf8.prefix(upTo: startIndex))!
+      let replace = String(source.utf8.dropFirst(offset).prefix(length))!
+      let suffix = String(source.utf8.suffix(from: endIndex))!
+      return prefix + "<range-start>" + replace + "<range-end>" + suffix
     case .semanticRefactoring(let document, let offset, _, _):
       guard let source = document.modification?.content else { return nil }
       let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
-      let prefix = source.prefix(upTo: index)
-      let suffix = source.suffix(from: index)
-      return String(prefix) + "<refactor-offset>" + String(suffix)
+      let prefix = String(source.utf8.prefix(upTo: index))!
+      let suffix = String(source.utf8.suffix(from: index))!
+      return prefix + "<refactor-offset>" + suffix
     case .typeContextInfo(let document, let offset, _):
       guard let source = document.modification?.content else { return nil }
       let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
-      let prefix = source.prefix(upTo: index)
-      let suffix = source.suffix(from: index)
-      return String(prefix) + "<type-context-info-offset>" + String(suffix)
+      let prefix = String(source.utf8.prefix(upTo: index))!
+      let suffix = String(source.utf8.suffix(from: index))!
+      return prefix + "<type-context-info-offset>" + suffix
     case .conformingMethodList(let document, let offset, _, _):
       guard let source = document.modification?.content else { return nil }
       let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
-      let prefix = source.prefix(upTo: index)
-      let suffix = source.suffix(from: index)
-      return String(prefix) + "<conforming-method-list-offset>" + String(suffix)
+      let prefix = String(source.utf8.prefix(upTo: index))!
+      let suffix = String(source.utf8.suffix(from: index))!
+      return prefix + "<conforming-method-list-offset>" + suffix
     case .collectExpressionType(let document, _):
       return document.modification?.content
     }

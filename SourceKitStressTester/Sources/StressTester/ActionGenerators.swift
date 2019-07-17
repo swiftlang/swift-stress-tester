@@ -263,10 +263,12 @@ final class InsideOutRewriteActionGenerator: ActionGenerator {
       }
     }
 
-    // This strategy may result in duplicate actions, so dedupe them
+    // This strategy may result in duplicate, adjacent actions. Dedupe them if
+    // they're non-source-mutating.
     var previous: Action? = nil
     return actions.filter { action in
       defer { previous = action }
+      if case .replaceText = action { return true }
       return action != previous
     }
   }
