@@ -34,6 +34,8 @@ struct StressTester {
     switch options.rewriteMode {
     case .none:
       return RequestActionGenerator()
+    case .typoed:
+      return TypoActionGenerator()
     case .basic:
       return BasicRewriteActionGenerator()
     case .insideOut:
