@@ -55,6 +55,11 @@ class ActionGeneratorTests: XCTestCase {
     verify(actions, rewriteMode: .basic, expectedActionTypes: [.codeComplete, .cursorInfo, .rangeInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText])
   }
 
+  func testTypoRewriteActionGenerator() {
+    let actions = TypoActionGenerator().generate(for: testFile)
+    verify(actions, rewriteMode: .typoed, expectedActionTypes: [.codeComplete, .cursorInfo, .conformingMethodList, .typeContextInfo, .replaceText])
+  }
+
   func testConcurrentRewriteActionGenerator() {
     let actions = ConcurrentRewriteActionGenerator().generate(for: testFile)
     verify(actions, rewriteMode: .concurrent, expectedActionTypes: [.codeComplete, .cursorInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText, .rangeInfo])
@@ -63,6 +68,23 @@ class ActionGeneratorTests: XCTestCase {
   func testInsideOutActionGenerator() {
     let actions = InsideOutRewriteActionGenerator().generate(for: testFile)
     verify(actions, rewriteMode: .insideOut, expectedActionTypes: [.codeComplete, .cursorInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText, .rangeInfo])
+
+    let edits = InsideOutRewriteActionGenerator().generate(for: "a.b([.c])").filter {
+        guard case .replaceText = $0 else { return false }
+        return true
+    }
+    XCTAssertEqual(edits, [
+        Action.replaceText(offset: 0, length: 9, text: ""),
+        Action.replaceText(offset: 0, length: 0, text: "."), // .
+        Action.replaceText(offset: 1, length: 0, text: "c"), // .c
+        Action.replaceText(offset: 0, length: 0, text: "["), // [.c
+        Action.replaceText(offset: 3, length: 0, text: "]"), // [.c]
+        Action.replaceText(offset: 0, length: 0, text: "a"), // a[.c]
+        Action.replaceText(offset: 1, length: 0, text: "."), // a.[.c]
+        Action.replaceText(offset: 2, length: 0, text: "b"), // a.b[.c]
+        Action.replaceText(offset: 3, length: 0, text: "("), // a.b([.c]
+        Action.replaceText(offset: 8, length: 0, text: ")"), // a.b([.c])
+    ])
   }
 
   func verify(_ actions: [Action], rewriteMode: RewriteMode, expectedActionTypes: [Action.BaseAction]) {

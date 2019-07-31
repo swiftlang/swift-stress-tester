@@ -41,7 +41,7 @@ public struct StressTesterTool {
     self.parser = ArgumentParser(usage: usage, overview: overview)
     mode = parser.add(
       option: "--rewrite-mode", shortName: "-m", kind: RewriteMode.self,
-      usage: "<MODE> One of 'none' (default), 'basic', 'concurrent', or 'insideOut'")
+      usage: "<MODE> One of 'none' (default), 'basic', 'concurrent', 'insideOut', or 'typoed'")
     format = parser.add(
       option: "--format", shortName: "-f", kind: OutputFormat.self,
       usage: "<FORMAT> One of 'json' or 'humanReadable'")
@@ -54,7 +54,7 @@ public struct StressTesterTool {
       " and only performs the <PAGE>th group.")
     request = parser.add(
       option: "--request", shortName: "-r", kind: [RequestSet].self, strategy: .oneByOne,
-      usage: "<REQUEST> One of CursorInfo, RangeInfo, CodeComplete, TypeContextInfo, ConformingMethodList, CollectExpressionType, or All")
+      usage: "<REQUEST> One of '\(RequestSet.all.valueNames.joined(separator: "', '"))', or 'All'")
     dryRun = parser.add(
       option: "--dryrun", shortName: "-d", kind: Bool.self,
       usage: "Dump the sourcekitd requests the stress tester would perform instead of performing them")
@@ -63,7 +63,7 @@ public struct StressTesterTool {
       usage: "Output sourcekitd's response to each request the stress tester makes")
     conformingMethodsTypeList = parser.add(
       option: "--type-list-item", shortName: "-t", kind: [String].self, strategy: .oneByOne,
-      usage: "The USR of a conformed-to protocol to use in the ConformingMethodList request")
+      usage: "The USR of a conformed-to protocol to use for the ConformingMethodList request")
     file = parser.add(
       positional: "<source-file>", kind: PathArgument.self, optional: false,
       usage: "A Swift source file to stress test", completion: .filename)

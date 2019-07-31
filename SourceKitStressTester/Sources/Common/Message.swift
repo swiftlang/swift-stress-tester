@@ -101,6 +101,8 @@ public struct DocumentModification: Codable {
 public enum RewriteMode: String, Codable, CaseIterable {
   /// Do not rewrite the file (only make non-modifying SourceKit requests)
   case none
+  /// Rewrite each identifier to be mispelled
+  case typoed
   /// Rewrite the file token by token, top to bottom
   case basic
   /// Rewrite all top level declarations top to bottom, concurrently
