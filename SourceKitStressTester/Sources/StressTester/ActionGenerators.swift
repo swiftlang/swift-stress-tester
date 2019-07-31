@@ -24,6 +24,12 @@ extension ActionGenerator {
     return generate(for: tree)
   }
 
+  /// Entrypoint intended for testing purposes only
+  func generate(for source: String) -> [Action] {
+    let tree = try! SyntaxParser.parse(source: source)
+    return generate(for: tree)
+  }
+
   fileprivate func generatePositionActions(
     for actionToken: ActionToken,
     at position: AbsolutePosition,
@@ -143,6 +149,58 @@ final class RequestActionGenerator: ActionGenerator {
       return 6
     }
   }
+}
+
+/// Walks through the provided source files token by token, editing each identifier to be misspelled, and
+/// unbalancing braces and brackets. Each misspelling or removed brace is restored before the next edit.
+final class TypoActionGenerator: ActionGenerator {
+    func generate(for tree: SourceFileSyntax) -> [Action] {
+        var collector = ActionTokenCollector()
+        return collector.collect(from: tree)
+            .flatMap { generateActions(for: $0.token) }
+    }
+
+    private func updateSpelling(_ kind: TokenKind) -> (original: String, new: String)? {
+        switch kind {
+        case .rightParen:
+            return (")", "")
+        case .rightBrace:
+            return ("}", "")
+        case .rightAngle:
+            return (">", "")
+        case .rightSquareBracket:
+            return ("]", "")
+        case .identifier(let spelling):
+            switch spelling.prefix(1) {
+            case "":
+                return nil
+            case "_":
+                return (spelling, "x" + spelling.dropFirst())
+            default:
+                return (spelling, "\\." + spelling.dropFirst())
+            }
+        case .dollarIdentifier(let spelling):
+            assert(spelling.prefix(1) == "$")
+            guard let number = Int(spelling.dropFirst(1)), number < 9 else { return nil }
+            return (spelling, "$\(number + 1)")
+        default:
+            return nil
+        }
+    }
+
+    private func generateActions(for token: TokenSyntax) -> [Action] {
+        guard let spelling = updateSpelling(token.tokenKind), token.presence == .present else { return [] }
+        let contentStart = token.positionAfterSkippingLeadingTrivia.utf8Offset
+        let contentLength = token.contentLength.utf8Length
+        return [
+            .replaceText(offset: contentStart, length: contentLength, text: spelling.new),
+            .cursorInfo(offset: contentStart),
+            .codeComplete(offset: contentStart + spelling.new.utf8.count),
+            .typeContextInfo(offset: contentStart + spelling.new.utf8.count),
+            .conformingMethodList(offset: contentStart + spelling.new.utf8.count),
+            .replaceText(offset: contentStart, length: spelling.new.utf8.count, text: spelling.original)
+        ]
+    }
 }
 
 /// Works through the provided source files generating actions to first remove their
@@ -388,12 +446,13 @@ private struct ActionTokenCollector: SyntaxAnyVisitor {
 
   mutating func visitAnyPost(_ node: Syntax) {
     if shouldIncreaseDepth(node) {
+      assert(currentDepth > 0)
       currentDepth -= 1
     }
   }
 
   mutating func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
-    //guard token.tokenKind != .eof else { return .visitChildren }
+    _ = visitAny(token)
     let frontActions = getFrontActions(for: token)
     let rearActions = getRearActions(for: token)
     tokens.append(ActionToken(token, atDepth: currentDepth,
