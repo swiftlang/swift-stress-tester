@@ -13,6 +13,11 @@
 import Foundation
 import Common
 
+struct ParsedMessages {
+  fileprivate(set) var sourceKitError: SourceKitError? = nil
+  fileprivate(set) var sourceKitResponses: [SourceKitResponseData] = []
+}
+
 final class StressTestOperation: Operation {
   enum Status {
     /// Indicates the operation is still pending
@@ -91,13 +96,13 @@ final class StressTestOperation: Operation {
     let result = process.run()
     if isCancelled {
       status = .cancelled
-    } else if let (error, responses) = parseMessages(result.stdout) {
+    } else if let parsed = parseMessages(result.stdout) {
       if result.status == EXIT_SUCCESS {
         status = .passed
-        self.responses = responses
-      } else if let error = error {
+        self.responses = parsed.sourceKitResponses
+      } else if let error = parsed.sourceKitError {
         status = .failed(error)
-        self.responses = responses
+        self.responses = parsed.sourceKitResponses
       } else {
         // A non-successful exit code with no error produced-> stress tester failure
         status = .errored(status: result.status, arguments: process.process.arguments ?? [])
@@ -111,22 +116,21 @@ final class StressTestOperation: Operation {
   /// Parses the given data as a sequence of newline-separated, JSON-encoded `StressTesterMessage`s.
   ///
   /// - returns: A tuple of the detected `SourceKitError` (if one was produced) and a possibly-empty list of `SourceKitReponseData`s. If the input data was non-empty and couldn't be parsed, or if more than one detected error was produced, returns nil.
-  private func parseMessages(_ data: Data) -> (error: SourceKitError?, responses: [SourceKitResponseData])? {
+  private func parseMessages(_ data: Data) -> ParsedMessages? {
     let terminator = UInt8(ascii: "\n")
-    var sourceKitError: SourceKitError? = nil
-    var sourceKitResponses = [SourceKitResponseData]()
+    var parsed = ParsedMessages()
 
     for data in data.split(separator: terminator, omittingEmptySubsequences: true) {
       guard let message = StressTesterMessage(from: data) else { return nil }
       switch message {
       case .detected(let error):
-        guard sourceKitError == nil else { return nil }
-        sourceKitError = error
+        guard parsed.sourceKitError == nil else { return nil }
+        parsed.sourceKitError = error
       case .produced(let responseData):
-        sourceKitResponses.append(responseData)
+        parsed.sourceKitResponses.append(responseData)
       }
     }
-    return (sourceKitError, sourceKitResponses)
+    return parsed
   }
 
   override func cancel() {

@@ -47,13 +47,22 @@ struct SwiftCWrapper {
     self.dumpResponsesPath = dumpResponsesPath
   }
 
-  var swiftFiles: [String] {
+    var swiftFiles: [(String, size: Int)] {
     let dependencyPaths = ["/.build/checkouts/", "/Pods/", "/Carthage/Checkouts"]
     return arguments
+      .flatMap { DriverFileList(at: $0)?.paths ?? [$0] }
       .filter { argument in
-        argument.hasSuffix(".swift") && dependencyPaths.allSatisfy {!argument.contains($0)}
+        argument.hasSuffix(".swift") &&
+          dependencyPaths.allSatisfy {!argument.contains($0)}
       }
       .sorted()
+      .compactMap { file in
+        guard let size = try? FileManager.default.attributesOfItem(atPath: file)[.size] else {
+            // ignore files that couldn't be read
+            return nil
+        }
+        return (file, size: Int(size as! UInt64))
+      }
   }
 
   func run() throws -> Int32 {
@@ -64,9 +73,8 @@ struct SwiftCWrapper {
     let startTime = Date()
 
     // Determine the list of stress testing operations to perform
-    let operations = swiftFiles.flatMap { file -> [StressTestOperation] in
+    let operations = swiftFiles.flatMap { (file, sizeInBytes) -> [StressTestOperation] in
       // Split large files into multiple parts to improve load balancing
-      let sizeInBytes = try! FileManager.default.attributesOfItem(atPath: file)[.size]! as! UInt64
       let partCount = max(Int(sizeInBytes / 1000), 1)
       return rewriteModes.flatMap { mode in
         (1...partCount).map { part in
