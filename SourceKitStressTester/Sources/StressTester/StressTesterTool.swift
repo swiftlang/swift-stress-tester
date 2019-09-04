@@ -127,8 +127,8 @@ public struct StressTesterTool {
     let absoluteFile = URL(fileURLWithPath: arguments.get(file)!.path.asString)
     let args = Array(arguments.get(compilerArgs)!.dropFirst())
 
-    let tester = StressTester(for: absoluteFile, compilerArgs: args, options: options)
     do {
+      let tester = StressTester(for: absoluteFile, compilerArgs: args, options: options)
       if dryRun {
         let tree = try! SyntaxParser.parse(absoluteFile)
         try report(tester.computeStartStateAndActions(from: tree).actions, as: format)

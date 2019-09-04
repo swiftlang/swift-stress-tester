@@ -23,9 +23,9 @@ struct StressTester {
   let connection: SourceKitdService
 
   init(for file: URL, compilerArgs: [String], options: StressTesterOptions) {
-    self.file = file
     self.source = try! String(contentsOf: file, encoding: .utf8)
-    self.compilerArgs = compilerArgs
+    self.file = file
+    self.compilerArgs = compilerArgs.flatMap { DriverFileList(at: $0)?.paths ?? [$0] }
     self.options = options
     self.connection = SourceKitdService()
   }
