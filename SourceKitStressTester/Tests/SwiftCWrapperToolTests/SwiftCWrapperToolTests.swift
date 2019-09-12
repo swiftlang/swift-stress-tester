@@ -101,6 +101,21 @@ class SwiftCWrapperToolTests: XCTestCase {
     XCTAssertTrue(fourth.isCancelled, "fourth wasn't cancelled")
   }
 
+  func testSwiftFileHeuristic() {
+    func getSwiftFiles(from list: [String]) -> [String] {
+      let wrapper: SwiftCWrapper = SwiftCWrapper(
+        swiftcArgs: list, swiftcPath: "", stressTesterPath: "",
+        astBuildLimit: nil, rewriteModes: nil, requestKinds: nil,
+        conformingMethodTypes: nil, ignoreIssues: false, issueManager: nil,
+        maxJobs: nil, dumpResponsesPath: nil, failFast: false,
+        suppressOutput: false)
+      return wrapper.swiftFiles.map { (file, _) in file }
+    }
+    let dirPath = workspace.appendingPathComponent("ConfusinglyNamedDir.swift", isDirectory: true).path
+    try! FileManager.default.createDirectory(atPath: dirPath, withIntermediateDirectories: false, attributes: nil)
+    XCTAssertEqual(getSwiftFiles(from: [testFilePath, "/made-up.swift", "unrelated/path", dirPath]), [testFilePath])
+  }
+
   func testEnvParsing() {
     makeScript(atPath: testSwiftCPath, exitCode: 0)
     makeScript(atPath: testStressTesterPath, exitCode: 0, recordInvocationIn: testInvocationPath)
