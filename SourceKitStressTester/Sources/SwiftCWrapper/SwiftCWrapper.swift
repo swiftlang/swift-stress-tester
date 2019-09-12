@@ -47,13 +47,17 @@ struct SwiftCWrapper {
     self.dumpResponsesPath = dumpResponsesPath
   }
 
-    var swiftFiles: [(String, size: Int)] {
+  var swiftFiles: [(String, size: Int)] {
     let dependencyPaths = ["/.build/checkouts/", "/Pods/", "/Carthage/Checkouts"]
     return arguments
       .flatMap { DriverFileList(at: $0)?.paths ?? [$0] }
       .filter { argument in
-        argument.hasSuffix(".swift") &&
-          dependencyPaths.allSatisfy {!argument.contains($0)}
+        // Check it looks like a Swift file path and is in the main project
+        guard argument.hasSuffix(".swift") &&
+            dependencyPaths.allSatisfy({ !argument.contains($0) }) else { return false }
+        var isDirectory: ObjCBool = false
+        let exists = FileManager.default.fileExists(atPath: argument, isDirectory: &isDirectory)
+        return exists && !isDirectory.boolValue
       }
       .sorted()
       .compactMap { file in
