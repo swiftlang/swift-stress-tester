@@ -21,19 +21,22 @@ protocol TrailingCommaSyntax: Syntax {
 }
 
 extension FunctionParameterSyntax: TrailingCommaSyntax {}
-extension GenericRequirementSyntax: TrailingCommaSyntax {}
+extension ConformanceRequirementSyntax: TrailingCommaSyntax {}
+extension SameTypeRequirementSyntax: TrailingCommaSyntax {}
 
-extension BidirectionalCollection where Element: TrailingCommaSyntax {
+// We cannot use Element: TrailingCommaSyntax here because
+// GenericRequirementListSyntax has untyped Syntax elements.
+extension BidirectionalCollection where Element == Syntax {
   func withCorrectTrailingCommas(betweenTrivia: Trivia = [.spaces(1)]) -> [Element] {
     var elems: [Element] = []
 
     for elem in dropLast() {
       let newComma = SyntaxFactory.makeCommaToken(trailingTrivia: betweenTrivia)
-      let newElem = elem.withTrailingComma(newComma)
+      let newElem = (elem as! TrailingCommaSyntax).withTrailingComma(newComma)
       elems.append(newElem)
     }
     if let last = last {
-      elems.append(last.withTrailingComma(nil))
+      elems.append((last as! TrailingCommaSyntax).withTrailingComma(nil))
     }
 
     return elems
