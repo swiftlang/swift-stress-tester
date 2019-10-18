@@ -10,6 +10,9 @@ let package = Package(
   ],
   dependencies: [
     .package(url: "https://github.com/apple/swift-package-manager.git", .exact("0.3.0")),
+    // FIXME: We should depend on master once master contains all the degybed files
+    .package(url: "https://github.com/apple/swift-syntax.git", .branch("master-gen")),
+
   ],
   targets: [
     .target(
@@ -17,7 +20,7 @@ let package = Package(
       dependencies: ["Utility"]),
     .target(
       name: "StressTester",
-      dependencies: ["Common", "Utility"]),
+      dependencies: ["Common", "Utility", "SwiftSyntax"]),
     .target(
       name: "SwiftCWrapper",
       dependencies: ["Common", "Utility"]),

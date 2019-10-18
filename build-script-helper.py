@@ -35,30 +35,16 @@ def parse_args(args):
   parser.add_argument('--prefix', help='install path')
   parser.add_argument('--config', default='release')
   parser.add_argument('--build-dir', default='.build')
-  parser.add_argument('--swiftc-exec', help='the compiler to use when building this package (default: xcrun -f swiftc)')
-  parser.add_argument('--swift-build-exec', help='the swift-build exec to use to build this package (default: xcrun -f swift-build)')
-  parser.add_argument('--swift-test-exec', help='the swift-test exec to use to test this package (default: xcrun -f swift-test)')
-  parser.add_argument('--swift-package-exec', help='the swift-package exec to use to generate an xcode project for this package (default: xcrun -f swift-package)')
-  parser.add_argument('--sourcekitd-dir', help='the directory containing the sourcekitd.framework to use (default: relative to swiftc-exec)')
-  parser.add_argument('--syntax-parser-header-dir', help='the directory containing the header and module map for the parser library (default: assume contained in swift default search paths)')
-  parser.add_argument('--syntax-parser-lib-dir', help='the directory containing the shared parser library (default: assume contained in swift default search paths)')
-  parser.add_argument('--swiftsyntax-dir', help='the directory containing SwiftSyntax\'s build products (libSwiftSyntax.dylib, and SwiftSyntax.swiftmodule)')
+  parser.add_argument('--toolchain', required=True, help='the toolchain to use when building this package')
   parser.add_argument('build_actions', help="Extra actions to perform. Can be any number of the following: [all, test, install, generate-xcodeproj]", nargs="*", default=[])
 
   parsed = parser.parse_args(args)
 
   if ("install" in parsed.build_actions or "all" in parsed.build_actions) and not parsed.prefix:
     ArgumentParser.error("'--prefix' is required with the install action")
-  if parsed.swiftc_exec is None:
-    parsed.swiftc_exec = find_executable('swiftc')
-  if parsed.swift_build_exec is None:
-    parsed.swift_build_exec = find_executable('swift-build')
-  if parsed.swift_test_exec is None:
-    parsed.swift_test_exec = find_executable('swift-test')
-  if parsed.swift_package_exec is None:
-    parsed.swift_package_exec = find_executable('swift-package')
-  if parsed.sourcekitd_dir is None:
-    parsed.sourcekitd_dir = os.path.join(os.path.dirname(os.path.dirname(parsed.swiftc_exec)), 'lib')
+  parsed.swift_exec = os.path.join(parsed.toolchain, 'usr', 'bin', 'swift')
+
+  parsed.sourcekitd_dir = os.path.join(parsed.toolchain, 'usr', 'lib')
 
   # Convert package_dir to absolute path, relative to root of repo.
   repo_path = os.path.dirname(__file__)
@@ -71,32 +57,14 @@ def parse_args(args):
   return parsed
 
 def run(args):
-  if args.swiftsyntax_dir is None:
-    print("** Building SwiftSyntax **")
-    workspace = os.path.dirname(os.path.dirname(args.package_dir))
-    swiftsyntax_build_dir = os.path.join(args.package_dir, '.swiftsyntax_build')
-    build_swiftsyntax(repo=os.path.join(workspace, 'swift-syntax'),
-      swift_build_exec=args.swift_build_exec,
-      swiftc_exec=args.swiftc_exec,
-      parser_header_dir=args.syntax_parser_header_dir,
-      parser_lib_dir=args.syntax_parser_lib_dir,
-      build_dir=swiftsyntax_build_dir,
-      config=args.config,
-      verbose=args.verbose)
-    args.swiftsyntax_dir = os.path.join(swiftsyntax_build_dir, args.config)
-
   sourcekit_searchpath=args.sourcekitd_dir
-  swiftsyntax_searchpath=args.swiftsyntax_dir
   package_name = os.path.basename(args.package_dir)
 
   print("** Building %s **" % package_name)
-  build_package(args.package_dir,
-    swift_build_exec=args.swift_build_exec,
-    swiftc_exec=args.swiftc_exec,
-    parser_header_dir=args.syntax_parser_header_dir,
-    parser_lib_dir=args.syntax_parser_lib_dir,
+  invoke_swift(package_dir=args.package_dir,
+    swift_exec=args.swift_exec,
+    action='build',
     sourcekit_searchpath=sourcekit_searchpath,
-    swiftsyntax_searchpath=swiftsyntax_searchpath,
     build_dir=args.build_dir,
     config=args.config,
     verbose=args.verbose)
@@ -106,57 +74,42 @@ def run(args):
   if "generate-xcodeproj" in args.build_actions or "all" in args.build_actions:
     print("** Generating Xcode project for %s **" % package_name)
     generate_xcodeproj(args.package_dir,
-      swift_package_exec=args.swift_package_exec,
+      swift_exec=args.swift_exec,
       sourcekit_searchpath=sourcekit_searchpath,
-      swiftsyntax_searchpath=swiftsyntax_searchpath,
       verbose=args.verbose)
 
   if "test" in args.build_actions or "all" in args.build_actions:
     print("** Testing %s **" % package_name)
-    build_package(args.package_dir,
-    swift_build_exec=args.swift_test_exec,
-    swiftc_exec=args.swiftc_exec,
-    parser_header_dir=args.syntax_parser_header_dir,
-    parser_lib_dir=args.syntax_parser_lib_dir,
-    sourcekit_searchpath=sourcekit_searchpath,
-    swiftsyntax_searchpath=swiftsyntax_searchpath,
-    # note: test uses a different build_dir so it doesn't interfere with the 'build' step's products before install
-    build_dir=os.path.join(args.build_dir, 'test-build'),
-    config='debug',
-    verbose=args.verbose)
+    invoke_swift(package_dir=args.package_dir,
+      swift_exec=args.swift_exec,
+      action='test',
+      sourcekit_searchpath=sourcekit_searchpath,
+      # note: test uses a different build_dir so it doesn't interfere with the 'build' step's products before install
+      build_dir=os.path.join(args.build_dir, 'test-build'),
+      config='debug',
+      verbose=args.verbose)
 
   if "install" in args.build_actions or "all" in args.build_actions:
     print("** Installing %s **" % package_name)
-    stdlib_dir = os.path.join(os.path.dirname(os.path.dirname(args.swiftc_exec)), 'lib', 'swift', 'macosx')
+    stdlib_dir = os.path.join(args.toolchain, 'usr', 'lib', 'swift', 'macosx')
     install_package(args.package_dir,
       install_dir=args.prefix,
       sourcekit_searchpath=sourcekit_searchpath,
-      swiftsyntax_searchpath=swiftsyntax_searchpath,
       build_dir=output_dir,
       rpaths_to_delete=[stdlib_dir],
       verbose=args.verbose)
 
 
-def build_package(package_dir, swift_build_exec, swiftc_exec, parser_header_dir, parser_lib_dir, sourcekit_searchpath, swiftsyntax_searchpath, build_dir, config='release', verbose=False):
-  env = dict(os.environ)
-  env['SWIFT_EXEC'] = swiftc_exec
-
-  swiftc_args = ['-lSwiftSyntax', '-I', swiftsyntax_searchpath, '-L', swiftsyntax_searchpath, '-Fsystem', sourcekit_searchpath]
-  linker_args = ['-rpath', swiftsyntax_searchpath, '-rpath', sourcekit_searchpath]
-
-  # To find the syntax parser library.
-  if parser_header_dir:
-    swiftc_args.extend(['-I', parser_header_dir])
-  if parser_lib_dir:
-    swiftc_args.extend(['-L', parser_lib_dir])
-    if platform.system() == 'Darwin':
-      linker_args.extend(['-rpath', parser_lib_dir])
-
-  args = [swift_build_exec, '--package-path', package_dir, '-c', config, '--build-path', build_dir] + interleave('-Xswiftc', swiftc_args) + interleave('-Xlinker', linker_args)
-  check_call(args, env=env, verbose=verbose)
+def invoke_swift(package_dir, action, swift_exec, sourcekit_searchpath, build_dir, config, verbose):
+  swiftc_args = ['-Fsystem', sourcekit_searchpath]
+  linker_args = ['-rpath', sourcekit_searchpath]
 
 
-def install_package(package_dir, install_dir, sourcekit_searchpath, swiftsyntax_searchpath, build_dir, rpaths_to_delete=[], verbose=False):
+  args = [swift_exec, action, '--package-path', package_dir, '-c', config, '--build-path', build_dir] + interleave('-Xswiftc', swiftc_args) + interleave('-Xlinker', linker_args)
+  check_call(args, verbose=verbose)
+
+
+def install_package(package_dir, install_dir, sourcekit_searchpath, build_dir, rpaths_to_delete, verbose):
   bin_dir = os.path.join(install_dir, 'bin')
   lib_dir = os.path.join(install_dir, 'lib', 'swift', 'macosx')
 
@@ -164,11 +117,9 @@ def install_package(package_dir, install_dir, sourcekit_searchpath, swiftsyntax_
     if not os.path.exists(directory):
       os.makedirs(directory)
 
-  rpaths_to_delete += [sourcekit_searchpath, swiftsyntax_searchpath]
+  rpaths_to_delete += [sourcekit_searchpath]
   rpaths_to_add = ['@executable_path/../lib/swift/macosx', '@executable_path/../lib']
-  swiftsyntax_src = os.path.join(swiftsyntax_searchpath, 'libSwiftSyntax.dylib')
-  loadpath_changes = {os.path.realpath(swiftsyntax_src): '@rpath/libSwiftSyntax.dylib'}
-
+  
   # Install sk-stress-test and sk-swiftc-wrapper
   for product in get_products(package_dir):
     src = os.path.join(build_dir, product)
@@ -177,74 +128,40 @@ def install_package(package_dir, install_dir, sourcekit_searchpath, swiftsyntax_
     install(src, dest,
       rpaths_to_delete=rpaths_to_delete,
       rpaths_to_add=rpaths_to_add,
-      loadpath_changes=loadpath_changes,
       verbose=verbose)
 
-def install(src, dest, rpaths_to_delete=[], rpaths_to_add=[], loadpath_changes={}, dylib_id=None, verbose=False):
+def install(src, dest, rpaths_to_delete, rpaths_to_add, verbose):
   copy_cmd=['rsync', '-a', src, dest]
   print('installing %s to %s' % (os.path.basename(src), dest))
   check_call(copy_cmd, verbose=verbose)
-
-  if dylib_id is not None:
-    check_call(['install_name_tool', '-id', dylib_id, dest], verbose=verbose)
 
   for rpath in rpaths_to_delete:
     remove_rpath(dest, rpath, verbose=verbose)
   for rpath in rpaths_to_add:
     add_rpath(dest, rpath, verbose=verbose)
 
-  for key, value in loadpath_changes.iteritems():
-    check_call(['install_name_tool', '-change', key, value, dest], verbose=verbose)
-
-
-def build_swiftsyntax(repo, swift_build_exec, swiftc_exec, parser_header_dir, parser_lib_dir, build_dir, config='release', verbose=False):
-  cmd = [os.path.join(repo, 'build-script.py'),
-    '--build-dir', build_dir,
-    '--swiftc-exec', swiftc_exec,
-    '--swift-build-exec', swift_build_exec]
-  if parser_header_dir:
-    cmd += ['--syntax-parser-header-dir', parser_header_dir]
-  if parser_lib_dir:
-    cmd += ['--syntax-parser-lib-dir', parser_lib_dir]
-
-  if config == 'release':
-    cmd += ['--release']
-
-  env = dict(os.environ)
-  check_call(cmd, env=env, verbose=verbose)
-
-
-def generate_xcodeproj(package_dir, swift_package_exec, sourcekit_searchpath, swiftsyntax_searchpath, verbose=False):
+def generate_xcodeproj(package_dir, swift_exec, sourcekit_searchpath, verbose):
   config_path = os.path.join(package_dir, 'Config.xcconfig')
   with open(config_path, 'w') as config_file:
     config_file.write('''
-      SWIFT_INCLUDE_PATHS = {swiftsyntax_searchpath} $(inherited)
       SYSTEM_FRAMEWORK_SEARCH_PATHS = {sourcekit_searchpath} $(inherited)
-      LIBRARY_SEARCH_PATHS = {swiftsyntax_searchpath} $(inherited)
-      LD_RUNPATH_SEARCH_PATHS = {sourcekit_searchpath} {swiftsyntax_searchpath} $(inherited)
-    '''.format(sourcekit_searchpath=sourcekit_searchpath, swiftsyntax_searchpath=swiftsyntax_searchpath))
+      LD_RUNPATH_SEARCH_PATHS = {sourcekit_searchpath} $(inherited)
+    '''.format(sourcekit_searchpath=sourcekit_searchpath))
 
-  env = dict(os.environ)
-  args = [swift_package_exec, '--package-path', package_dir, 'generate-xcodeproj', '--xcconfig-overrides', config_path, '--output', os.path.join(package_dir, 'SourceKitStressTester.xcodeproj')]
-  check_call(args, env=env, verbose=verbose)
+  args = [swift_exec, 'package', '--package-path', package_dir, 'generate-xcodeproj', '--xcconfig-overrides', config_path, '--output', os.path.join(package_dir, 'SourceKitStressTester.xcodeproj')]
+  check_call(args, verbose=verbose)
 
-def add_rpath(binary, rpath, verbose=False):
+def add_rpath(binary, rpath, verbose):
   cmd = ['install_name_tool', '-add_rpath', rpath, binary]
   check_call(cmd, verbose=verbose)
 
 
-def remove_rpath(binary, rpath, verbose=False):
+def remove_rpath(binary, rpath, verbose):
   cmd = ['install_name_tool', '-delete_rpath', rpath, binary]
   check_call(cmd, verbose=verbose)
 
 
-def check_output(cmd, env=os.environ, verbose=False, **kwargs):
-  if verbose:
-    print(' '.join([escape_cmd_arg(arg) for arg in cmd]))
-  return subprocess.check_output(cmd, env=env, stderr=subprocess.STDOUT, **kwargs)
-
-
-def check_call(cmd, env=os.environ, verbose=False, **kwargs):
+def check_call(cmd, verbose, env=os.environ, **kwargs):
   if verbose:
     print(' '.join([escape_cmd_arg(arg) for arg in cmd]))
   return subprocess.check_call(cmd, env=env, stderr=subprocess.STDOUT, **kwargs)
@@ -252,13 +169,6 @@ def check_call(cmd, env=os.environ, verbose=False, **kwargs):
 
 def interleave(value, list):
     return [item for pair in zip([value] * len(list), list) for item in pair]
-
-
-def find_executable(executable, toolchain=None):
-  if os.path.isfile(executable) and os.access(executable, os.X_OK):
-      return executable
-  extra_args = ['--toolchain', toolchain] if toolchain else []
-  return check_output(['xcrun', '-f', executable] + extra_args).rstrip()
 
 
 def escape_cmd_arg(arg):
