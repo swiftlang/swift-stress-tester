@@ -10,7 +10,9 @@ let package = Package(
         .library(name: "SwiftEvolve", targets: ["SwiftEvolve"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-package-manager.git", .exact("0.3.0"))
+        .package(url: "https://github.com/apple/swift-package-manager.git", .exact("0.3.0")),
+        // FIXME: We should depend on master once master contains all the degybed files
+        .package(url: "https://github.com/apple/swift-syntax.git", .branch("master-gen")),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -20,7 +22,7 @@ let package = Package(
             dependencies: ["SwiftEvolve"]),
         .target(
             name: "SwiftEvolve",
-            dependencies: ["Utility"]),
+            dependencies: ["Utility", "SwiftSyntax"]),
         .testTarget(
           name: "SwiftEvolveTests",
           dependencies: ["SwiftEvolve"])
