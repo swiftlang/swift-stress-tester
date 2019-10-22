@@ -2,7 +2,7 @@
 
 """
   This source file is part of the Swift.org open source project
- 
+
   Copyright (c) 2014 - 2018 Apple Inc. and the Swift project authors
   Licensed under Apache License v2.0 with Runtime Library Exception
 
@@ -22,6 +22,9 @@ import argparse
 import sys
 import os, platform
 import subprocess
+
+def printerr(message):
+    print(message, file=sys.stderr)
 
 def main(argv_prefix = []):
   args = parse_args(argv_prefix + sys.argv[1:])
@@ -61,43 +64,63 @@ def run(args):
   package_name = os.path.basename(args.package_dir)
 
   print("** Building %s **" % package_name)
-  invoke_swift(package_dir=args.package_dir,
-    swift_exec=args.swift_exec,
-    action='build',
-    sourcekit_searchpath=sourcekit_searchpath,
-    build_dir=args.build_dir,
-    config=args.config,
-    verbose=args.verbose)
+  try:
+    invoke_swift(package_dir=args.package_dir,
+      swift_exec=args.swift_exec,
+      action='build',
+      sourcekit_searchpath=sourcekit_searchpath,
+      build_dir=args.build_dir,
+      config=args.config,
+      verbose=args.verbose)
+  except subprocess.CalledProcessError as e:
+    printerr('FAIL: Building %s failed' % package_name)
+    printerr('Executing: %s' % ' '.join(e.cmd))
+    sys.exit(1)
 
   output_dir = os.path.realpath(os.path.join(args.build_dir, args.config))
 
   if "generate-xcodeproj" in args.build_actions or "all" in args.build_actions:
     print("** Generating Xcode project for %s **" % package_name)
-    generate_xcodeproj(args.package_dir,
-      swift_exec=args.swift_exec,
-      sourcekit_searchpath=sourcekit_searchpath,
-      verbose=args.verbose)
+    try:
+      generate_xcodeproj(args.package_dir,
+        swift_exec=args.swift_exec,
+        sourcekit_searchpath=sourcekit_searchpath,
+        verbose=args.verbose)
+    except subprocess.CalledProcessError as e:
+      printerr('FAIL: Generating the Xcode project failed')
+      printerr('Executing: %s' % ' '.join(e.cmd))
+      sys.exit(1)
 
   if "test" in args.build_actions or "all" in args.build_actions:
     print("** Testing %s **" % package_name)
-    invoke_swift(package_dir=args.package_dir,
-      swift_exec=args.swift_exec,
-      action='test',
-      sourcekit_searchpath=sourcekit_searchpath,
-      # note: test uses a different build_dir so it doesn't interfere with the 'build' step's products before install
-      build_dir=os.path.join(args.build_dir, 'test-build'),
-      config='debug',
-      verbose=args.verbose)
+    try:
+      invoke_swift(package_dir=args.package_dir,
+        swift_exec=args.swift_exec,
+        action='test',
+        sourcekit_searchpath=sourcekit_searchpath,
+        # note: test uses a different build_dir so it doesn't interfere with the 'build' step's products before install
+        build_dir=os.path.join(args.build_dir, 'test-build'),
+        config='debug',
+        verbose=args.verbose)
+    except subprocess.CalledProcessError as e:
+      printerr('FAIL: Testing %s failed' % package_name)
+      printerr('Executing: %s' % ' '.join(e.cmd))
+      sys.exit(1)
 
   if "install" in args.build_actions or "all" in args.build_actions:
     print("** Installing %s **" % package_name)
     stdlib_dir = os.path.join(args.toolchain, 'usr', 'lib', 'swift', 'macosx')
-    install_package(args.package_dir,
-      install_dir=args.prefix,
-      sourcekit_searchpath=sourcekit_searchpath,
-      build_dir=output_dir,
-      rpaths_to_delete=[stdlib_dir],
-      verbose=args.verbose)
+    try:
+      install_package(args.package_dir,
+        install_dir=args.prefix,
+        sourcekit_searchpath=sourcekit_searchpath,
+        build_dir=output_dir,
+        rpaths_to_delete=[stdlib_dir],
+        verbose=args.verbose)
+    except subprocess.CalledProcessError as e:
+      printerr('FAIL: Installing %s failed' % package_name)
+      printerr('Executing: %s' % ' '.join(e.cmd))
+      sys.exit(1)
 
 
 def invoke_swift(package_dir, action, swift_exec, sourcekit_searchpath, build_dir, config, verbose):
@@ -119,7 +142,7 @@ def install_package(package_dir, install_dir, sourcekit_searchpath, build_dir, r
 
   rpaths_to_delete += [sourcekit_searchpath]
   rpaths_to_add = ['@executable_path/../lib/swift/macosx', '@executable_path/../lib']
-  
+
   # Install sk-stress-test and sk-swiftc-wrapper
   for product in get_products(package_dir):
     src = os.path.join(build_dir, product)
