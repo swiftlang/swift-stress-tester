@@ -105,7 +105,7 @@ extension ActionGenerator {
 final class RequestActionGenerator: ActionGenerator {
 
   func generate(for tree: SourceFileSyntax) -> [Action] {
-    var collector = ActionTokenCollector()
+    let collector = ActionTokenCollector()
     let actions: [Action] = [.collectExpressionType] + collector
       .collect(from: tree)
       .flatMap(generateActions)
@@ -155,7 +155,7 @@ final class RequestActionGenerator: ActionGenerator {
 /// unbalancing braces and brackets. Each misspelling or removed brace is restored before the next edit.
 final class TypoActionGenerator: ActionGenerator {
     func generate(for tree: SourceFileSyntax) -> [Action] {
-        var collector = ActionTokenCollector()
+        let collector = ActionTokenCollector()
         return collector.collect(from: tree)
             .flatMap { generateActions(for: $0.token) }
     }
@@ -209,7 +209,7 @@ final class TypoActionGenerator: ActionGenerator {
 final class BasicRewriteActionGenerator: ActionGenerator {
 
   func generate(for tree: SourceFileSyntax) -> [Action] {
-    var collector = ActionTokenCollector()
+    let collector = ActionTokenCollector()
     let tokens = collector.collect(from: tree)
     return [.replaceText(offset: 0, length: tree.endPosition.utf8Offset, text: "")] +
       tokens.flatMap(generateActions)
@@ -236,7 +236,7 @@ final class ConcurrentRewriteActionGenerator: ActionGenerator {
   func generate(for tree: SourceFileSyntax) -> [Action] {
     var actions: [Action] = [.replaceText(offset: 0, length: tree.totalLength.utf8Length, text: "")]
     let groups = tree.statements.map { statement -> ActionTokenGroup in
-      var collector = ActionTokenCollector()
+      let collector = ActionTokenCollector()
       return ActionTokenGroup(collector.collect(from: statement))
     }
 
@@ -300,7 +300,7 @@ final class InsideOutRewriteActionGenerator: ActionGenerator {
 
   func generate(for tree: SourceFileSyntax) -> [Action] {
     var actions: [Action] = [.replaceText(offset: 0, length: tree.totalLength.utf8Length, text: "")]
-    var collector = ActionTokenCollector()
+    let collector = ActionTokenCollector()
     let actionTokens = collector.collect(from: tree)
     let depths = Set(actionTokens.map { $0.depth }).sorted(by: >)
     let groups = actionTokens
@@ -433,26 +433,26 @@ private struct ActionToken {
   }
 }
 
-private struct ActionTokenCollector: SyntaxAnyVisitor {
+private class ActionTokenCollector: SyntaxAnyVisitor {
   var tokens = [ActionToken]()
   var currentDepth = 0
 
-  mutating func visitAny(_ node: Syntax) -> SyntaxVisitorContinueKind {
+  override func visitAny(_ node: Syntax) -> SyntaxVisitorContinueKind {
     if shouldIncreaseDepth(node) {
       currentDepth += 1
     }
     return .visitChildren
   }
 
-  mutating func visitAnyPost(_ node: Syntax) {
+  override func visitAnyPost(_ node: Syntax) {
     if shouldIncreaseDepth(node) {
       assert(currentDepth > 0)
       currentDepth -= 1
     }
   }
 
-  mutating func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
-    _ = visitAny(token)
+  override func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
+    _ = visitAny(Syntax(token))
     let frontActions = getFrontActions(for: token)
     let rearActions = getRearActions(for: token)
     tokens.append(ActionToken(token, atDepth: currentDepth,
@@ -491,9 +491,9 @@ private struct ActionTokenCollector: SyntaxAnyVisitor {
     return true
   }
 
-  mutating func collect(from tree: Syntax) -> [ActionToken] {
+  func collect<S: SyntaxProtocol>(from tree: S) -> [ActionToken] {
     tokens.removeAll()
-    tree.walk(&self)
+    walk(Syntax(tree))
     return tokens
   }
 }
