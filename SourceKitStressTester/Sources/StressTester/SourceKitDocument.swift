@@ -335,7 +335,7 @@ struct SourceKitDocument {
     /// When we should be able to fully parse the file, we verify the syntax tree
     if !containsErrors {
       do {
-        try SyntaxVerifier.verify(tree)
+        try SyntaxVerifier.verify(Syntax(tree))
       } catch let error as SyntaxVerifierError {
         throw SourceKitError.failed(.errorDeserializingSyntaxTree, request: request, response: error.description)
       }

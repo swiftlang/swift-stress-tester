@@ -40,9 +40,9 @@ struct SyntaxAncestors: Sequence {
   }
 }
 
-extension Syntax {
+extension SyntaxProtocol {
   var ancestors: SyntaxAncestors {
-    return SyntaxAncestors(self)
+    return SyntaxAncestors(Syntax(self))
   }
 }
 
@@ -82,13 +82,16 @@ extension TokenSyntax {
   }
 
   var isLiteralExprClose: Bool {
+    guard let parent = parent else {
+      return false
+    }
     switch self.tokenKind {
     case .rightParen:
-      return parent is TupleExprSyntax
+      return parent.is(TupleExprSyntax.self)
     case .rightBrace:
-      return parent is ClosureExprSyntax
+      return parent.is(ClosureExprSyntax.self)
     case .rightSquareBracket:
-      return parent is ArrayExprSyntax || parent is DictionaryExprSyntax
+      return parent.is(ArrayExprSyntax.self) || parent.is(DictionaryExprSyntax.self)
     default:
       return false
     }
