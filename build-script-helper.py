@@ -183,6 +183,7 @@ def install(src, dest, rpaths_to_delete, rpaths_to_add, verbose):
     add_rpath(dest, rpath, verbose=verbose)
 
 def generate_xcodeproj(package_dir, swift_exec, sourcekit_searchpath, verbose):
+  package_name = os.path.basename(package_dir)
   config_path = os.path.join(package_dir, 'Config.xcconfig')
   with open(config_path, 'w') as config_file:
     config_file.write('''
@@ -190,7 +191,9 @@ def generate_xcodeproj(package_dir, swift_exec, sourcekit_searchpath, verbose):
       LD_RUNPATH_SEARCH_PATHS = {sourcekit_searchpath} $(inherited)
     '''.format(sourcekit_searchpath=sourcekit_searchpath))
 
-  args = [swift_exec, 'package', '--package-path', package_dir, 'generate-xcodeproj', '--xcconfig-overrides', config_path, '--output', os.path.join(package_dir, 'SourceKitStressTester.xcodeproj')]
+  xcodeproj_path = os.path.join(package_dir, '%s.xcodeproj' % package_name)
+
+  args = [swift_exec, 'package', '--package-path', package_dir, 'generate-xcodeproj', '--xcconfig-overrides', config_path, '--output', xcodeproj_path]
   check_call(args, verbose=verbose)
 
 def add_rpath(binary, rpath, verbose):
