@@ -39,6 +39,7 @@ def parse_args(args):
   parser.add_argument('--config', default='release')
   parser.add_argument('--build-dir', default='.build')
   parser.add_argument('--toolchain', required=True, help='the toolchain to use when building this package')
+  parser.add_argument('--update', action='store_true', help='update all SwiftPM dependencies')
   parser.add_argument('build_actions', help="Extra actions to perform. Can be any number of the following", choices=['all', 'build', 'test', 'install', 'generate-xcodeproj'], nargs="*", default=['build'])
 
   parsed = parser.parse_args(args)
@@ -62,6 +63,18 @@ def parse_args(args):
 def run(args):
   sourcekit_searchpath=args.sourcekitd_dir
   package_name = os.path.basename(args.package_dir)
+
+  if args.update:
+    print("** Updating dependencies of %s **" % package_name)
+    try:
+      update_swiftpm_dependencies(package_dir=args.package_dir,
+        swift_exec=args.swift_exec,
+        build_dir=args.build_dir,
+        verbose=args.verbose)
+    except subprocess.CalledProcessError as e:
+      printerr('FAIL: Updating dependencies of %s failed' % package_name)
+      printerr('Executing: %s' % ' '.join(e.cmd))
+      sys.exit(1)
 
   # The test action creates its own build. No need to build if we are just testing
   if should_run_any_action(['build', 'install'], args.build_actions):
@@ -140,6 +153,11 @@ def should_run_action(action_name, selected_actions):
     return True
   else:
     return False
+
+
+def update_swiftpm_dependencies(package_dir, swift_exec, build_dir, verbose):
+  args = [swift_exec, 'package', '--package-path', package_dir, '--build-path', build_dir, 'update']
+  check_call(args, verbose=verbose)
 
 
 def invoke_swift(package_dir, action, swift_exec, sourcekit_searchpath, build_dir, config, verbose):
