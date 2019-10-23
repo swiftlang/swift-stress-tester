@@ -16,7 +16,7 @@
 // -----------------------------------------------------------------------------
 
 // Copied from StdlibUnittest/StdlibCoreExtras.swift
-@_fixed_layout
+@frozen
 public struct LinearCongruentialGenerator: RandomNumberGenerator {
 
   @usableFromInline
