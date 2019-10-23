@@ -35,7 +35,7 @@ extension Syntax {
             shouldRewrite: { $0 == ($0.parent?.children.first ?? $0) },
             transform: { $0.withLeadingTrivia(leading($0.leadingTrivia)) }
           ).visit(self)
-        ) as! Self
+        )
       }
     }
   }
@@ -74,7 +74,7 @@ fileprivate class SingleTokenRewriter: SyntaxRewriter {
   let transform: (TokenSyntax) -> TokenSyntax
   
   override func visit(_ token: TokenSyntax) -> Syntax {
-    return transform(token)
+    return Syntax(transform(token))
   }
   
   override func visitAny(_ node: Syntax) -> Syntax? {

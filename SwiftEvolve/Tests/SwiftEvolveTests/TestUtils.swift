@@ -3,15 +3,15 @@ import SwiftSyntax
 @testable import SwiftEvolve
 import Basic
 
-extension Syntax {
-  func filter<T: Syntax>(whereIs type: T.Type) -> [T] {
-    var visitor = FilterVisitor { $0 is T }
-    walk(&visitor)
-    return visitor.passing as! [T]
+extension SyntaxProtocol {
+  func filter<T: SyntaxProtocol>(whereIs type: T.Type) -> [T] {
+    let visitor = FilterVisitor { $0.is(T.self) }
+    visitor.walk(self)
+    return visitor.passing.map { $0.as(T.self)! }
   }
 }
 
-struct FilterVisitor: SyntaxAnyVisitor {
+class FilterVisitor: SyntaxAnyVisitor {
   let predicate: (Syntax) -> Bool
   var passing: [Syntax] = []
 
@@ -19,7 +19,7 @@ struct FilterVisitor: SyntaxAnyVisitor {
     self.predicate = predicate
   }
 
-  mutating func visitAny(_ node: Syntax) -> SyntaxVisitorContinueKind {
+  override func visitAny(_ node: Syntax) -> SyntaxVisitorContinueKind {
     if predicate(node) { passing.append(node) }
     return .visitChildren
   }

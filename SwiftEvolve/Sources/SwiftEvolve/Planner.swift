@@ -69,16 +69,15 @@ public class Planner<G: RandomNumberGenerator>: SyntaxAnyVisitor {
     context = Context()
     error = nil
 
-    var visitor = self
-    file.walk(&visitor)
-
+    walk(file)
+    
     if let error = error {
       throw error
     }
   }
 
   func makeLocationString(for node: Syntax) -> String {
-    precondition(node.root == self.fileTree,
+    precondition(node.root == Syntax(self.fileTree),
       "querying for location of node of a different tree than the one we started with")
     if includeLineAndColumn {
       return "at \(node.startLocation(converter: locationConverter))"
@@ -111,7 +110,7 @@ public class Planner<G: RandomNumberGenerator>: SyntaxAnyVisitor {
     }
   }
   
-  public func visitAny(_ node: Syntax) -> SyntaxVisitorContinueKind {
+  public override func visitAny(_ node: Syntax) -> SyntaxVisitorContinueKind {
     guard error == nil else { return .skipChildren }
 
     if context.enter(node) {
@@ -121,7 +120,7 @@ public class Planner<G: RandomNumberGenerator>: SyntaxAnyVisitor {
     return .visitChildren
   }
   
-  public func visitAnyPost(_ node: Syntax) {
+  public override func visitAnyPost(_ node: Syntax) {
     guard error == nil else { return }
 
     if context.leave(node) {

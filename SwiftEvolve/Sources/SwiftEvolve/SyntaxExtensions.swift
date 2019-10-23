@@ -18,7 +18,7 @@
 import SwiftSyntax
 import Foundation
 
-protocol DeclWithMembers: DeclSyntax {
+protocol DeclWithMembers: DeclSyntaxProtocol {
   var members: MemberDeclBlockSyntax { get }
   func withMembers(_ newChild: MemberDeclBlockSyntax?) -> Self
 }
@@ -29,7 +29,7 @@ extension EnumDeclSyntax: DeclWithMembers {}
 extension ProtocolDeclSyntax: DeclWithMembers {}
 extension ExtensionDeclSyntax: DeclWithMembers {}
 
-protocol DeclWithParameters: DeclSyntax {
+protocol DeclWithParameters: DeclSyntaxProtocol {
   var baseName: String { get }
   
   var parameters: ParameterClauseSyntax { get }
@@ -108,30 +108,30 @@ extension DeclContext {
     
     if parent.declarationChain.allSatisfy({ $0 is SourceFileSyntax }) {
       // Base case
-      return SyntaxFactory.makeSimpleTypeIdentifier(
+      let typeIdentifier = SyntaxFactory.makeSimpleTypeIdentifier(
         name: name,
         genericArgumentClause: nil
       )
+      return TypeSyntax(typeIdentifier)
     }
     
-    return SyntaxFactory.makeMemberTypeIdentifier(
+    let typeIdentifer = SyntaxFactory.makeMemberTypeIdentifier(
       baseType: parent.typeSyntax,
       period: SyntaxFactory.makePeriodToken(),
       name: name,
       genericArgumentClause: nil
     )
+    return TypeSyntax(typeIdentifer)
   }
 }
 
 extension TypeSyntax {
   func lookup(in context: DeclContext) -> DeclContext? {
-    switch self {
-    case let self as SimpleTypeIdentifierSyntax:
-      return context.lookupUnqualified(self.name)
-      
-    case let self as MemberTypeIdentifierSyntax:
-      return self.baseType.lookup(in: context)?.lookupDirect(self.name)
-      
+    switch Syntax(self).asSyntaxEnum {
+    case .simpleTypeIdentifier(let simpleTypeIdentifier):
+      return context.lookupUnqualified(simpleTypeIdentifier.name)
+    case .memberTypeIdentifier(let memberTypeIdentifier):
+      return memberTypeIdentifier.baseType.lookup(in: context)?.lookupDirect(memberTypeIdentifier.name)
     default:
       return nil
     }
@@ -150,13 +150,13 @@ extension TypeSyntax {
 
   func isFunctionType(in dc: DeclContext) -> Bool {
     let abs = absolute(in: dc)
-    
-    switch abs {
-    case is FunctionTypeSyntax:
+
+    switch Syntax(abs).asSyntaxEnum {
+    case .functionType(_):
       return true
 
-    case let abs as AttributedTypeSyntax:
-      return abs.baseType.isFunctionType(in: dc)
+    case .attributedType(let attributedType):
+      return attributedType.baseType.isFunctionType(in: dc)
 
     default:
       return false
@@ -166,8 +166,8 @@ extension TypeSyntax {
 
 extension TypeSyntax {
   var typeText: String {
-    var formatter = TokenTextFormatter()
-    walk(&formatter)
+    let formatter = TokenTextFormatter()
+    formatter.walk(self)
     return formatter.text
   }
 }
@@ -184,11 +184,11 @@ extension TokenKind {
   }
 }
 
-fileprivate struct TokenTextFormatter: SyntaxVisitor {
+fileprivate class TokenTextFormatter: SyntaxVisitor {
   var previous: TokenKind?
   var text: String = ""
 
-  mutating func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
+  override func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
     switch token.tokenKind {
     case .comma:
       text += ", "

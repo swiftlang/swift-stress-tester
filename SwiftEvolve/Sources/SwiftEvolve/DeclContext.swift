@@ -80,7 +80,7 @@ extension DeclContext: CustomStringConvertible {
 
 extension DeclContext {
   func `is`(at node: Syntax) -> Bool {
-    return !isEmpty && last! == node
+    return !isEmpty && Syntax(last!) == node
   }
 
   var last: Decl? {
@@ -122,7 +122,27 @@ extension DeclModifierSyntax {
   }
 }
 
-protocol Decl: DeclSyntax {
+/// Extension to allow casting `Decl` to `Syntax` and make `Decl` feel like a
+/// SwiftSyntax citizen.
+extension Syntax {
+  init(_ decl: Decl) {
+    self = decl._syntaxNode
+  }
+}
+
+extension SyntaxProtocol {
+  var asDecl: Decl? {
+    // FIXME: We should not rely on `_asConcreteType` here.
+    return Syntax(self)._asConcreteType as? Decl
+  }
+}
+
+protocol Decl {
+  /// We do the same trick here that SwiftSyntax does with `SyntaxProtocol` and
+  /// `Syntax`. Picking the same name that is already used by SyntaxProtocol
+  /// means we don't have to reimplement the property in terms of Syntax(self).
+  var _syntaxNode: Syntax { get }
+
   var name: String { get }
 
   var isResilient: Bool { get }
@@ -145,7 +165,7 @@ extension Decl {
 extension Decl where Self: DeclWithMembers {
   func lookupDirect(_ name: String) -> Decl? {
     for item in members.members {
-      guard let member = item.decl as? Decl else { continue }
+      guard let member = item.decl.asDecl else { continue }
       if member.name == name {
         return member
       }
@@ -158,7 +178,7 @@ extension Decl where Self: AbstractFunctionDecl {
   func lookupDirect(_ name: String) -> Decl? {
     guard let body = self.body else { return nil }
     for item in body.statements {
-      guard let decl = item.item as? Decl else { continue }
+      guard let decl = item.item.asDecl else { continue }
       if decl.name == name {
         return decl
       }
@@ -174,7 +194,7 @@ extension SourceFileSyntax: Decl {
   
   func lookupDirect(_ name: String) -> Decl? {
     for item in statements {
-      guard let decl = item.item as? Decl else { continue }
+      guard let decl = item.item.asDecl else { continue }
       if decl.name == name {
         return decl
       }
@@ -257,25 +277,25 @@ extension SubscriptDeclSyntax: Decl {
 
 extension PatternSyntax {
   var boundIdentifiers: [(name: TokenSyntax, type: TypeSyntax?)] {
-    switch self {
-    case let self as IdentifierPatternSyntax:
-      return [(self.identifier, nil)]
+    switch Syntax(self).asSyntaxEnum {
+    case .identifierPattern(let identifierPattern):
+      return [(identifierPattern.identifier, nil)]
 
-    case let self as AsTypePatternSyntax:
-      let subnames = self.pattern.boundIdentifiers
-      if let tupleType = self.type as? TupleTypeSyntax {
+    case .asTypePattern(let asTypePattern):
+      let subnames = asTypePattern.pattern.boundIdentifiers
+      if let tupleType = asTypePattern.type.as(TupleTypeSyntax.self) {
         return zip(subnames.map { $0.name }, tupleType.elements.map { $0.type })
           .map { ($0.0, $0.1) }
       }
       else {
         assert(subnames.count == 1)
-        return [ (subnames[0].name, self.type) ]
+        return [ (subnames[0].name, asTypePattern.type) ]
       }
 
-    case let self as TuplePatternSyntax:
-      return self.elements.flatMap { $0.pattern.boundIdentifiers }
+    case .tuplePattern(let tuplePattern):
+      return tuplePattern.elements.flatMap { $0.pattern.boundIdentifiers }
 
-    case is WildcardPatternSyntax:
+    case .wildcardPattern(_):
       return []
 
     default:
@@ -349,12 +369,15 @@ extension VariableDeclSyntax: Decl {
     // each individual binding (or, arguably, each individual bound property)
     // is stored or not stored.
     return bindings.allSatisfy { binding in
-      switch binding.accessor {
-      case is CodeBlockSyntax:
+      guard let accessor = binding.accessor else {
+        return true
+      }
+      switch Syntax(accessor).asSyntaxEnum {
+      case .codeBlock(_):
         // There's a computed getter.
         return false
 
-      case let accessorBlock as AccessorBlockSyntax:
+      case .accessorBlock(let accessorBlock):
         // Check the individual accessors.
         return accessorBlock.accessors.allSatisfy { accessor in
           switch accessor.accessorKind.text {
@@ -416,19 +439,16 @@ extension EnumCaseDeclSyntax: Decl {
 extension IfConfigDeclSyntax {
   var containsStoredMembers: Bool {
     return clauses.contains { clause in
-      guard let members = clause.elements as? MemberDeclListSyntax else {
+      guard let members = clause.elements.as(MemberDeclListSyntax.self) else {
         return false
       }
 
       return members.contains { memberItem in
-        switch memberItem.decl {
-        case let nestedIfConfig as IfConfigDeclSyntax:
+        if let nestedIfConfig = memberItem.decl.as(IfConfigDeclSyntax.self) {
           return nestedIfConfig.containsStoredMembers
-
-        case let member as Decl:
+        } else if let member = memberItem.decl.asDecl {
           return member.isStored
-
-        default:
+        } else {
           return false
         }
       }
@@ -441,9 +461,9 @@ extension IfConfigDeclSyntax {
 extension Optional where Wrapped == AttributeListSyntax {
   func contains(named name: String) -> Bool {
     return self?.contains { 
-      if let builtinAttribute = $0 as? AttributeSyntax {
+      if let builtinAttribute = $0.as(AttributeSyntax.self) {
         return builtinAttribute.attributeName.text == name 
-      } else if let customAttribute = $0 as? CustomAttributeSyntax {
+      } else if let customAttribute = $0.as(CustomAttributeSyntax.self) {
         // FIXME: Attribute name is a TypeSyntax, so .description isn't quite
         // right here (e.g. @MyCustomAttribute<MyTypeParam> is valid)
         return customAttribute.attributeName.description == name

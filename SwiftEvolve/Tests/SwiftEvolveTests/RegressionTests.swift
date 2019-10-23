@@ -28,7 +28,7 @@ class RegressionTests: XCTestCase {
     let evo = ShuffleMembersEvolution(mapping: [])
 
     for node in code.filter(whereIs: MemberDeclListSyntax.self) {
-      let evolved = evo.evolve(node)
+      let evolved = evo.evolve(Syntax(node))
       let evolvedCode = evolved.description
 
       let locs = (0...9).compactMap {
@@ -63,7 +63,7 @@ class RegressionTests: XCTestCase {
 
         XCTAssertThrowsError(
           try SynthesizeMemberwiseInitializerEvolution(
-            for: decl.members.members, in: dc, using: &unusedRNG
+            for: Syntax(decl.members.members), in: dc, using: &unusedRNG
           ),
           "Should throw when a stored property is in a #if block"
         )
@@ -73,7 +73,7 @@ class RegressionTests: XCTestCase {
 
           XCTAssertNil(
             try SynthesizeMemberwiseInitializerEvolution(
-              for: (ifConfig.clauses.first!.elements as! MemberDeclListSyntax),
+              for: (ifConfig.clauses.first!.elements),
               in: dc, using: &unusedRNG
             ),
             "Should not try to synthesize an init() inside an #if"
@@ -98,7 +98,7 @@ class RegressionTests: XCTestCase {
 
         XCTAssertNoThrow(
           try SynthesizeMemberwiseInitializerEvolution(
-            for: decl.members.members, in: dc, using: &unusedRNG
+            for: Syntax(decl.members.members), in: dc, using: &unusedRNG
           ),
           "Should not throw when properties are only non-stored"
         )
@@ -108,7 +108,7 @@ class RegressionTests: XCTestCase {
 
           XCTAssertNil(
             try SynthesizeMemberwiseInitializerEvolution(
-              for: (ifConfig.clauses.first!.elements as! MemberDeclListSyntax),
+              for: (ifConfig.clauses.first!.elements),
               in: dc, using: &unusedRNG
             ),
             "Should not try to synthesize an init() inside an #if"
@@ -134,7 +134,7 @@ class RegressionTests: XCTestCase {
 
         XCTAssertNoThrow(
           try SynthesizeMemberwiseInitializerEvolution(
-            for: decl.members.members, in: dc, using: &unusedRNG
+            for: Syntax(decl.members.members), in: dc, using: &unusedRNG
           ),
           "Should not throw when there's an explicit init"
         )
@@ -144,7 +144,7 @@ class RegressionTests: XCTestCase {
 
           XCTAssertNil(
             try SynthesizeMemberwiseInitializerEvolution(
-              for: (ifConfig.clauses.first!.elements as! MemberDeclListSyntax),
+              for: (ifConfig.clauses.first!.elements),
               in: dc, using: &unusedRNG
             ),
             "Should not try to synthesize an init() inside an #if"

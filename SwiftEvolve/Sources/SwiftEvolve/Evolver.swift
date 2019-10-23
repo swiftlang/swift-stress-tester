@@ -24,7 +24,7 @@ struct Context {
   @discardableResult
   mutating func enter(_ node: Syntax) -> Bool {
     syntaxPath.append(node.indexInParent)
-    if let node = node as? Decl {
+    if let node = node.asDecl {
       declContext.append(node)
       return true
     }
@@ -34,7 +34,7 @@ struct Context {
   @discardableResult
   mutating func leave(_ node: Syntax) -> Bool {
     syntaxPath.removeLast()
-    if declContext.last == node {
+    if declContext.last.map(Syntax.init) == node {
       declContext.removeLast()
       return true
     }
@@ -61,7 +61,7 @@ public class Evolver: SyntaxRewriter {
 
     // Cast makes this go through the overload with
     // visitPre()/visitAny()/visitPost().
-    return visit(file as Syntax)
+    return visit(Syntax(file))
   }
 
   var recursionGuard: Syntax?
