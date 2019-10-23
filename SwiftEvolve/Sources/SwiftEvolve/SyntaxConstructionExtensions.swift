@@ -16,7 +16,7 @@
 
 import SwiftSyntax
 
-protocol TrailingCommaSyntax: Syntax {
+protocol TrailingCommaSyntax: SyntaxProtocol {
   func withTrailingComma(_ token: TokenSyntax?) -> Self
 }
 
@@ -51,7 +51,6 @@ extension Collection {
   ) rethrows -> ParameterClauseSyntax {
     let params = try map(transform)
       .withCorrectTrailingCommas(betweenTrivia: betweenTrivia)
-        as! [FunctionParameterSyntax]
 
     return SyntaxFactory.makeParameterClause(
       leftParen: SyntaxFactory.makeLeftParenToken(
@@ -118,7 +117,7 @@ struct ExprSyntaxTemplate {
     guard case .identifier(_) = identifier.tokenKind else {
       preconditionFailure("ExprSyntaxTemplate(var:) called with non-identifier \(identifier)")
     }
-    self.init(expr: SyntaxFactory.makeIdentifierExpr(identifier: identifier, declNameArguments: nil))
+    self.init(expr: ExprSyntax(SyntaxFactory.makeIdentifierExpr(identifier: identifier, declNameArguments: nil)))
   }
   
   init(_ name: String) {
@@ -134,30 +133,29 @@ struct ExprSyntaxTemplate {
   static func ^= (
     lhs: ExprSyntaxTemplate, rhs: ExprSyntaxTemplate
   ) -> ExprSyntaxTemplate {
-    return ExprSyntaxTemplate(
-      expr: SyntaxFactory.makeSequenceExpr(
-        elements: SyntaxFactory.makeExprList([
-          lhs.expr,
-          SyntaxFactory.makeAssignmentExpr(
-            assignToken: SyntaxFactory.makeEqualToken(
-              leadingTrivia: .spaces(1), trailingTrivia: .spaces(1)
-            )
-          ),
-          rhs.expr
-          ])
+    let assignment = SyntaxFactory.makeAssignmentExpr(
+      assignToken: SyntaxFactory.makeEqualToken(
+        leadingTrivia: .spaces(1), trailingTrivia: .spaces(1)
       )
+    )
+    let exprList = SyntaxFactory.makeExprList([
+      lhs.expr,
+      ExprSyntax(assignment),
+      rhs.expr
+    ])
+    return ExprSyntaxTemplate(
+      expr: ExprSyntax(SyntaxFactory.makeSequenceExpr(elements: exprList))
     )
   }
   
   subscript (dot identifier: TokenSyntax) -> ExprSyntaxTemplate {
-    return .init(expr:
-      SyntaxFactory.makeMemberAccessExpr(
-        base: expr,
-        dot: SyntaxFactory.makePeriodToken(),
-        name: identifier,
-        declNameArguments: nil
-      )
+    let memberAccess = SyntaxFactory.makeMemberAccessExpr(
+      base: expr,
+      dot: SyntaxFactory.makePeriodToken(),
+      name: identifier,
+      declNameArguments: nil
     )
+    return .init(expr: ExprSyntax(memberAccess))
   }
   
   subscript (dot name: String) -> ExprSyntaxTemplate {

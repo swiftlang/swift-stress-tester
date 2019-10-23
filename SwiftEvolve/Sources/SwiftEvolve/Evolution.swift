@@ -156,12 +156,12 @@ extension ShuffleMembersEvolution {
     where G: RandomNumberGenerator
   {
     guard
-      let membersList = node as? MemberDeclListSyntax
+      let membersList = node.as(MemberDeclListSyntax.self)
     else { throw EvolutionError.unsupported }
     let members = Array(membersList)
 
     func shouldShuffleMember(at i: Int) -> Bool {
-      guard let memberDecl = members[i].decl as? Decl else {
+      guard let memberDecl = members[i].decl.asDecl else {
         // Don't know what this is, so conservatively leave it alone.
         return false
       }
@@ -187,13 +187,13 @@ extension ShuffleMembersEvolution {
   }
 
   func evolve(_ node: Syntax) -> Syntax {
-    let members = Array(node as! MemberDeclListSyntax)
+    let members = Array(node.as(MemberDeclListSyntax.self)!)
 
     let inMapping = Set(mapping)
     let missing = members.indices.filter { !inMapping.contains($0) }
     let fullMapping = mapping + missing
 
-    return SyntaxFactory.makeMemberDeclList(fullMapping.map { members[$0] })
+    return Syntax(SyntaxFactory.makeMemberDeclList(fullMapping.map { members[$0] }))
   }
 }
 
@@ -201,13 +201,13 @@ extension SynthesizeMemberwiseInitializerEvolution {
   init?<G>(for node: Syntax, in decl: DeclContext, using rng: inout G) throws
     where G : RandomNumberGenerator
   {
-    guard let members = node as? MemberDeclListSyntax else {
+    guard let members = node.as(MemberDeclListSyntax.self) else {
       throw EvolutionError.unsupported
     }
-    guard
-      decl.last is StructDeclSyntax,
-      members.parent is MemberDeclBlockSyntax
-    else {
+    guard let lastDecl = decl.last.map(Syntax.init), lastDecl.is(StructDeclSyntax.self) else {
+      return nil
+    }
+    guard let parent = members.parent, parent.is(MemberDeclBlockSyntax.self) else {
       return nil
     }
 
@@ -217,21 +217,21 @@ extension SynthesizeMemberwiseInitializerEvolution {
     var properties: [StoredProperty] = []
 
     for membersItem in members {
-      switch membersItem.decl {
-      case let ifConfig as IfConfigDeclSyntax:
+      switch Syntax(membersItem.decl).asSyntaxEnum {
+      case .ifConfigDecl(let ifConfig):
         if ifConfig.containsStoredMembers {
           // We would need to generate separate inits for each version. Maybe
           // someday, but not today.
           hasConditionalStoredProperties = true
         }
 
-      case is InitializerDeclSyntax:
+      case .initializerDecl(_):
         // If we declare an explicit init, we don't have implicit ones
         // FIXME: Do we need to look into IfConfigDecls for these, too? That
         // would be ludicrous.
         return nil
 
-      case let member as VariableDeclSyntax where member.isStored:
+      case .variableDecl(let member) where member.isStored:
         // We definitely care about stored properties.
         for prop in member.boundProperties {
           if let type = prop.type {
@@ -255,7 +255,7 @@ extension SynthesizeMemberwiseInitializerEvolution {
 
       default:
         // Consistency check: This isn't somehow stored, is it?
-        if let member = membersItem.decl as? Decl {
+        if let member = membersItem.decl.asDecl {
           assert(!member.isStored, "\(member.name) is a stored non-property???")
         }
 
@@ -284,9 +284,9 @@ extension SynthesizeMemberwiseInitializerEvolution {
   }
 
   func evolve(_ node: Syntax) -> Syntax {
-    let members = node as! MemberDeclListSyntax
+    let members = node.as(MemberDeclListSyntax.self)!
     
-    return inits.reduce(members) { members, properties in
+    let evolved = inits.reduce(members) { members, properties in
       let parameters = properties.mapToFunctionParameterClause {
         SyntaxFactory.makeFunctionParameter(
           attributes: nil,
@@ -301,9 +301,10 @@ extension SynthesizeMemberwiseInitializerEvolution {
       }
       
       let body = properties.mapToCodeBlock { prop in
-        ExprSyntaxTemplate.makeExpr(withVars: "self", prop.name) {
+        let expr = ExprSyntaxTemplate.makeExpr(withVars: "self", prop.name) {
           _self, arg in _self[dot: prop.name] ^= arg
         }
+        return Syntax(expr)
       }
       
       let newInitializer = SyntaxFactory.makeInitializerDecl(
@@ -326,9 +327,10 @@ extension SynthesizeMemberwiseInitializerEvolution {
       )
       
       return members.appending(MemberDeclListItemSyntax {
-        $0.useDecl(newInitializer)
+        $0.useDecl(DeclSyntax(newInitializer))
       })
     }
+    return Syntax(evolved)
   }
 }
 
@@ -337,7 +339,7 @@ extension ShuffleGenericRequirementsEvolution {
     where G: RandomNumberGenerator
   {
     guard
-      let requirementsList = node as? GenericRequirementListSyntax
+      let requirementsList = node.as(GenericRequirementListSyntax.self)
     else { throw EvolutionError.unsupported }
     let requirements = Array(requirementsList)
 
@@ -351,13 +353,14 @@ extension ShuffleGenericRequirementsEvolution {
   }
 
   func evolve(_ node: Syntax) -> Syntax {
-    let requirements = Array(node as! GenericRequirementListSyntax)
+    let requirements = Array(node.as(GenericRequirementListSyntax.self)!)
 
     precondition(requirements.count == mapping.count,
                  "ShuffleGenericRequirementsEvolution mapping does not match node it's being applied to")
 
-    return SyntaxFactory.makeGenericRequirementList(
+    let genericRequirements = SyntaxFactory.makeGenericRequirementList(
       mapping.map { requirements[$0] }.withCorrectTrailingCommas()
     )
+    return Syntax(genericRequirements)
   }
 }

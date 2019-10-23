@@ -16,12 +16,12 @@ class ShuffleGenericRequirementsEvolutionTests: XCTestCase {
     let dc = DeclContext(declarationChain: [code, decl])
 
     let evo = try ShuffleGenericRequirementsEvolution(
-      for: decl.genericWhereClause!.requirementList, in: dc, using: &predictableRNG
+      for: Syntax(decl.genericWhereClause!.requirementList), in: dc, using: &predictableRNG
     )
 
     XCTAssertEqual(evo?.mapping.count, 2)
 
-    let evolved = evo?.evolve(decl.genericWhereClause!.requirementList)
+    let evolved = evo?.evolve(Syntax(decl.genericWhereClause!.requirementList))
     // FIXME: disabled because of CI failure rdar://51635159
     // XCTAssertEqual(evolved.map(String.init(describing:)),
     //               "T == Comparable , T: Hashable")
@@ -38,7 +38,7 @@ class ShuffleGenericRequirementsEvolutionTests: XCTestCase {
 
     XCTAssertThrowsError(
       try ShuffleGenericRequirementsEvolution(
-        for: decl.genericWhereClause!, in: dc, using: &predictableRNG
+        for: Syntax(decl.genericWhereClause!), in: dc, using: &predictableRNG
       )
     ) { error in
       XCTAssertEqual(error as? EvolutionError, EvolutionError.unsupported)
