@@ -40,9 +40,9 @@ struct SyntaxDump: TextOutputStreamable {
       write(" ")
       write(url?.lastPathComponent ?? "<unknown>")
       write(":")
-      write("\(loc.line)")
+      write(loc.line.map(String.init) ?? "<unknown>")
       write(":")
-      write("\(loc.column)")
+      write(loc.column.map(String.init) ?? "<unknown>")
     }
 
     let startLoc = node.startLocation(converter: locationConverter)
