@@ -1,6 +1,11 @@
 // swift-tools-version:4.2
 
 import PackageDescription
+#if os(Linux)
+import Glibc
+#else
+import Darwin.C
+#endif
 
 let package = Package(
   name: "SourceKitStressTester",
@@ -9,10 +14,7 @@ let package = Package(
     .executable(name: "sk-swiftc-wrapper", targets: ["sk-swiftc-wrapper"]),
   ],
   dependencies: [
-    .package(url: "https://github.com/apple/swift-package-manager.git", .branch("master")),
-    // FIXME: We should depend on master once master contains all the degybed files
-    .package(url: "https://github.com/apple/swift-syntax.git", .branch("master")),
-
+    // See dependencies added below.
   ],
   targets: [
     .target(
@@ -40,3 +42,16 @@ let package = Package(
       dependencies: ["SwiftCWrapper"])
   ]
 )
+
+if getenv("SWIFTCI_USE_LOCAL_DEPS") == nil {
+  // Building standalone.
+  package.dependencies += [
+    .package(url: "https://github.com/apple/swift-package-manager.git", .branch("master")),
+    .package(url: "https://github.com/apple/swift-syntax.git", .branch("master")),
+  ]
+} else {
+  package.dependencies += [
+    .package(path: "../../swiftpm"),
+    .package(path: "../../swift-syntax"),
+  ]
+}

@@ -40,6 +40,7 @@ def parse_args(args):
   parser.add_argument('--build-dir', default='.build')
   parser.add_argument('--toolchain', required=True, help='the toolchain to use when building this package')
   parser.add_argument('--update', action='store_true', help='update all SwiftPM dependencies')
+  parser.add_argument('--no-local-deps', action='store_true', help='use normal remote dependencies when building')
   parser.add_argument('build_actions', help="Extra actions to perform. Can be any number of the following", choices=['all', 'build', 'test', 'install', 'generate-xcodeproj'], nargs="*", default=['build'])
 
   parsed = parser.parse_args(args)
@@ -64,12 +65,18 @@ def run(args):
   sourcekit_searchpath=args.sourcekitd_dir
   package_name = os.path.basename(args.package_dir)
 
+  env = dict(os.environ)
+  # Use local dependencies (i.e. checked out next sourcekit-lsp).
+  if not args.no_local_deps:
+    env['SWIFTCI_USE_LOCAL_DEPS'] = "1"
+
   if args.update:
     print("** Updating dependencies of %s **" % package_name)
     try:
       update_swiftpm_dependencies(package_dir=args.package_dir,
         swift_exec=args.swift_exec,
         build_dir=args.build_dir,
+        env=env,
         verbose=args.verbose)
     except subprocess.CalledProcessError as e:
       printerr('FAIL: Updating dependencies of %s failed' % package_name)
@@ -86,6 +93,7 @@ def run(args):
         sourcekit_searchpath=sourcekit_searchpath,
         build_dir=args.build_dir,
         config=args.config,
+        env=env,
         verbose=args.verbose)
     except subprocess.CalledProcessError as e:
       printerr('FAIL: Building %s failed' % package_name)
@@ -100,6 +108,7 @@ def run(args):
       generate_xcodeproj(args.package_dir,
         swift_exec=args.swift_exec,
         sourcekit_searchpath=sourcekit_searchpath,
+        env=env,
         verbose=args.verbose)
     except subprocess.CalledProcessError as e:
       printerr('FAIL: Generating the Xcode project failed')
@@ -119,6 +128,7 @@ def run(args):
         sourcekit_searchpath=sourcekit_searchpath,
         build_dir=args.build_dir,
         config=test_config,
+        env=env,
         verbose=args.verbose)
     except subprocess.CalledProcessError as e:
       printerr('FAIL: Testing %s failed' % package_name)
@@ -158,18 +168,19 @@ def should_run_action(action_name, selected_actions):
     return False
 
 
-def update_swiftpm_dependencies(package_dir, swift_exec, build_dir, verbose):
+def update_swiftpm_dependencies(package_dir, swift_exec, build_dir, env, verbose):
   args = [swift_exec, 'package', '--package-path', package_dir, '--build-path', build_dir, 'update']
-  check_call(args, verbose=verbose)
+  check_call(args, env=env, verbose=verbose)
 
 
-def invoke_swift(package_dir, action, swift_exec, sourcekit_searchpath, build_dir, config, verbose):
+def invoke_swift(package_dir, action, swift_exec, sourcekit_searchpath, build_dir, config, env, verbose):
   swiftc_args = ['-Fsystem', sourcekit_searchpath]
   linker_args = ['-rpath', sourcekit_searchpath]
 
-
   args = [swift_exec, action, '--package-path', package_dir, '-c', config, '--build-path', build_dir] + interleave('-Xswiftc', swiftc_args) + interleave('-Xlinker', linker_args)
-  check_call(args, verbose=verbose)
+
+
+  check_call(args, env=env, verbose=verbose)
 
 
 def install_package(package_dir, install_dir, sourcekit_searchpath, build_dir, rpaths_to_delete, verbose):
@@ -203,7 +214,7 @@ def install(src, dest, rpaths_to_delete, rpaths_to_add, verbose):
   for rpath in rpaths_to_add:
     add_rpath(dest, rpath, verbose=verbose)
 
-def generate_xcodeproj(package_dir, swift_exec, sourcekit_searchpath, verbose):
+def generate_xcodeproj(package_dir, swift_exec, sourcekit_searchpath, env, verbose):
   package_name = os.path.basename(package_dir)
   config_path = os.path.join(package_dir, 'Config.xcconfig')
   with open(config_path, 'w') as config_file:
@@ -215,7 +226,7 @@ def generate_xcodeproj(package_dir, swift_exec, sourcekit_searchpath, verbose):
   xcodeproj_path = os.path.join(package_dir, '%s.xcodeproj' % package_name)
 
   args = [swift_exec, 'package', '--package-path', package_dir, 'generate-xcodeproj', '--xcconfig-overrides', config_path, '--output', xcodeproj_path]
-  check_call(args, verbose=verbose)
+  check_call(args, env=env, verbose=verbose)
 
 def add_rpath(binary, rpath, verbose):
   cmd = ['install_name_tool', '-add_rpath', rpath, binary]

@@ -3,6 +3,12 @@
 
 import PackageDescription
 
+#if os(Linux)
+import Glibc
+#else
+import Darwin.C
+#endif
+
 let package = Package(
     name: "SwiftEvolve",
     products: [
@@ -10,9 +16,7 @@ let package = Package(
         .library(name: "SwiftEvolve", targets: ["SwiftEvolve"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-package-manager.git", .branch("master")),
-        // FIXME: We should depend on master once master contains all the degybed files
-        .package(url: "https://github.com/apple/swift-syntax.git", .branch("master")),
+        // See dependencies added below.
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -28,3 +32,16 @@ let package = Package(
           dependencies: ["SwiftEvolve"])
     ]
 )
+
+if getenv("SWIFTCI_USE_LOCAL_DEPS") == nil {
+    // Building standalone.
+    package.dependencies += [
+        .package(url: "https://github.com/apple/swift-package-manager.git", .branch("master")),
+        .package(url: "https://github.com/apple/swift-syntax.git", .branch("master")),
+    ]
+} else {
+    package.dependencies += [
+        .package(path: "../../swiftpm"),
+        .package(path: "../../swift-syntax"),
+    ]
+}
