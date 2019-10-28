@@ -179,6 +179,9 @@ def invoke_swift(package_dir, action, swift_exec, sourcekit_searchpath, build_di
 
   args = [swift_exec, action, '--package-path', package_dir, '-c', config, '--build-path', build_dir] + interleave('-Xswiftc', swiftc_args) + interleave('-Xlinker', linker_args)
 
+  # Tell SwiftSyntax that we are building in a CI environment so that it does
+  # not need to rebuilt if it has already been built before.
+  env['SWIFT_BUILD_SCRIPT_ENVIRONMENT'] = '1'
 
   check_call(args, env=env, verbose=verbose)
 
