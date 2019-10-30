@@ -12,7 +12,7 @@
 
 import Foundation
 import SwiftCWrapper
-import Basic
+import TSCBasic
 
 let wrapper = SwiftCWrapperTool(arguments: CommandLine.arguments,
                                 environment: ProcessInfo.processInfo.environment)

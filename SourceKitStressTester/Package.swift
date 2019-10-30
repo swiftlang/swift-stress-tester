@@ -9,7 +9,7 @@ let package = Package(
     .executable(name: "sk-swiftc-wrapper", targets: ["sk-swiftc-wrapper"]),
   ],
   dependencies: [
-    .package(url: "https://github.com/apple/swift-package-manager.git", .exact("0.3.0")),
+    .package(url: "https://github.com/apple/swift-package-manager.git", .branch("master")),
     // FIXME: We should depend on master once master contains all the degybed files
     .package(url: "https://github.com/apple/swift-syntax.git", .branch("master-gen")),
 
@@ -17,13 +17,13 @@ let package = Package(
   targets: [
     .target(
       name: "Common",
-      dependencies: ["Utility"]),
+      dependencies: ["TSCUtility"]),
     .target(
       name: "StressTester",
-      dependencies: ["Common", "Utility", "SwiftSyntax"]),
+      dependencies: ["Common", "TSCUtility", "SwiftSyntax"]),
     .target(
       name: "SwiftCWrapper",
-      dependencies: ["Common", "Utility"]),
+      dependencies: ["Common", "TSCUtility"]),
 
     .target(
       name: "sk-stress-test",
