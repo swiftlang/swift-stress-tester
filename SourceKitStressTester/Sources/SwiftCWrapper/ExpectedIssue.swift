@@ -47,12 +47,12 @@ struct ExpectedIssue: Equatable, Codable {
       return match(document.path, against: path) &&
         match(document.modification?.summaryCode, against: modification)
     case .editorReplaceText(let document, let offset, let length, let text):
-      guard case .editorReplaceText(let spec) = issueDetail else { return false }
+      guard case .editorReplaceText(let specOffset, let specLength, let specText) = issueDetail else { return false }
       return match(document.path, against: path) &&
         match(document.modification?.summaryCode, against: modification) &&
-        match(offset, against: spec.offset) &&
-        match(length, against: spec.length) &&
-        match(text, against: spec.text)
+        match(offset, against: specOffset) &&
+        match(length, against: specLength) &&
+        match(text, against: specText)
     case .cursorInfo(let document, let offset, _):
       guard case .cursorInfo(let specOffset) = issueDetail else { return false }
       return match(document.path, against: path) &&
@@ -64,17 +64,17 @@ struct ExpectedIssue: Equatable, Codable {
         match(document.modification?.summaryCode, against: modification) &&
         match(offset, against: specOffset)
     case .rangeInfo(let document, let offset, let length, _):
-      guard case .rangeInfo(let spec) = issueDetail else { return false }
+      guard case .rangeInfo(let specOffset, let specLength) = issueDetail else { return false }
       return match(document.path, against: path) &&
         match(document.modification?.summaryCode, against: modification) &&
-        match(offset, against: spec.offset) &&
-        match(length, against: spec.length)
+        match(offset, against: specOffset) &&
+        match(length, against: specLength)
     case .semanticRefactoring(let document, let offset, let refactoring, _):
-      guard case .semanticRefactoring(let spec) = issueDetail else { return false }
+      guard case .semanticRefactoring(let specOffset, let specRefactoring) = issueDetail else { return false }
       return match(document.path, against: path) &&
         match(document.modification?.summaryCode, against: modification) &&
-        match(offset, against: spec.offset) &&
-        match(refactoring, against: spec.refactoring)
+        match(offset, against: specOffset) &&
+        match(refactoring, against: specRefactoring)
     case .typeContextInfo(let document, let offset, _):
       guard case .typeContextInfo(let specOffset) = issueDetail else { return false }
       return match(document.path, against: path) &&
