@@ -20,7 +20,7 @@ The tools in this repository can be built in several different ways:
 If you want to build the tools to use a locally built sourcekitd and SwiftLang, use the Swift repository's build-script to build and test the stress tester by passing `--skstresstester`, its dependencies and the desired tools' flags as extra options. To build and run tests, for example, you would run:
 
 ```
-$ ./utils/build-script -t --llbuild --swiftpm --skstresstester
+$ ./swift/utils/build-script --test --skip-build-benchmark --skip-test-cmark --skip-test-swift --install-swift --llbuild --install-llbuild --skip-test-llbuild --swiftpm --install-swiftpm --skip-test-swiftpm --skstresstester --swiftevolve --release
 ```
 
 ### For local development
