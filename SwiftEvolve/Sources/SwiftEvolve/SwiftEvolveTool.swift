@@ -16,7 +16,7 @@
 
 import Foundation
 import SwiftSyntax
-import Basic
+import TSCBasic
 
 public class SwiftEvolveTool {
   enum Step: Hashable {
@@ -137,12 +137,9 @@ extension SwiftEvolveTool {
       let evolved = evolver.evolve(in: parsed, at: URL(file))
 
       if options.replace {
-        try withExtendedLifetime(
-          TemporaryFile(
-            dir: file.parentDirectory, prefix: "", suffix: file.basename,
-            deleteOnClose: true
-          )
-        ) { tempFile in
+        try withTemporaryFile(dir: file.parentDirectory, prefix: "",
+                          suffix: file.basename,
+                          deleteOnClose: true) { tempFile in
           tempFile.fileHandle.write(evolved.description)
           
           _ = try withErrorContext(
@@ -186,7 +183,7 @@ extension SwiftEvolveTool {
 
 extension URL {
   init(_ path: AbsolutePath) {
-    self.init(fileURLWithPath: path.asString)
+    self.init(fileURLWithPath: path.pathString)
   }
 }
 

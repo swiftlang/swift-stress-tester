@@ -14,8 +14,8 @@
 ///
 // -----------------------------------------------------------------------------
 
-import Utility
-import Basic
+import TSCUtility
+import TSCBasic
 
 // MARK: Argument parsing
 
@@ -74,7 +74,7 @@ extension SwiftEvolveTool.Step {
     let files: PositionalArgument<[PathArgument]>
     
     init() {
-      parser = Utility.ArgumentParser(usage: usage, overview: overview)
+      parser = ArgumentParser(usage: usage, overview: overview)
       rulesFile = parser.add(option: "--rules", kind: PathArgument.self,
                              usage: "<PATH> JSON specification of plan generation rules")
       seed = parser.add(option: "--seed", kind: UInt64.self,
@@ -119,7 +119,7 @@ extension SwiftEvolveTool.Step: CustomStringConvertible {
       return options.arguments(with: ["--seed", String(seed)])
       
     case let .evolve(planFile: planFile, options: options):
-      return options.arguments(with: ["--plan", planFile.asString])
+      return options.arguments(with: ["--plan", planFile.pathString])
       
     case let .exit(code: status):
       return ["exit", String(status)]
@@ -135,7 +135,7 @@ extension SwiftEvolveTool.Step.Options {
   fileprivate func arguments(with stageArgs: [String]) -> [String] {
     var args = [command] + stageArgs
     if let rulesFile = rulesFile {
-      args += ["--rules", rulesFile.asString]
+      args += ["--rules", rulesFile.pathString]
     }
     if replace {
       args += ["--replace"]
@@ -143,7 +143,7 @@ extension SwiftEvolveTool.Step.Options {
     if verbose {
       args += ["--verbose"]
     }
-    args += files.map { $0.asString }
+    args += files.map { $0.pathString }
     return args
   }
 }

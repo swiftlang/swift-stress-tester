@@ -1,7 +1,7 @@
 import XCTest
 import SwiftSyntax
 @testable import SwiftEvolve
-import Basic
+import TSCBasic
 
 extension SyntaxProtocol {
   func filter<T: SyntaxProtocol>(whereIs type: T.Type) -> [T] {

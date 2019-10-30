@@ -1,6 +1,6 @@
 import XCTest
 @testable import SwiftEvolve
-import Basic
+import TSCBasic
 
 class CommandLineTests: XCTestCase {
   func file(named name: String) -> AbsolutePath {
