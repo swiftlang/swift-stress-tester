@@ -39,7 +39,8 @@ def parse_args(args):
   parser.add_argument('--config', default='release')
   parser.add_argument('--build-dir', default='.build')
   parser.add_argument('--toolchain', required=True, help='the toolchain to use when building this package')
-  parser.add_argument('build_actions', help="Extra actions to perform. Can be any number of the following: [all, test, install, generate-xcodeproj]", nargs="*", default=[])
+  parser.add_argument('--update', action='store_true', help='update all SwiftPM dependencies')
+  parser.add_argument('build_actions', help="Extra actions to perform. Can be any number of the following", choices=['all', 'build', 'test', 'install', 'generate-xcodeproj'], nargs="*", default=['build'])
 
   parsed = parser.parse_args(args)
 
@@ -63,23 +64,37 @@ def run(args):
   sourcekit_searchpath=args.sourcekitd_dir
   package_name = os.path.basename(args.package_dir)
 
-  print("** Building %s **" % package_name)
-  try:
-    invoke_swift(package_dir=args.package_dir,
-      swift_exec=args.swift_exec,
-      action='build',
-      sourcekit_searchpath=sourcekit_searchpath,
-      build_dir=args.build_dir,
-      config=args.config,
-      verbose=args.verbose)
-  except subprocess.CalledProcessError as e:
-    printerr('FAIL: Building %s failed' % package_name)
-    printerr('Executing: %s' % ' '.join(e.cmd))
-    sys.exit(1)
+  if args.update:
+    print("** Updating dependencies of %s **" % package_name)
+    try:
+      update_swiftpm_dependencies(package_dir=args.package_dir,
+        swift_exec=args.swift_exec,
+        build_dir=args.build_dir,
+        verbose=args.verbose)
+    except subprocess.CalledProcessError as e:
+      printerr('FAIL: Updating dependencies of %s failed' % package_name)
+      printerr('Executing: %s' % ' '.join(e.cmd))
+      sys.exit(1)
+
+  # The test action creates its own build. No need to build if we are just testing
+  if should_run_any_action(['build', 'install'], args.build_actions):
+    print("** Building %s **" % package_name)
+    try:
+      invoke_swift(package_dir=args.package_dir,
+        swift_exec=args.swift_exec,
+        action='build',
+        sourcekit_searchpath=sourcekit_searchpath,
+        build_dir=args.build_dir,
+        config=args.config,
+        verbose=args.verbose)
+    except subprocess.CalledProcessError as e:
+      printerr('FAIL: Building %s failed' % package_name)
+      printerr('Executing: %s' % ' '.join(e.cmd))
+      sys.exit(1)
 
   output_dir = os.path.realpath(os.path.join(args.build_dir, args.config))
 
-  if "generate-xcodeproj" in args.build_actions or "all" in args.build_actions:
+  if should_run_action("generate-xcodeproj", args.build_actions):
     print("** Generating Xcode project for %s **" % package_name)
     try:
       generate_xcodeproj(args.package_dir,
@@ -91,7 +106,7 @@ def run(args):
       printerr('Executing: %s' % ' '.join(e.cmd))
       sys.exit(1)
 
-  if "test" in args.build_actions or "all" in args.build_actions:
+  if should_run_action("test", args.build_actions):
     print("** Testing %s **" % package_name)
     try:
       invoke_swift(package_dir=args.package_dir,
@@ -107,7 +122,7 @@ def run(args):
       printerr('Executing: %s' % ' '.join(e.cmd))
       sys.exit(1)
 
-  if "install" in args.build_actions or "all" in args.build_actions:
+  if should_run_action("install", args.build_actions):
     print("** Installing %s **" % package_name)
     stdlib_dir = os.path.join(args.toolchain, 'usr', 'lib', 'swift', 'macosx')
     try:
@@ -121,6 +136,28 @@ def run(args):
       printerr('FAIL: Installing %s failed' % package_name)
       printerr('Executing: %s' % ' '.join(e.cmd))
       sys.exit(1)
+
+
+# Returns true if any of the actions in `action_names` should be run.
+def should_run_any_action(action_names, selected_actions):
+  for action_name in action_names:
+    if should_run_action(action_name, selected_actions):
+      return True
+  return False
+
+
+def should_run_action(action_name, selected_actions):
+  if action_name in selected_actions:
+    return True
+  elif "all" in selected_actions:
+    return True
+  else:
+    return False
+
+
+def update_swiftpm_dependencies(package_dir, swift_exec, build_dir, verbose):
+  args = [swift_exec, 'package', '--package-path', package_dir, '--build-path', build_dir, 'update']
+  check_call(args, verbose=verbose)
 
 
 def invoke_swift(package_dir, action, swift_exec, sourcekit_searchpath, build_dir, config, verbose):
@@ -164,6 +201,7 @@ def install(src, dest, rpaths_to_delete, rpaths_to_add, verbose):
     add_rpath(dest, rpath, verbose=verbose)
 
 def generate_xcodeproj(package_dir, swift_exec, sourcekit_searchpath, verbose):
+  package_name = os.path.basename(package_dir)
   config_path = os.path.join(package_dir, 'Config.xcconfig')
   with open(config_path, 'w') as config_file:
     config_file.write('''
@@ -171,7 +209,9 @@ def generate_xcodeproj(package_dir, swift_exec, sourcekit_searchpath, verbose):
       LD_RUNPATH_SEARCH_PATHS = {sourcekit_searchpath} $(inherited)
     '''.format(sourcekit_searchpath=sourcekit_searchpath))
 
-  args = [swift_exec, 'package', '--package-path', package_dir, 'generate-xcodeproj', '--xcconfig-overrides', config_path, '--output', os.path.join(package_dir, 'SourceKitStressTester.xcodeproj')]
+  xcodeproj_path = os.path.join(package_dir, '%s.xcodeproj' % package_name)
+
+  args = [swift_exec, 'package', '--package-path', package_dir, 'generate-xcodeproj', '--xcconfig-overrides', config_path, '--output', xcodeproj_path]
   check_call(args, verbose=verbose)
 
 def add_rpath(binary, rpath, verbose):
