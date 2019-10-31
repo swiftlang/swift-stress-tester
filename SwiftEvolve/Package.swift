@@ -1,5 +1,4 @@
-// swift-tools-version:4.2
-// The swift-tools-version declares the minimum version of Swift required to build this package.
+// swift-tools-version:5.1
 
 import PackageDescription
 
@@ -23,13 +22,19 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages which this package depends on.
         .target(
             name: "swift-evolve",
-            dependencies: ["SwiftEvolve"]),
+            dependencies: ["SwiftEvolve"]
+        ),
         .target(
             name: "SwiftEvolve",
-            dependencies: ["TSCUtility", "SwiftSyntax"]),
+            dependencies: ["TSCUtility", "SwiftSyntax"]
+        ),
         .testTarget(
-          name: "SwiftEvolveTests",
-          dependencies: ["SwiftEvolve"])
+            name: "SwiftEvolveTests",
+            dependencies: ["SwiftEvolve"],
+            // SwiftPM does not get the rpath for XCTests in multiroot packages right (rdar://56793593)
+            // Add the correct rpath here
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@loader_path/../../../"])]
+        )
     ]
 )
 
