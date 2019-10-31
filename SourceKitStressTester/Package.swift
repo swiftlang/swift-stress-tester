@@ -11,7 +11,7 @@ let package = Package(
   dependencies: [
     .package(url: "https://github.com/apple/swift-package-manager.git", .branch("master")),
     // FIXME: We should depend on master once master contains all the degybed files
-    .package(url: "https://github.com/apple/swift-syntax.git", .branch("master-gen")),
+    .package(url: "https://github.com/apple/swift-syntax.git", .branch("master")),
 
   ],
   targets: [
