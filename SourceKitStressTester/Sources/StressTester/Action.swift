@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-enum Action: Equatable {
+public enum Action: Equatable {
   case cursorInfo(offset: Int)
   case codeComplete(offset: Int)
   case rangeInfo(offset: Int, length: Int)
@@ -21,7 +21,7 @@ enum Action: Equatable {
 }
 
 extension Action: CustomStringConvertible {
-  var description: String {
+  public var description: String {
     switch self {
     case .cursorInfo(let offset):
       return "CusorInfo at offset \(offset)"
@@ -45,7 +45,7 @@ extension Action: Codable {
   enum CodingKeys: String, CodingKey {
     case action, offset, length, text
   }
-  enum BaseAction: String, Codable {
+  public enum BaseAction: String, Codable {
     case cursorInfo, codeComplete, rangeInfo, replaceText, typeContextInfo, conformingMethodList, collectExpressionType
   }
 

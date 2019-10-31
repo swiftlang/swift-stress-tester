@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import XCTest
-@testable import SwiftCWrapper
+import SwiftCWrapper
 import Common
 
 class SwiftCWrapperToolTests: XCTestCase {

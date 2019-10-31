@@ -12,7 +12,7 @@
 
 import Foundation
 import XCTest
-@testable import StressTester
+import StressTester
 import SwiftLang
 import Common
 

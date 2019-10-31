@@ -82,7 +82,7 @@ public struct StressTesterTool {
     return try process(results)
   }
 
-  func parse() throws -> ArgumentParser.Result {
+  public func parse() throws -> ArgumentParser.Result {
     let result = try parser.parse(arguments)
 
     // validate arguments

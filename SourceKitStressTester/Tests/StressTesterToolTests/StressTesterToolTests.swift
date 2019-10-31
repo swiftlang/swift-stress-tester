@@ -12,7 +12,7 @@
 
 import XCTest
 import Common
-@testable import StressTester
+import StressTester
 
 class StressTesterToolTests: XCTestCase {
   var workspace: URL!

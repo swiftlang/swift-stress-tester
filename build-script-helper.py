@@ -108,14 +108,17 @@ def run(args):
 
   if should_run_action("test", args.build_actions):
     print("** Testing %s **" % package_name)
+    test_config = args.config
+    if package_name == 'SwiftEvolve':
+      # Temporary workaround because SwiftEvolve still uses @testable imports
+      test_config = 'debug'
     try:
       invoke_swift(package_dir=args.package_dir,
         swift_exec=args.swift_exec,
         action='test',
         sourcekit_searchpath=sourcekit_searchpath,
-        # note: test uses a different build_dir so it doesn't interfere with the 'build' step's products before install
-        build_dir=os.path.join(args.build_dir, 'test-build'),
-        config='debug',
+        build_dir=args.build_dir,
+        config=test_config,
         verbose=args.verbose)
     except subprocess.CalledProcessError as e:
       printerr('FAIL: Testing %s failed' % package_name)

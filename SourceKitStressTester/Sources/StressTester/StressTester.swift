@@ -15,14 +15,14 @@ import SwiftLang
 import SwiftSyntax
 import Common
 
-struct StressTester {
+public struct StressTester {
   let file: URL
   let source: String
   let compilerArgs: [String]
   let options: StressTesterOptions
   let connection: SourceKitdService
 
-  init(for file: URL, compilerArgs: [String], options: StressTesterOptions) {
+  public init(for file: URL, compilerArgs: [String], options: StressTesterOptions) {
     self.source = try! String(contentsOf: file, encoding: .utf8)
     self.file = file
     self.compilerArgs = compilerArgs.flatMap { DriverFileList(at: $0)?.paths ?? [$0] }
@@ -99,7 +99,7 @@ struct StressTester {
     return (state, page)
   }
 
-  func run() throws {
+  public func run() throws {
     var document = SourceKitDocument(file.path, args: compilerArgs, connection: connection, containsErrors: true)
 
     // compute the actions for the entire tree
@@ -176,13 +176,15 @@ private extension SourceKitdUID {
   static let kind_CompletionContextThisModule = SourceKitdUID(string: "source.codecompletion.context.thismodule")
 }
 
-struct StressTesterOptions {
-  var astBuildLimit: Int? = nil
-  var requests: RequestSet = .all
-  var rewriteMode: RewriteMode = .none
-  var conformingMethodsTypeList = ["s:SQ", "s:SH"] // Equatable and Hashable
-  var responseHandler: ((SourceKitResponseData) throws -> Void)? = nil
-  var page = Page(1, of: 1)
+public struct StressTesterOptions {
+  public init() {}
+
+  public var astBuildLimit: Int? = nil
+  public var requests: RequestSet = .all
+  public var rewriteMode: RewriteMode = .none
+  public var conformingMethodsTypeList = ["s:SQ", "s:SH"] // Equatable and Hashable
+  public var responseHandler: ((SourceKitResponseData) throws -> Void)? = nil
+  public var page = Page(1, of: 1)
 }
 
 public struct RequestSet: OptionSet {

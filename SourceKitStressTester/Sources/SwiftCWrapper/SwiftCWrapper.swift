@@ -16,7 +16,7 @@ import class TSCUtility.PercentProgressAnimation
 import protocol TSCUtility.ProgressAnimationProtocol
 import TSCBasic
 
-struct SwiftCWrapper {
+public struct SwiftCWrapper {
   let arguments: [String]
   let swiftcPath: String
   let stressTesterPath: String
@@ -31,7 +31,7 @@ struct SwiftCWrapper {
   let failFast: Bool
   let suppressOutput: Bool
 
-  init(swiftcArgs: [String], swiftcPath: String, stressTesterPath: String, astBuildLimit: Int?, rewriteModes: [RewriteMode]?, requestKinds: [RequestKind]?, conformingMethodTypes: [String]?, ignoreIssues: Bool, issueManager: IssueManager?, maxJobs: Int?, dumpResponsesPath: String?, failFast: Bool, suppressOutput: Bool) {
+  public init(swiftcArgs: [String], swiftcPath: String, stressTesterPath: String, astBuildLimit: Int?, rewriteModes: [RewriteMode]?, requestKinds: [RequestKind]?, conformingMethodTypes: [String]?, ignoreIssues: Bool, issueManager: IssueManager?, maxJobs: Int?, dumpResponsesPath: String?, failFast: Bool, suppressOutput: Bool) {
     self.arguments = swiftcArgs
     self.swiftcPath = swiftcPath
     self.stressTesterPath = stressTesterPath
@@ -47,7 +47,7 @@ struct SwiftCWrapper {
     self.dumpResponsesPath = dumpResponsesPath
   }
 
-  var swiftFiles: [(String, size: Int)] {
+  public var swiftFiles: [(String, size: Int)] {
     let dependencyPaths = ["/.build/checkouts/", "/Pods/", "/Carthage/Checkouts"]
     return arguments
       .flatMap { DriverFileList(at: $0)?.paths ?? [$0] }
@@ -233,7 +233,7 @@ private struct OrderingBuffer<T> {
   }
 }
 
-enum RequestKind: String, CaseIterable {
+public enum RequestKind: String, CaseIterable {
   case cursorInfo = "CursorInfo"
   case rangeInfo = "RangeInfo"
   case codeComplete = "CodeComplete"
@@ -278,11 +278,11 @@ fileprivate extension TimeInterval {
   }
 }
 
-enum StressTesterIssue: CustomStringConvertible {
+public enum StressTesterIssue: CustomStringConvertible {
   case failed(SourceKitError)
   case errored(status: Int32, file: String, arguments: String)
 
-  var description: String {
+  public var description: String {
     switch self {
     case .failed(let error):
       return String(describing: error)

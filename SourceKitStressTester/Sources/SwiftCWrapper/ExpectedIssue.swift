@@ -12,19 +12,28 @@
 
 import Common
 
-struct ExpectedIssue: Equatable, Codable {
-  let applicableConfigs: Set<String>
-  let issueUrl: String
-  let path: String
-  let modification: String?
-  let issueDetail: IssueDetail
+public struct ExpectedIssue: Equatable, Codable {
+  public let applicableConfigs: Set<String>
+  public let issueUrl: String
+  public let path: String
+  public let modification: String?
+  public let issueDetail: IssueDetail
+
+  public init(applicableConfigs: Set<String>, issueUrl: String, path: String,
+              modification: String?, issueDetail: IssueDetail) {
+    self.applicableConfigs = applicableConfigs
+    self.issueUrl = issueUrl
+    self.path = path
+    self.modification = modification
+    self.issueDetail = issueDetail
+  }
 
   /// Checks if this expected issue matches the given issue
   ///
   /// - parameters:
   ///   - issue: the issue to match against
   /// - returns: true if the issue matches
-  func matches(_ issue: StressTesterIssue) -> Bool {
+  public func matches(_ issue: StressTesterIssue) -> Bool {
     switch issue {
     case .failed(let sourceKitError):
       return matches(sourceKitError.request)
@@ -132,7 +141,7 @@ struct ExpectedIssue: Equatable, Codable {
   }
 }
 
-extension ExpectedIssue {
+public extension ExpectedIssue {
 
   init(matching stressTesterIssue: StressTesterIssue, issueUrl: String, config: String) {
     self.issueUrl = issueUrl
@@ -202,7 +211,7 @@ extension ExpectedIssue {
     case semanticRefactoring(offset: Int?, refactoring: String?)
     case stressTesterCrash(status: Int32?, arguments: String?)
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
       let container = try decoder.container(keyedBy: CodingKeys.self)
       switch try container.decode(RequestBase.self, forKey: .kind) {
       case .editorOpen:
@@ -250,7 +259,7 @@ extension ExpectedIssue {
       }
     }
 
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
       var container = encoder.container(keyedBy: CodingKeys.self)
       switch self {
       case .editorOpen:
