@@ -12,7 +12,7 @@
 
 import Foundation
 import StressTester
-import Basic
+import TSCBasic
 
 let stressTester = StressTesterTool(arguments: CommandLine.arguments)
 

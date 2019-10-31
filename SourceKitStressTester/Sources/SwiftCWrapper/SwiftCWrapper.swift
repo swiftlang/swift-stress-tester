@@ -12,9 +12,9 @@
 
 import Common
 import Foundation
-import func Utility.createProgressBar
-import protocol Utility.ProgressBarProtocol
-import Basic
+import class TSCUtility.PercentProgressAnimation
+import protocol TSCUtility.ProgressAnimationProtocol
+import TSCBasic
 
 struct SwiftCWrapper {
   let arguments: [String]
@@ -90,10 +90,10 @@ struct SwiftCWrapper {
     guard !operations.isEmpty else { return swiftcResult.status }
 
     // Run the operations, reporting progress
-    let progress: ProgressBarProtocol?
+    let progress: ProgressAnimationProtocol?
     if !suppressOutput {
-      progress = createProgressBar(forStream: stderrStream, header: "Stress testing SourceKit...")
-      progress?.update(percent: 0, text: "Scheduling \(operations.count) operations")
+      progress = PercentProgressAnimation(stream: stderrStream, header: "Stress testing SourceKit...")
+      progress?.update(step: 0, total: operations.count, text: "Scheduling \(operations.count) operations")
     } else {
       progress = nil
     }
@@ -109,7 +109,7 @@ struct SwiftCWrapper {
 
     let queue = FailFastOperationQueue(operations: operations, maxWorkers: maxJobs) { index, operation, completed, total -> Bool in
       let message = "\(operation.file) (\(operation.summary)): \(operation.status.name)"
-      progress?.update(percent: completed * 100 / total, text: message)
+      progress?.update(step: completed, total: total, text: message)
       orderingHandler?.complete(operation.responses, at: index, setLast: !operation.status.isPassed)
       operation.responses.removeAll()
       return operation.status.isPassed

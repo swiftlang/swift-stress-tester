@@ -12,8 +12,8 @@
 
 import Foundation
 import Common
-import Utility
-import Basic
+import TSCUtility
+import TSCBasic
 import SwiftSyntax
 
 public struct StressTesterTool {
@@ -124,7 +124,7 @@ public struct StressTesterTool {
       }
     }
 
-    let absoluteFile = URL(fileURLWithPath: arguments.get(file)!.path.asString)
+    let absoluteFile = URL(fileURLWithPath: arguments.get(file)!.path.pathString)
     let args = Array(arguments.get(compilerArgs)!.dropFirst())
 
     do {

@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
-import Basic
+import TSCBasic
 
 public protocol Message: Codable, CustomStringConvertible {}
 

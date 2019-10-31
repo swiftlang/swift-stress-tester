@@ -295,7 +295,7 @@ struct SourceKitDocument {
     // FIXME: We don't supply a valid new name for initializer calls for local
     // rename requests. Ignore these errors for now.
     if response.isError, !response.description.contains("does not match the arity of the old name") {
-      throw SourceKitError.failed(.errorResponse, request: request, response: response.description.chomp())
+      throw SourceKitError.failed(.errorResponse, request: request, response: response.description.spm_chomp())
     }
   }
 
