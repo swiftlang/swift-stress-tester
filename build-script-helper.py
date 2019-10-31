@@ -38,6 +38,7 @@ def parse_args(args):
   parser.add_argument('--prefix', help='install path')
   parser.add_argument('--config', default='release')
   parser.add_argument('--build-dir', default='.build')
+  parser.add_argument('--multiroot-data-file', help='Path to an Xcode workspace to create a unified build of SwiftSyntax with other projects.')
   parser.add_argument('--toolchain', required=True, help='the toolchain to use when building this package')
   parser.add_argument('--update', action='store_true', help='update all SwiftPM dependencies')
   parser.add_argument('--no-local-deps', action='store_true', help='use normal remote dependencies when building')
@@ -90,8 +91,10 @@ def run(args):
       invoke_swift(package_dir=args.package_dir,
         swift_exec=args.swift_exec,
         action='build',
+        products=get_products(args.package_dir),
         sourcekit_searchpath=sourcekit_searchpath,
         build_dir=args.build_dir,
+        multiroot_data_file=args.multiroot_data_file,
         config=args.config,
         env=env,
         verbose=args.verbose)
@@ -125,8 +128,10 @@ def run(args):
       invoke_swift(package_dir=args.package_dir,
         swift_exec=args.swift_exec,
         action='test',
+        products=['%sPackageTests' % package_name],
         sourcekit_searchpath=sourcekit_searchpath,
         build_dir=args.build_dir,
+        multiroot_data_file=args.multiroot_data_file,
         config=test_config,
         env=env,
         verbose=args.verbose)
@@ -173,15 +178,28 @@ def update_swiftpm_dependencies(package_dir, swift_exec, build_dir, env, verbose
   check_call(args, env=env, verbose=verbose)
 
 
-def invoke_swift(package_dir, action, swift_exec, sourcekit_searchpath, build_dir, config, env, verbose):
-  swiftc_args = ['-Fsystem', sourcekit_searchpath]
-  linker_args = ['-rpath', sourcekit_searchpath]
+def invoke_swift(package_dir, swift_exec, action, products, sourcekit_searchpath, build_dir, multiroot_data_file, config, env, verbose):
+  # Until rdar://53881101 is implemented, we cannot request a build of multiple 
+  # targets simultaneously. For now, just build one product after the other.
+  for product in products:
+    invoke_swift_single_product(package_dir, swift_exec, action, product, sourcekit_searchpath, build_dir, multiroot_data_file, config, env, verbose)
 
-  args = [swift_exec, action, '--package-path', package_dir, '-c', config, '--build-path', build_dir] + interleave('-Xswiftc', swiftc_args) + interleave('-Xlinker', linker_args)
 
-  # Tell SwiftSyntax that we are building in a CI environment so that it does
-  # not need to rebuilt if it has already been built before.
+def invoke_swift_single_product(package_dir, swift_exec, action, product, sourcekit_searchpath, build_dir, multiroot_data_file, config, env, verbose):
+  args = [swift_exec, action, '--package-path', package_dir, '-c', config, '--build-path', build_dir]
+
+  if multiroot_data_file:
+    args.extend(['--multiroot-data-file', multiroot_data_file])
+
+  if action == 'test':
+    args.extend(['--test-product', product])
+  else:
+    args.extend(['--product', product])
+
+  # Tell SwiftSyntax that we are building in a build-script environment so that
+  # it does not need to rebuilt if it has already been built before.
   env['SWIFT_BUILD_SCRIPT_ENVIRONMENT'] = '1'
+  env['SWIFT_STRESS_TESTER_SOURCEKIT_SEARCHPATH'] = sourcekit_searchpath
 
   check_call(args, env=env, verbose=verbose)
 
@@ -194,16 +212,23 @@ def install_package(package_dir, install_dir, sourcekit_searchpath, build_dir, r
     if not os.path.exists(directory):
       os.makedirs(directory)
 
-  rpaths_to_delete += [sourcekit_searchpath]
-  rpaths_to_add = ['@executable_path/../lib/swift/macosx', '@executable_path/../lib']
-
   # Install sk-stress-test and sk-swiftc-wrapper
   for product in get_products(package_dir):
     src = os.path.join(build_dir, product)
     dest = os.path.join(bin_dir, product)
 
+    # Create a copy of the list since we modify it
+    rpaths_to_delete_for_this_product = list(rpaths_to_delete)
+    # Add the rpath to the stdlib in in the toolchain
+    rpaths_to_add = ['@executable_path/../lib/swift/macosx']
+    
+    if product in ['sk-stress-test', 'swift-evolve']:
+      # Make the rpath to sourcekitd relative in the toolchain
+      rpaths_to_delete_for_this_product += [sourcekit_searchpath]
+      rpaths_to_add += ['@executable_path/../lib']
+
     install(src, dest,
-      rpaths_to_delete=rpaths_to_delete,
+      rpaths_to_delete=rpaths_to_delete_for_this_product,
       rpaths_to_add=rpaths_to_add,
       verbose=verbose)
 
