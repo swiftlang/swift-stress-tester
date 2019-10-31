@@ -61,18 +61,10 @@ class CommandLineTests: XCTestCase {
         verbose: false
       ))
     )
-    
-    XCTAssertEqual(
-      try SwiftEvolveTool.Step(arguments: ["exec-path", "--rules=rules.json", "--rules=other.json", "file1.swift"]),
-      .seed(options: .init(
-        command: "exec-path",
-        files: [file(named: "file1.swift")],
-        rulesFile: file(named: "other.json"),
-        replace: false,
-        verbose: false
-      ))
-    )
 
+    XCTAssertThrowsError(
+      try SwiftEvolveTool.Step(arguments: ["exec-path", "--rules=rules.json", "--rules=other.json", "file1.swift"])
+    )
   }
   
   func testReplace() throws {
