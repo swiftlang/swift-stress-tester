@@ -18,7 +18,7 @@ public final class FailFastOperationQueue<Item: Operation> {
   private let operations: [Item]
   private let completionHandler: (Int, Item, Int, Int) -> Bool
 
-  init(operations: [Item], maxWorkers: Int? = nil,
+  public init(operations: [Item], maxWorkers: Int? = nil,
        completionHandler: @escaping (Int, Item, Int, Int) -> Bool) {
     self.operations = operations
     self.completionHandler = completionHandler
@@ -30,7 +30,7 @@ public final class FailFastOperationQueue<Item: Operation> {
     }
   }
 
-  func waitUntilFinished() {
+  public func waitUntilFinished() {
     let group = DispatchGroup()
     var completed = 0
 

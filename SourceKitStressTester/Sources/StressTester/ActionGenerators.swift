@@ -13,19 +13,19 @@
 import Foundation
 import SwiftSyntax
 
-protocol ActionGenerator {
+public protocol ActionGenerator {
   func generate(for tree: SourceFileSyntax) -> [Action]
 }
 
 extension ActionGenerator {
   /// Entrypoint intended for testing purposes only
-  func generate(for file: URL) -> [Action] {
+  public func generate(for file: URL) -> [Action] {
     let tree = try! SyntaxParser.parse(file)
     return generate(for: tree)
   }
 
   /// Entrypoint intended for testing purposes only
-  func generate(for source: String) -> [Action] {
+  public func generate(for source: String) -> [Action] {
     let tree = try! SyntaxParser.parse(source: source)
     return generate(for: tree)
   }
@@ -102,9 +102,11 @@ extension ActionGenerator {
 
 /// Walks through the provided source files token by token, generating
 /// CursorInfo, RangeInfo, and CodeComplete actions as it goes.
-final class RequestActionGenerator: ActionGenerator {
+public final class RequestActionGenerator: ActionGenerator {
 
-  func generate(for tree: SourceFileSyntax) -> [Action] {
+  public init() {}
+
+  public func generate(for tree: SourceFileSyntax) -> [Action] {
     let collector = ActionTokenCollector()
     let actions: [Action] = [.collectExpressionType] + collector
       .collect(from: tree)
@@ -153,8 +155,10 @@ final class RequestActionGenerator: ActionGenerator {
 
 /// Walks through the provided source files token by token, editing each identifier to be misspelled, and
 /// unbalancing braces and brackets. Each misspelling or removed brace is restored before the next edit.
-final class TypoActionGenerator: ActionGenerator {
-    func generate(for tree: SourceFileSyntax) -> [Action] {
+public final class TypoActionGenerator: ActionGenerator {
+    public init() {}
+
+    public func generate(for tree: SourceFileSyntax) -> [Action] {
         let collector = ActionTokenCollector()
         return collector.collect(from: tree)
             .flatMap { generateActions(for: $0.token) }
@@ -206,9 +210,10 @@ final class TypoActionGenerator: ActionGenerator {
 /// Works through the provided source files generating actions to first remove their
 /// content, and then add it back again token by token. CursorInfo, RangeInfo and
 /// CodeComplete actions are also emitted at applicable locations.
-final class BasicRewriteActionGenerator: ActionGenerator {
+public final class BasicRewriteActionGenerator: ActionGenerator {
+  public init() {}
 
-  func generate(for tree: SourceFileSyntax) -> [Action] {
+  public func generate(for tree: SourceFileSyntax) -> [Action] {
     let collector = ActionTokenCollector()
     let tokens = collector.collect(from: tree)
     return [.replaceText(offset: 0, length: tree.endPosition.utf8Offset, text: "")] +
@@ -232,8 +237,10 @@ final class BasicRewriteActionGenerator: ActionGenerator {
   }
 }
 
-final class ConcurrentRewriteActionGenerator: ActionGenerator {
-  func generate(for tree: SourceFileSyntax) -> [Action] {
+public final class ConcurrentRewriteActionGenerator: ActionGenerator {
+  public init() {}
+
+  public func generate(for tree: SourceFileSyntax) -> [Action] {
     var actions: [Action] = [.replaceText(offset: 0, length: tree.totalLength.utf8Length, text: "")]
     let groups = tree.statements.map { statement -> ActionTokenGroup in
       let collector = ActionTokenCollector()
@@ -296,9 +303,10 @@ final class ConcurrentRewriteActionGenerator: ActionGenerator {
 /// re-introducing it token by token, from the most deeply nested token to the
 /// least. Actions are emitted before and after each inserted token as it is
 /// inserted.
-final class InsideOutRewriteActionGenerator: ActionGenerator {
+public final class InsideOutRewriteActionGenerator: ActionGenerator {
+  public init() {}
 
-  func generate(for tree: SourceFileSyntax) -> [Action] {
+  public func generate(for tree: SourceFileSyntax) -> [Action] {
     var actions: [Action] = [.replaceText(offset: 0, length: tree.totalLength.utf8Length, text: "")]
     let collector = ActionTokenCollector()
     let actionTokens = collector.collect(from: tree)

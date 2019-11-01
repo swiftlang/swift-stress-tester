@@ -358,12 +358,12 @@ struct SourceKitDocument {
 }
 
 /// Tracks the current state of a source file
-struct SourceState {
-  let mode: RewriteMode
-  var source: String
-  var wasModified: Bool
+public struct SourceState {
+  public let mode: RewriteMode
+  public var source: String
+  public var wasModified: Bool
 
-  init(rewriteMode: RewriteMode, content source: String, wasModified: Bool = false) {
+  public init(rewriteMode: RewriteMode, content source: String, wasModified: Bool = false) {
     self.mode = rewriteMode
     self.source = source
     self.wasModified = wasModified
@@ -371,7 +371,7 @@ struct SourceState {
 
   /// - returns: true if source state changed
   @discardableResult
-  mutating func replace(offset: Int, length: Int, with text: String) -> Bool {
+  public mutating func replace(offset: Int, length: Int, with text: String) -> Bool {
     let bytes = source.utf8
     let prefix = bytes.prefix(upTo: bytes.index(bytes.startIndex, offsetBy: offset))
     let suffix = bytes.suffix(from: bytes.index(bytes.startIndex, offsetBy: offset + length))

@@ -15,7 +15,7 @@ import Foundation
 
 /// Keeps track of the detected failures and their status (expected/unexpected)
 /// across multiple wrapper invocations
-struct IssueManager {
+public struct IssueManager {
   let activeConfig: String
   let expectedIssuesFile: URL
   let resultsFile: URL
