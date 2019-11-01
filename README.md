@@ -31,20 +31,23 @@ For local development you'll first need to download and install a recent [swift.
 
 To generate an Xcode project that's set up correctly, run `build-script-helper.py`, passing the path to the downloaded toolchain via the `--toolchain` option, the tool's package name in the `--package-dir` option, and the `generate-xcodeproj` action:
 ```
-$ ./build-script-helper.py --package-dir SourceKitStressTester --toolchain $TOOLCHAIN_DIR generate-xcodeproj
+$ ./build-script-helper.py --package-dir SourceKitStressTester --toolchain $TOOLCHAIN_DIR generate-xcodeproj --no-local-deps
 ```
+If you have the [SwiftSyntax](https://github.com/apple/swift-syntax) and [SwiftPM](https://github.com/apple/swift-package-manager) repositories already checked out next to the stress tester's repository, you can omit the `--no-local-deps` option to use the existing checkouts instead of fetching the dependencies using SwiftPM.
+
 This will generate `SourceKitStressTester/SourceKitStressTester.xcodeproj`. Open it and select the toolchain you installed from the Xcode > Toolchains menu, before building the `SourceKitStressTester-Package` scheme.
 
 #### Via command line
 
-To build, run `build-script-helper.py`, passing the path to the downloaded toolchain via the `--toolchain` option and the tool's package name in the `--package-dir` option:
+To build, run `build-script-helper.py`, passing the path to the downloaded toolchain via the `--toolchain` option and the tool's package name in the `--package-dir` option.
 ```
 $ ./build-script-helper.py --package-dir SourceKitStressTester --toolchain $TOOLCHAIN_DIR
 ```
+If you have the [SwiftSyntax](https://github.com/apple/swift-syntax) and [SwiftPM](https://github.com/apple/swift-package-manager) repositories already checked out next to the stress tester's repository, you can omit the `--no-local-deps` option to use the existing checkouts instead of fetching the dependencies using SwiftPM.
 
 To run the tests, repeat the above command, but additionally pass the `test` action:
 ```
-$ ./Utilities/build-script-helper.py --package-dir SourceKitStressTester --toolchain $TOOLCHAIN_DIR
+$ ./Utilities/build-script-helper.py test --package-dir SourceKitStressTester --toolchain $TOOLCHAIN_DIR
 ```
 
 ## Running
