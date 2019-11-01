@@ -19,7 +19,11 @@
 import SwiftSyntax
 
 public struct EvolutionRules {
-  var exclusions: [AnyEvolution.Kind: Set<String>?]
+  public var exclusions: [AnyEvolution.Kind: Set<String>?]
+
+  public init(exclusions: [AnyEvolution.Kind: Set<String>?]) {
+    self.exclusions = exclusions
+  }
 
   func makeAll<G>(
     for node: Syntax, in decl: DeclContext, using rng: inout G
@@ -44,7 +48,7 @@ public struct EvolutionRules {
     }
   }
   
-  func permit(_ kind: AnyEvolution.Kind, forDeclName declName: String) -> Bool {
+  public func permit(_ kind: AnyEvolution.Kind, forDeclName declName: String) -> Bool {
     guard let excludedDeclNames = exclusions[kind, default: []] else {
       // If exclusions[kind] == Optional.some(.none), all decl names are
       // excluded.
@@ -70,7 +74,7 @@ extension EvolutionRules: Decodable {
 }
 
 extension AnyEvolution.Kind: CodingKey, CustomStringConvertible {
-  var description: String {
+  public var description: String {
     return stringValue
   }
 }

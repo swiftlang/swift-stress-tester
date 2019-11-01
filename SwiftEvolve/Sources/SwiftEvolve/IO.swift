@@ -23,7 +23,7 @@ public enum LogType: Int, Comparable {
     return lhs.rawValue < rhs.rawValue
   }
 
-  static var minimumToPrint = LogType.error
+  public static var minimumToPrint = LogType.error
 }
 
 public func log(type: LogType, _ items: Any..., separator: String = " ", terminator: String = "\n") {

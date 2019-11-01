@@ -1,6 +1,6 @@
 import XCTest
 import SwiftSyntax
-@testable import SwiftEvolve
+import SwiftEvolve
 import TSCBasic
 
 extension SyntaxProtocol {

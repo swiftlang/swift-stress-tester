@@ -1,6 +1,6 @@
 import XCTest
 import SwiftSyntax
-@testable import SwiftEvolve
+import SwiftEvolve
 
 class RegressionTests: XCTestCase {
   var unusedRNG = UnusedGenerator()

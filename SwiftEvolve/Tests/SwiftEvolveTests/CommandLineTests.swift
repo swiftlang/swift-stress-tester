@@ -1,5 +1,5 @@
 import XCTest
-@testable import SwiftEvolve
+import SwiftEvolve
 import TSCBasic
 
 class CommandLineTests: XCTestCase {

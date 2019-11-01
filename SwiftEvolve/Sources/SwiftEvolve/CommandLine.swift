@@ -31,7 +31,7 @@ enum CommandLineError: Error, CustomStringConvertible {
 }
 
 extension SwiftEvolveTool.Step {
-  init(arguments: [String]) throws {
+  public init(arguments: [String]) throws {
     let command = arguments.first!
     let rest = Array(arguments.dropFirst())
     
@@ -126,7 +126,7 @@ extension SwiftEvolveTool.Step: CustomStringConvertible {
     }
   }
   
-  var description: String {
+  public var description: String {
     return arguments.map { $0.shellEscaped }.joined(separator: " ")
   }
 }
