@@ -176,7 +176,7 @@ struct SourceKitDocument {
     return (info, response)
   }
 
-  func codeComplete(offset: Int) throws -> (RequestInfo, SourceKitdResponse) {
+  func codeComplete(offset: Int, expectedResult: ExpectedResult?) throws -> (RequestInfo, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_CodeComplete)
 
     request.addParameter(.key_SourceFile, value: file)
@@ -191,6 +191,10 @@ struct SourceKitDocument {
     let info = RequestInfo.codeComplete(document: documentInfo, offset: offset, args: args)
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
+
+    if let expectedResult = expectedResult {
+      try checkExpectedCompletionResult(expectedResult, in: response, info: info)
+    }
 
     return (info, response)
   }
@@ -271,6 +275,41 @@ struct SourceKitDocument {
     try updateSyntaxTree(request: info)
 
     return (tree!, response)
+  }
+
+  private func checkExpectedCompletionResult(_ expected: ExpectedResult, in response: SourceKitdResponse, info: RequestInfo) throws {
+    let matcher = CompletionMatcher(for: expected)
+    var found = false
+    response.value.getArray(.key_Results).enumerate { (index, item) -> Bool in
+      let result = item.getDictionary()
+      found = matcher.match(result.getString(.key_Name), ignoreArgLabels: shouldIgnoreArgs(of: expected, for: result))
+      return !found
+    }
+    if !found {
+        throw SourceKitError.failed(.missingExpectedResult, request: info, response: response.description.spm_chomp())
+    }
+  }
+
+  private func shouldIgnoreArgs(of expected: ExpectedResult, for result: SourceKitdResponse.Dictionary) -> Bool {
+    switch result.getUID(.key_Kind) {
+    case .kind_DeclStruct, .kind_DeclClass, .kind_DeclEnum, .kind_DeclTypeAlias:
+      // Initializer calls look like function calls syntactically, but the
+      // completion results only include the type name. Allow for that by
+      // matching on the base name only.
+      return expected.kind == .call
+    case .kind_DeclVarGlobal, .kind_DeclVarStatic, .kind_DeclVarClass, .kind_DeclVarInstance, .kind_DeclVarParam, .kind_DeclVarLocal:
+      // Any variable/property of function type can be called, and looks the
+      // same as a function call as far as the expected rersult is concerned,
+      // but it's name won't have any argument labels.
+      // If this result's type has an -> in it somewhere and the expected
+      // result only has empty argument labels (if any), it *may* be in this
+      // category, so match on the base name only.
+      let typeName = result.getString(.key_TypeName)
+      return expected.kind == .call && typeName.contains("->") &&
+        expected.name.argLabels.allSatisfy{ $0.isEmpty }
+    default:
+      return false
+    }
   }
 
   private func sendWithTimeout(_ request: SourceKitdRequest, info: RequestInfo) throws -> SourceKitdResponse {
@@ -379,5 +418,112 @@ public struct SourceState {
     let changed = length > 0 || !text.isEmpty
     wasModified = wasModified || changed
     return changed
+  }
+}
+
+public struct CompletionMatcher {
+  private let expected: ExpectedResult
+
+  public init(for expected: ExpectedResult) {
+    self.expected = expected
+  }
+
+  /// - returns: true if a match was found
+  public func match(_ result: String, ignoreArgLabels: Bool) -> Bool {
+    if ignoreArgLabels {
+      let name = SwiftName(result)!
+      return name.base == expected.name.base
+    }
+    // Check if the base name and/or argument labels match based on the expected
+    // result kind.
+    return matches(name: result)
+  }
+
+  private func matches(name: String) -> Bool {
+    let resultName = SwiftName(name)!
+    guard resultName.base == expected.name.base else { return false }
+    switch expected.kind {
+    case .call:
+      return name.last == ")" && matchesCall(labels: resultName.argLabels)
+    case .reference:
+      return expected.name.argLabels.isEmpty || expected.name.argLabels == resultName.argLabels
+    case .pattern:
+      // If the expected result didn't match on the associated value: it matches
+      if expected.name.argLabels.isEmpty {
+        return true
+      }
+
+      // Result names for enum cases work differently to functions in that
+      // unlabelled items in the associated values aren't represented, e.g.:
+      //   case foo              // name: foo
+      //   case foo(Int, Int)    // name: foo()
+      //   case foo(x: Int, Int) // name: foo(x:)
+      //   case foo(Int, y: Int) // name: foo(y:)
+
+      // If the result name doesn't have an associated value, but the expected
+      // name does: it doesn't match
+      if name.last != ")" && !expected.name.argLabels.isEmpty {
+        return false
+      }
+
+      // If the expected result bound the entire associated value to a single
+      // unlabelled variable, we're done
+      if expected.name.argLabels == [""] {
+        return true
+      }
+
+      // Otherwise the expected argument labels must either match the
+      // corresponding result arg labels or be "" since they don't have to be
+      // specified when pattern matching.
+      var unmatched = resultName.argLabels[...]
+      return expected.name.argLabels.allSatisfy{ label in
+        if label.isEmpty { return true }
+        if let labelIndex = unmatched.firstIndex(of: label) {
+          unmatched = unmatched.dropFirst(labelIndex - unmatched.startIndex + 1)
+          return true
+        }
+        return false
+      }
+    }
+  }
+
+  private func matchesCall(labels: [String]) -> Bool {
+    var paramLabels = labels[...]
+    var remainingArgLabels = expected.name.argLabels[...]
+
+    guard !paramLabels.isEmpty else { return remainingArgLabels.isEmpty }
+    while let nextParamLabel = paramLabels.popFirst() {
+      if nextParamLabel.isEmpty {
+        // No label
+        if let first = remainingArgLabels.first, first.isEmpty {
+          // Matched - consume the argument
+          _ = remainingArgLabels.removeFirst()
+        } else {
+          // Assume this was defaulted and skip over it
+          continue
+        }
+      } else {
+        // Has param label
+        if remainingArgLabels.count < expected.name.argLabels.count {
+          // A previous param was matched, so assume it was variadic and consume
+          // any leading unlabelled args so the next arg is labelled
+          remainingArgLabels = remainingArgLabels.drop{ $0.isEmpty }
+        }
+        guard let nextArgLabel = remainingArgLabels.first else {
+          // Assume any unprocessed parameters are defaulted
+          return true
+        }
+        if nextArgLabel == nextParamLabel {
+          // Matched - consume the argument
+          _ = remainingArgLabels.removeFirst()
+          continue
+        }
+        // Else assume this param was defaulted and skip it.
+      }
+    }
+    // If at least one arglabel was matched, allow for it being variadic
+    let hadMatch = remainingArgLabels.count < expected.name.argLabels.count
+    return  remainingArgLabels.isEmpty || hadMatch &&
+      remainingArgLabels.allSatisfy { $0.isEmpty }
   }
 }
