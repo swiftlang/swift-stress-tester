@@ -7,6 +7,18 @@ import Glibc
 import Darwin.C
 #endif
 
+let sourcekitSearchPath: String
+if let sourcekitSearchPathPointer = getenv("SWIFT_STRESS_TESTER_SOURCEKIT_SEARCHPATH") {
+  sourcekitSearchPath = String(cString: sourcekitSearchPathPointer)
+} else {
+  // We cannot fatalError or otherwise fail here because SwiftSyntax parses
+  // this package manifest while not specifying the 
+  // SWIFT_STRESS_TESTER_SOURCEKIT_SEARCHPATH enviornment variable in the 
+  // unified build.
+  // The environment variable is only specified once we build the stress tester.
+  sourcekitSearchPath = ""
+}
+
 let package = Package(
   name: "SourceKitStressTester",
   products: [
@@ -23,7 +35,9 @@ let package = Package(
     ),
     .target(
       name: "StressTester",
-      dependencies: ["Common", "TSCUtility", "SwiftSyntax"]
+      dependencies: ["Common", "TSCUtility", "SwiftSyntax"],
+      swiftSettings: [.unsafeFlags(["-Fsystem", sourcekitSearchPath])],
+      linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", sourcekitSearchPath])]
     ),
     .target(
       name: "SwiftCWrapper",
@@ -32,7 +46,8 @@ let package = Package(
 
     .target(
       name: "sk-stress-test",
-      dependencies: ["StressTester"]
+      dependencies: ["StressTester"],
+      swiftSettings: [.unsafeFlags(["-Fsystem", sourcekitSearchPath])]
     ),
     .target(
       name: "sk-swiftc-wrapper",
@@ -42,6 +57,7 @@ let package = Package(
     .testTarget(
       name: "StressTesterToolTests",
       dependencies: ["StressTester"],
+      swiftSettings: [.unsafeFlags(["-Fsystem", sourcekitSearchPath])],
       // SwiftPM does not get the rpath for XCTests in multiroot packages right (rdar://56793593)
       // Add the correct rpath here
       linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@loader_path/../../../"])]
