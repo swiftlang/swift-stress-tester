@@ -149,7 +149,8 @@ public struct StressTesterTool {
       stdoutStream <<< String(describing: message) <<< "\n"
     case .json:
       let data = try JSONEncoder().encode(message)
-      stdoutStream <<< data <<< "\n".data(using: .ascii)!
+      stdoutStream.write(data)
+      stdoutStream.write("\n".data(using: .ascii)!)
     }
     stdoutStream.flush()
   }
