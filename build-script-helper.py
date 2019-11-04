@@ -36,7 +36,7 @@ def parse_args(args):
   parser.add_argument('--package-dir', default='SourceKitStressTester')
   parser.add_argument('-v', '--verbose', action='store_true', help='log executed commands')
   parser.add_argument('--prefix', help='install path')
-  parser.add_argument('--config', default='release')
+  parser.add_argument('--config', default='debug')
   parser.add_argument('--build-dir', default='.build')
   parser.add_argument('--toolchain', required=True, help='the toolchain to use when building this package')
   parser.add_argument('--update', action='store_true', help='update all SwiftPM dependencies')
