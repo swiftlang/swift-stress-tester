@@ -19,19 +19,27 @@ import SwiftSyntax
 import TSCBasic
 
 public class SwiftEvolveTool {
-  enum Step: Hashable {
+  public enum Step: Hashable {
     case parse(arguments: [String])
     case seed(options: Options)
     case plan(seed: UInt64, options: Options)
     case evolve(planFile: AbsolutePath, options: Options)
     case exit(code: Int32)
     
-    struct Options: Hashable {
+    public struct Options: Hashable {
       let command: String
       let files: [AbsolutePath]
       let rulesFile: AbsolutePath?
       let replace: Bool
       let verbose: Bool
+
+      public init(command: String, files: [AbsolutePath], rulesFile: AbsolutePath?, replace: Bool, verbose: Bool) {
+        self.command = command
+        self.files = files
+        self.rulesFile = rulesFile
+        self.replace = replace
+        self.verbose = verbose
+      }
     }
   }
   
@@ -60,7 +68,7 @@ extension SwiftEvolveTool.Step {
   }
 }
 
-extension SwiftEvolveTool.Step.Options {
+public extension SwiftEvolveTool.Step.Options {
   func setMinimumLogTypeToPrint() {
     LogType.minimumToPrint = verbose ? .debug : .info
   }

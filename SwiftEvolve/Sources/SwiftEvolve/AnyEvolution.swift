@@ -18,7 +18,7 @@
 
 import SwiftSyntax
 
-struct AnyEvolution {
+public struct AnyEvolution {
   var value: Evolution
 
   init(_ value: Evolution) {
@@ -31,7 +31,7 @@ struct AnyEvolution {
 }
 
 extension AnyEvolution: CustomStringConvertible {
-  var description: String {
+  public var description: String {
     return String(describing: value)
   }
 }
@@ -44,7 +44,7 @@ extension AnyEvolution: Codable {
     case value
   }
 
-  init(from decoder: Decoder) throws {
+  public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
 
     let kind = try container.decode(Kind.self, forKey: .kind)
@@ -53,7 +53,7 @@ extension AnyEvolution: Codable {
 
   }
 
-  func encode(to encoder: Encoder) throws {
+  public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
 
     try container.encode(value.kind, forKey: .kind)

@@ -18,7 +18,7 @@
 import SwiftSyntax
 import Foundation
 
-protocol DeclWithMembers: DeclSyntaxProtocol {
+public protocol DeclWithMembers: DeclSyntaxProtocol {
   var members: MemberDeclBlockSyntax { get }
   func withMembers(_ newChild: MemberDeclBlockSyntax?) -> Self
 }
@@ -29,50 +29,50 @@ extension EnumDeclSyntax: DeclWithMembers {}
 extension ProtocolDeclSyntax: DeclWithMembers {}
 extension ExtensionDeclSyntax: DeclWithMembers {}
 
-protocol DeclWithParameters: DeclSyntaxProtocol {
+public protocol DeclWithParameters: DeclSyntaxProtocol {
   var baseName: String { get }
   
   var parameters: ParameterClauseSyntax { get }
   func withParameters(_ parameters: ParameterClauseSyntax?) -> Self
 }
 
-protocol AbstractFunctionDecl: DeclWithParameters {
+public protocol AbstractFunctionDecl: DeclWithParameters {
   var body: CodeBlockSyntax? { get }
   func withBody(_ body: CodeBlockSyntax?) -> Self
 }
 
 extension InitializerDeclSyntax: AbstractFunctionDecl {
-  var baseName: String { return "init" }
+  public var baseName: String { return "init" }
 }
 
 extension FunctionDeclSyntax: AbstractFunctionDecl {
-  var baseName: String {
+  public var baseName: String {
     return identifier.text
   }
 
-  var parameters: ParameterClauseSyntax {
+  public var parameters: ParameterClauseSyntax {
     return signature.input
   }
 
-  func withParameters(_ parameters: ParameterClauseSyntax?) -> FunctionDeclSyntax {
+  public func withParameters(_ parameters: ParameterClauseSyntax?) -> FunctionDeclSyntax {
     return withSignature(signature.withInput(parameters))
   }
 }
 
 extension SubscriptDeclSyntax: DeclWithParameters {
-  var baseName: String { return "subscript" }
+  public var baseName: String { return "subscript" }
 
-  var parameters: ParameterClauseSyntax {
+  public var parameters: ParameterClauseSyntax {
     return indices
   }
 
-  func withParameters(_ parameters: ParameterClauseSyntax?) -> SubscriptDeclSyntax {
+  public func withParameters(_ parameters: ParameterClauseSyntax?) -> SubscriptDeclSyntax {
     return withIndices(parameters)
   }
 }
 
 extension DeclWithParameters {
-  var name: String {
+  public var name: String {
     let parameterNames = parameters.parameterList.map { param in
       "\(param.firstName?.text ?? "_"):"
     }
@@ -209,7 +209,7 @@ fileprivate class TokenTextFormatter: SyntaxVisitor {
   }
 }
 
-extension SyntaxCollection {
+public extension SyntaxCollection {
   var first: Element? {
     return self.first(where:{_ in true})
   }

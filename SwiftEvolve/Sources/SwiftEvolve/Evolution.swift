@@ -18,7 +18,7 @@
 import SwiftSyntax
 
 /// Errors with recognized meaning for evolution initialization.
-enum EvolutionError: Error {
+public enum EvolutionError: Error {
   /// The evolution does not know how to handle this node. If this is a
   /// prerequisite evolution, the evolution following it cannot be performed.
   case unsupported
@@ -28,7 +28,7 @@ enum EvolutionError: Error {
 /// evolution knows which declarations it can be applied to; to see if it can
 /// be applied to a given declaration, try to create an instance with
 /// `init(for:in:using:)`.
-protocol Evolution: Codable {
+public protocol Evolution: Codable {
   /// Attempts to create a random instance of the given evolution on `node`.
   ///
   /// - Parameter node: The syntax node we're looking to evolve.
@@ -93,14 +93,14 @@ extension Evolution {
     return prereqs + [evo]
   }
 
-  func makePrerequisites<G>(
+  public func makePrerequisites<G>(
     for node: Syntax, in decl: DeclContext, using rng: inout G
   ) throws -> [Evolution] where G: RandomNumberGenerator {
     return []
   }
 }
 
-extension AnyEvolution {
+public extension AnyEvolution {
   enum Kind: String, Codable, CaseIterable {
     case shuffleMembers
     case synthesizeMemberwiseInitializer
@@ -120,15 +120,19 @@ extension AnyEvolution {
 }
 
 /// An evolution which rearranges the members of a type.
-struct ShuffleMembersEvolution: Evolution {
+public struct ShuffleMembersEvolution: Evolution {
   /// The members to be shuffled. Any indices not in this list should be moved
   /// to the end and kept in the same order.
-  var mapping: [Int]
-  var kind: AnyEvolution.Kind { return .shuffleMembers }
+  public var mapping: [Int]
+  public var kind: AnyEvolution.Kind { return .shuffleMembers }
+
+  public init(mapping: [Int]) {
+    self.mapping = mapping
+  }
 }
 
 /// An evolution which makes an implicit struct initializer explicit.
-struct SynthesizeMemberwiseInitializerEvolution: Evolution {
+public struct SynthesizeMemberwiseInitializerEvolution: Evolution {
   struct StoredProperty: Codable, CustomStringConvertible {
     var name: String
     var type: String
@@ -140,19 +144,19 @@ struct SynthesizeMemberwiseInitializerEvolution: Evolution {
   
   var inits: [[StoredProperty]]
   
-  var kind: AnyEvolution.Kind { return .synthesizeMemberwiseInitializer }
+  public var kind: AnyEvolution.Kind { return .synthesizeMemberwiseInitializer }
 }
 
 /// An evolution which shuffles the constraints in a generic where clause.
-struct ShuffleGenericRequirementsEvolution: Evolution {
-  var mapping: [Int]
-  var kind: AnyEvolution.Kind { return .shuffleGenericRequirements }
+public struct ShuffleGenericRequirementsEvolution: Evolution {
+  public var mapping: [Int]
+  public var kind: AnyEvolution.Kind { return .shuffleGenericRequirements }
 }
 
 // MARK: Implementations
 
 extension ShuffleMembersEvolution {
-  init?<G>(for node: Syntax, in decl: DeclContext, using rng: inout G) throws
+  public init?<G>(for node: Syntax, in decl: DeclContext, using rng: inout G) throws
     where G: RandomNumberGenerator
   {
     guard
@@ -177,7 +181,7 @@ extension ShuffleMembersEvolution {
     self.init(mapping: mapping)
   }
 
-  func makePrerequisites<G>(
+  public func makePrerequisites<G>(
     for node: Syntax, in decl: DeclContext, using rng: inout G
   ) throws -> [Evolution] where G : RandomNumberGenerator {
     return [
@@ -186,7 +190,7 @@ extension ShuffleMembersEvolution {
     ].compactMap { $0 }.flatMap { $0 }
   }
 
-  func evolve(_ node: Syntax) -> Syntax {
+  public func evolve(_ node: Syntax) -> Syntax {
     let members = Array(node.as(MemberDeclListSyntax.self)!)
 
     let inMapping = Set(mapping)
@@ -198,7 +202,7 @@ extension ShuffleMembersEvolution {
 }
 
 extension SynthesizeMemberwiseInitializerEvolution {
-  init?<G>(for node: Syntax, in decl: DeclContext, using rng: inout G) throws
+  public init?<G>(for node: Syntax, in decl: DeclContext, using rng: inout G) throws
     where G : RandomNumberGenerator
   {
     guard let members = node.as(MemberDeclListSyntax.self) else {
@@ -283,7 +287,7 @@ extension SynthesizeMemberwiseInitializerEvolution {
     self.init(inits: inits)
   }
 
-  func evolve(_ node: Syntax) -> Syntax {
+  public func evolve(_ node: Syntax) -> Syntax {
     let members = node.as(MemberDeclListSyntax.self)!
     
     let evolved = inits.reduce(members) { members, properties in
@@ -335,7 +339,7 @@ extension SynthesizeMemberwiseInitializerEvolution {
 }
 
 extension ShuffleGenericRequirementsEvolution {
-  init?<G>(for node: Syntax, in decl: DeclContext, using rng: inout G) throws
+  public init?<G>(for node: Syntax, in decl: DeclContext, using rng: inout G) throws
     where G: RandomNumberGenerator
   {
     guard
@@ -352,7 +356,7 @@ extension ShuffleGenericRequirementsEvolution {
     self.init(mapping: mapping)
   }
 
-  func evolve(_ node: Syntax) -> Syntax {
+  public func evolve(_ node: Syntax) -> Syntax {
     let requirements = Array(node.as(GenericRequirementListSyntax.self)!)
 
     precondition(requirements.count == mapping.count,

@@ -21,14 +21,14 @@ private func makeName(from declarationChain: [Decl]) -> String {
   return declarationChain.map { $0.name }.joined(separator: ".")
 }
 
-struct DeclContext {
+public struct DeclContext {
   private(set) var name: String
 
   var declarationChain: [Decl] = [] {
     didSet { name = makeName(from: declarationChain) }
   }
 
-  init(declarationChain: [Decl] = []) {
+  public init(declarationChain: [Decl] = []) {
     self.declarationChain = declarationChain
     name = makeName(from: declarationChain)
   }
@@ -64,7 +64,7 @@ struct DeclContext {
 }
 
 extension DeclContext: CustomStringConvertible {
-  var description: String {
+  public var description: String {
     return name
   }
 
@@ -112,7 +112,7 @@ extension DeclContext {
   }
 }
 
-enum AccessLevel: String {
+public enum AccessLevel: String {
   case `private`, `fileprivate`, `internal`, `public`, `open`
 }
 
@@ -137,7 +137,7 @@ extension SyntaxProtocol {
   }
 }
 
-protocol Decl {
+public protocol Decl {
   /// We do the same trick here that SwiftSyntax does with `SyntaxProtocol` and
   /// `Syntax`. Picking the same name that is already used by SyntaxProtocol
   /// means we don't have to reimplement the property in terms of Syntax(self).
@@ -153,7 +153,7 @@ protocol Decl {
   func lookupDirect(_ name: String) -> Decl?
 }
 
-extension Decl {
+public extension Decl {
   var isResilient: Bool { return true }
   var isStored: Bool { return false }
 
@@ -162,7 +162,7 @@ extension Decl {
   }
 }
 
-extension Decl where Self: DeclWithMembers {
+public extension Decl where Self: DeclWithMembers {
   func lookupDirect(_ name: String) -> Decl? {
     for item in members.members {
       guard let member = item.decl.asDecl else { continue }
@@ -174,7 +174,7 @@ extension Decl where Self: DeclWithMembers {
   }
 }
 
-extension Decl where Self: AbstractFunctionDecl {
+public extension Decl where Self: AbstractFunctionDecl {
   func lookupDirect(_ name: String) -> Decl? {
     guard let body = self.body else { return nil }
     for item in body.statements {
@@ -188,11 +188,11 @@ extension Decl where Self: AbstractFunctionDecl {
 }
 
 extension SourceFileSyntax: Decl {
-  var name: String { return "(file)" }
+  public var name: String { return "(file)" }
 
-  var modifiers: ModifierListSyntax? { return nil }
+  public var modifiers: ModifierListSyntax? { return nil }
   
-  func lookupDirect(_ name: String) -> Decl? {
+  public func lookupDirect(_ name: String) -> Decl? {
     for item in statements {
       guard let decl = item.item.asDecl else { continue }
       if decl.name == name {
@@ -204,63 +204,63 @@ extension SourceFileSyntax: Decl {
 }
 
 extension ClassDeclSyntax: Decl {
-  var name: String {
+  public var name: String {
     return identifier.text
   }
 
-  var isResilient: Bool {
+  public var isResilient: Bool {
     return !attributes.contains(named: "_fixed_layout")
   }
 }
 
 extension StructDeclSyntax: Decl {
-  var name: String {
+  public var name: String {
     return identifier.text
   }
 
-  var isResilient: Bool {
+  public var isResilient: Bool {
     return !attributes.contains(named: "_fixed_layout")
   }
 }
 
 extension EnumDeclSyntax: Decl {
-  var name: String {
+  public var name: String {
     return identifier.text
   }
 
-  var isResilient: Bool {
+  public var isResilient: Bool {
     return !attributes.contains(named: "_frozen")
   }
 }
 
 extension ProtocolDeclSyntax: Decl {
-  var name: String {
+  public var name: String {
     return identifier.text
   }
 }
 
 extension ExtensionDeclSyntax: Decl {
-  var name: String {
+  public var name: String {
     return "(extension \(extendedType.typeText))"
   }
 }
 
 extension TypealiasDeclSyntax: Decl {
-  var name: String {
+  public var name: String {
     return identifier.text
   }
   
-  func lookupDirect(_ name: String) -> Decl? {
+  public func lookupDirect(_ name: String) -> Decl? {
     fatalError("Not implemented: \(type(of: self)).lookupDirect(_:)")
   }
 }
 
 extension AssociatedtypeDeclSyntax: Decl {
-  var name: String {
+  public var name: String {
     return identifier.text
   }
   
-  func lookupDirect(_ name: String) -> Decl? {
+  public func lookupDirect(_ name: String) -> Decl? {
     fatalError("Not implemented: \(type(of: self)).lookupDirect(_:)")
   }
 }
@@ -270,7 +270,7 @@ extension FunctionDeclSyntax: Decl {}
 extension InitializerDeclSyntax: Decl {}
 
 extension SubscriptDeclSyntax: Decl {
-  func lookupDirect(_ name: String) -> Decl? {
+  public func lookupDirect(_ name: String) -> Decl? {
     fatalError("Not implemented: \(type(of: self)).lookupDirect(_:)")
   }
 }
@@ -342,7 +342,7 @@ extension VariableDeclSyntax: Decl {
     }
   }
   
-  var name: String {
+  public var name: String {
     let list = boundProperties
     if list.count == 1 { return list.first!.name.text }
     let nameList = list.map { $0.name.text }
@@ -364,7 +364,7 @@ extension VariableDeclSyntax: Decl {
 
   // FIXME: Is isResilient == true correct?
 
-  var isStored: Bool {
+  public var isStored: Bool {
     // FIXME: It's wrong to describe the whole decl as stored or not stored;
     // each individual binding (or, arguably, each individual bound property)
     // is stored or not stored.
@@ -397,7 +397,7 @@ extension VariableDeclSyntax: Decl {
     }
   }
   
-  func lookupDirect(_ name: String) -> Decl? {
+  public func lookupDirect(_ name: String) -> Decl? {
     return nil
   }
 }
@@ -418,7 +418,7 @@ extension EnumCaseElementSyntax {
 }
 
 extension EnumCaseDeclSyntax: Decl {
-  var name: String {
+  public var name: String {
     if elements.count == 1 {
       return elements.first!.name
     }
@@ -427,11 +427,11 @@ extension EnumCaseDeclSyntax: Decl {
     }
   }
 
-  var isStored: Bool {
+  public var isStored: Bool {
     return true
   }
 
-  func lookupDirect(_ name: String) -> Decl? {
+  public func lookupDirect(_ name: String) -> Decl? {
     return nil
   }
 }

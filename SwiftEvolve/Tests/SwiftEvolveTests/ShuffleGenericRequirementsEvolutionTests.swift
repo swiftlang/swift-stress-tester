@@ -1,7 +1,7 @@
 import XCTest
 import SwiftSyntax
 import SwiftLang
-@testable import SwiftEvolve
+import SwiftEvolve
 
 class ShuffleGenericRequirementsEvolutionTests: XCTestCase {
   var predictableRNG = PredictableGenerator(values: 1..<16)
