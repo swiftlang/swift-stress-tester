@@ -47,7 +47,7 @@ struct SyntaxDump: TextOutputStreamable {
 
     let startLoc = node.startLocation(converter: locationConverter)
     write("(")
-    switch node.asSyntaxEnum {
+    switch node.as(SyntaxEnum.self) {
     case .token(let node):
       switch node.tokenKind {
       case .identifier(let name):
