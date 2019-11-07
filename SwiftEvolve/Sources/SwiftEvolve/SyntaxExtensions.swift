@@ -130,7 +130,7 @@ extension DeclContext {
 
 extension TypeSyntax {
   func lookup(in context: DeclContext) -> DeclContext? {
-    switch Syntax(self).asSyntaxEnum {
+    switch Syntax(self).as(SyntaxEnum.self) {
     case .simpleTypeIdentifier(let simpleTypeIdentifier):
       return context.lookupUnqualified(simpleTypeIdentifier.name)
     case .memberTypeIdentifier(let memberTypeIdentifier):
@@ -154,7 +154,7 @@ extension TypeSyntax {
   func isFunctionType(in dc: DeclContext) -> Bool {
     let abs = absolute(in: dc)
 
-    switch Syntax(abs).asSyntaxEnum {
+    switch Syntax(abs).as(SyntaxEnum.self) {
     case .functionType(_):
       return true
 

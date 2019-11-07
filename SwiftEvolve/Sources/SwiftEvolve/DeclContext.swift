@@ -277,7 +277,7 @@ extension SubscriptDeclSyntax: Decl {
 
 extension PatternSyntax {
   var boundIdentifiers: [(name: TokenSyntax, type: TypeSyntax?)] {
-    switch Syntax(self).asSyntaxEnum {
+    switch Syntax(self).as(SyntaxEnum.self) {
     case .identifierPattern(let identifierPattern):
       return [(identifierPattern.identifier, nil)]
 
@@ -372,7 +372,7 @@ extension VariableDeclSyntax: Decl {
       guard let accessor = binding.accessor else {
         return true
       }
-      switch Syntax(accessor).asSyntaxEnum {
+      switch Syntax(accessor).as(SyntaxEnum.self) {
       case .codeBlock(_):
         // There's a computed getter.
         return false

@@ -221,7 +221,7 @@ extension SynthesizeMemberwiseInitializerEvolution {
     var properties: [StoredProperty] = []
 
     for membersItem in members {
-      switch Syntax(membersItem.decl).asSyntaxEnum {
+      switch Syntax(membersItem.decl).as(SyntaxEnum.self) {
       case .ifConfigDecl(let ifConfig):
         if ifConfig.containsStoredMembers {
           // We would need to generate separate inits for each version. Maybe
