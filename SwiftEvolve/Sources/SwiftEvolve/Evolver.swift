@@ -24,7 +24,7 @@ struct Context {
   @discardableResult
   mutating func enter(_ node: Syntax) -> Bool {
     syntaxPath.append(node.indexInParent)
-    if let node = node.asDecl {
+    if let node = node.as(Decl.self) {
       declContext.append(node)
       return true
     }

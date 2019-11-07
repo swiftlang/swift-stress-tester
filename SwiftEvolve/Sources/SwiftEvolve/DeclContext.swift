@@ -131,9 +131,16 @@ extension Syntax {
 }
 
 extension SyntaxProtocol {
-  var asDecl: Decl? {
-    // FIXME: We should not rely on `_asConcreteType` here.
-    return Syntax(self)._asConcreteType as? Decl
+  /// Check whether the non-type erased version of this syntax node conforms to 
+  /// `Decl`. 
+  func `is`(_: Decl.Protocol) -> Bool {
+    return self.as(Decl.self) != nil
+  }
+
+  /// Return the non-type erased version of this syntax node if it conforms to 
+  /// `Decl`. Otherwise return `nil`.
+  func `as`(_: Decl.Protocol) -> Decl? {
+    return Syntax(self).as(SyntaxProtocol.self) as? Decl
   }
 }
 
@@ -165,7 +172,7 @@ public extension Decl {
 public extension Decl where Self: DeclWithMembers {
   func lookupDirect(_ name: String) -> Decl? {
     for item in members.members {
-      guard let member = item.decl.asDecl else { continue }
+      guard let member = item.decl.as(Decl.self) else { continue }
       if member.name == name {
         return member
       }
@@ -178,7 +185,7 @@ public extension Decl where Self: AbstractFunctionDecl {
   func lookupDirect(_ name: String) -> Decl? {
     guard let body = self.body else { return nil }
     for item in body.statements {
-      guard let decl = item.item.asDecl else { continue }
+      guard let decl = item.item.as(Decl.self) else { continue }
       if decl.name == name {
         return decl
       }
@@ -194,7 +201,7 @@ extension SourceFileSyntax: Decl {
   
   public func lookupDirect(_ name: String) -> Decl? {
     for item in statements {
-      guard let decl = item.item.asDecl else { continue }
+      guard let decl = item.item.as(Decl.self) else { continue }
       if decl.name == name {
         return decl
       }
@@ -446,7 +453,7 @@ extension IfConfigDeclSyntax {
       return members.contains { memberItem in
         if let nestedIfConfig = memberItem.decl.as(IfConfigDeclSyntax.self) {
           return nestedIfConfig.containsStoredMembers
-        } else if let member = memberItem.decl.asDecl {
+        } else if let member = memberItem.decl.as(Decl.self) {
           return member.isStored
         } else {
           return false
