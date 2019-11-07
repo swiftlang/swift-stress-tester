@@ -165,7 +165,7 @@ extension ShuffleMembersEvolution {
     let members = Array(membersList)
 
     func shouldShuffleMember(at i: Int) -> Bool {
-      guard let memberDecl = members[i].decl.asDecl else {
+      guard let memberDecl = members[i].decl.as(Decl.self) else {
         // Don't know what this is, so conservatively leave it alone.
         return false
       }
@@ -259,7 +259,7 @@ extension SynthesizeMemberwiseInitializerEvolution {
 
       default:
         // Consistency check: This isn't somehow stored, is it?
-        if let member = membersItem.decl.asDecl {
+        if let member = membersItem.decl.as(Decl.self) {
           assert(!member.isStored, "\(member.name) is a stored non-property???")
         }
 
