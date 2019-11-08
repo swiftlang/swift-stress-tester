@@ -78,7 +78,7 @@ extension TokenSyntax {
     guard isIdentifier else { return false }
     guard let parent = parent else { return false }
 
-    return parent.isExpr || parent.isType
+    return parent.is(ExprSyntaxProtocol.self) || parent.is(TypeSyntaxProtocol.self)
   }
 
   var isLiteralExprClose: Bool {
