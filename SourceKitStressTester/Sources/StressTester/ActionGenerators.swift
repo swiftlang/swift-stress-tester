@@ -450,6 +450,9 @@ private struct ActionToken {
     // FIXME: test dollar identifiers once code completion reports them
     if case .dollarIdentifier = token.tokenKind { return nil }
 
+    // FIXME: completely ignore ifconfig clauses (conditions and code blocks)
+    if token.ancestors.contains(where: { $0.is(IfConfigClauseListSyntax.self) }) { return nil }
+
     guard let parent = token.parent else { return nil }
 
     // Report argument label completions for any arguments other than the first
