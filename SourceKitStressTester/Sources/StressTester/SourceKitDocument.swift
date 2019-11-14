@@ -280,7 +280,7 @@ struct SourceKitDocument {
   private func checkExpectedCompletionResult(_ expected: ExpectedResult, in response: SourceKitdResponse, info: RequestInfo) throws {
     let matcher = CompletionMatcher(for: expected)
     var found = false
-    response.value.getArray(.key_Results).enumerate { (index, item) -> Bool in
+    response.value.getArray(.key_Results).enumerate { (_, item) -> Bool in
       let result = item.getDictionary()
       found = matcher.match(result.getString(.key_Name), ignoreArgLabels: shouldIgnoreArgs(of: expected, for: result))
       return !found
@@ -444,7 +444,7 @@ public struct CompletionMatcher {
     guard resultName.base == expected.name.base else { return false }
     switch expected.kind {
     case .call:
-      return name.last == ")" && matchesCall(labels: resultName.argLabels)
+      return name.last == ")" && matchesCall(paramLabels: resultName.argLabels)
     case .reference:
       return expected.name.argLabels.isEmpty || expected.name.argLabels == resultName.argLabels
     case .pattern:
@@ -487,12 +487,11 @@ public struct CompletionMatcher {
     }
   }
 
-  private func matchesCall(labels: [String]) -> Bool {
-    var paramLabels = labels[...]
+  private func matchesCall(paramLabels: [String]) -> Bool {
     var remainingArgLabels = expected.name.argLabels[...]
 
     guard !paramLabels.isEmpty else { return remainingArgLabels.isEmpty }
-    while let nextParamLabel = paramLabels.popFirst() {
+    for nextParamLabel in paramLabels {
       if nextParamLabel.isEmpty {
         // No label
         if let first = remainingArgLabels.first, first.isEmpty {

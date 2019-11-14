@@ -64,9 +64,10 @@ class ActionGeneratorTests: XCTestCase {
       ("Foo.foo(fooInstance)(x: 10)", ["Foo", "call:foo(x:)", "fooInstance"]),
 
       // The below foo could be either foo(_:) or foo(_:_:), we can't tell
-      // syntactically so default to the one with fewer args as that will still
-      // the longer one if that's what it ends up being in the completion
-      // results (the extra param will be assumed to be defaulted).
+      // syntactically so default to the outer argument list, as it will match
+      // even if it should have been the inner argument list due to the
+      // incomplete information the matching logic has (it has to assume any
+      // parameter could be defaulted or variadic).
       ("Foo.foo(fooInstance)(10, 20)", ["Foo", "call:foo(_:_:)", "fooInstance"]),
       ("Foo.foo(fooInstance)()", ["Foo", "call:foo", "fooInstance"]),
       ("let (x, y) = (a, b)", ["a", "b"]),

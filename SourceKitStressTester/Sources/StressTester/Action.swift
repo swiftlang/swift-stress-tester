@@ -12,6 +12,9 @@
 
 public enum Action: Equatable {
   case cursorInfo(offset: Int)
+
+  /// If expectedResult is non-nil, the results should contain expectedResult, otherwise the results should
+  /// not be checked.
   case codeComplete(offset: Int, expectedResult: ExpectedResult?)
   case rangeInfo(offset: Int, length: Int)
   case replaceText(offset: Int, length: Int, text: String)

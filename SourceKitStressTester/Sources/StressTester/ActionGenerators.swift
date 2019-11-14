@@ -444,6 +444,8 @@ private struct ActionToken {
       }
   }
 
+  /// A nil result means the results shouldn't be checked, e.g. if the provided token corresponds to the
+  /// name of a newly declared variable.
   static private func expectedResult(for token: TokenSyntax) -> ExpectedResult? {
     guard token.isReference else { return nil }
 
