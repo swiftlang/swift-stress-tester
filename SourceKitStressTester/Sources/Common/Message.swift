@@ -62,7 +62,7 @@ public enum SourceKitError: Error {
 }
 
 public enum SourceKitErrorReason: String, Codable {
-  case errorResponse, errorTypeInResponse, errorDeserializingSyntaxTree, sourceAndSyntaxTreeMismatch
+  case errorResponse, errorTypeInResponse, errorDeserializingSyntaxTree, sourceAndSyntaxTreeMismatch, missingExpectedResult
 }
 
 public enum RequestInfo {
@@ -370,6 +370,8 @@ extension SourceKitErrorReason: CustomStringConvertible {
       return "SourceKit returned a response with invalid SyntaxTree data"
     case .sourceAndSyntaxTreeMismatch:
       return "SourceKit returned a syntax tree that doesn't match the expected source"
+    case .missingExpectedResult:
+      return "SourceKit returned a response that didn't contain the expected result"
     }
   }
 }

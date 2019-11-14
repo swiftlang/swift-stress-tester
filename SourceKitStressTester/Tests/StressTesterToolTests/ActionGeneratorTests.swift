@@ -50,6 +50,106 @@ class ActionGeneratorTests: XCTestCase {
     """)
   }
 
+  func testCompletionExpectedResults() {
+    typealias TestCase = (source: String, expected: [String])
+    let cases: [TestCase] = [
+      ("foo(x: 10)", ["call:foo(x:)"]),
+      ("foo(45)", ["call:foo(_:)"]),
+      ("foo.bar(first, x: 10)", ["foo", "call:bar(_:x:)", "first", "x:"]),
+      ("foo.bar(x:_:)", ["foo", "bar(x:_:)"]),
+
+      // FIXME: code completion doesn't complete compound name references
+      (".foo(x:y:z:)", ["foo(x:y:z:)"/*, "x", "y", "z"*/]),
+      (".foo(1, 2, other: 5)", ["call:foo(_:_:other:)", "other:"]),
+      ("Foo.foo(fooInstance)(x: 10)", ["Foo", "call:foo(x:)", "fooInstance"]),
+
+      // The below foo could be either foo(_:) or foo(_:_:), we can't tell
+      // syntactically so default to the outer argument list, as it will match
+      // even if it should have been the inner argument list due to the
+      // incomplete information the matching logic has (it has to assume any
+      // parameter could be defaulted or variadic).
+      ("Foo.foo(fooInstance)(10, 20)", ["Foo", "call:foo(_:_:)", "fooInstance"]),
+      ("Foo.foo(fooInstance)()", ["Foo", "call:foo", "fooInstance"]),
+      ("let (x, y) = (a, b)", ["a", "b"]),
+      ("if case let .myCase(Int.max, second) = p {}", ["patt:myCase(_:_:)", "Int", "max", "p"]),
+      ("if case let .myCase(.inner(x:foo), second) = p {}", ["patt:myCase(_:_:)", "patt:inner(x:)", "p"]),
+      ("switch x { case .some(2?): break }", ["x", "patt:some(_:)"]),
+
+      // TODO: we don't check operators at the moment
+      ("3 + 4", []),
+      // FIXME: code completion doesn't offer labels after break/continue
+      ("foo: for x in 1...4 { print(x); break foo }", ["call:print(_:)", "x"/*, "foo"*/]),
+
+      // TODO: subscript completions after [
+      ("data[position]", ["data", "position"]),
+      ("data[position, default: 0]", ["data", "position", "default:"]),
+
+      // FIXME: completion doesn't suggest anonymous closure params (e.g. $0)
+      ("$0.first", [/*"$0",*/ "first"]),
+      ("[1,2,4].filter{ $0 == 4 }", ["call:filter"/*, "$0"*/])
+    ]
+
+    for test in cases {
+      let generated = RequestActionGenerator().generate(for: test.source)
+        .compactMap { action -> String? in
+          if case .codeComplete(_, let expected) = action, expected != nil {
+            let type: String
+            switch expected!.kind {
+            case .call:
+              type = "call:"
+            case .pattern:
+              type = "patt:"
+            case .reference:
+              type = ""
+            }
+            return "\(type)\(expected!.name.name)"
+          }
+          return nil
+        }
+      XCTAssertEqual(generated, test.expected)
+    }
+  }
+
+  func testExpectedResultMatcher() {
+    typealias TestCase = (match: ExpectedResult.Kind, of: String, against: String, ignoreArgs: Bool, result: Bool)
+    let cases: [TestCase] = [
+      (match: .reference, of: "myVar", against: "myVar", ignoreArgs: false, result: true),
+      (match: .reference, of: "myVar", against: "MyVar", ignoreArgs: true, result: false),
+      (match: .reference, of: "MyType", against: "MyType", ignoreArgs: true, result: true),
+      (match: .reference, of: "MyType", against: "myType", ignoreArgs: true, result: false),
+      (match: .reference, of: "myLabel:", against: "myLabel:", ignoreArgs: false, result: true),
+      (match: .reference, of: "myLabel:", against: "myLabel", ignoreArgs: false, result: false),
+      (match: .reference, of: "myLabel", against: "myLabel:", ignoreArgs: false, result: false),
+      (match: .call, of: "bar(_:)", against: "bar()", ignoreArgs: false, result: false),
+      (match: .call, of: "bar()", against: "bar(_:)", ignoreArgs: false, result: true),
+      (match: .call, of: "bar(_:)", against: "bar(y:)", ignoreArgs: false, result: false),
+      (match: .call, of: "bar(y:)", against: "bar(y:)", ignoreArgs: false, result: true),
+      (match: .call, of: "bar(y:)", against: "bar(x:_:y:)", ignoreArgs: false, result: true),
+      (match: .call, of: "bar(_:_:_:y:)", against: "bar(x:_:y:)", ignoreArgs: false, result: true),
+      (match: .call, of: "bar(z:)", against: "bar(x:_:y:)", ignoreArgs: false, result: false),
+      (match: .call, of: "bar(x:)", against: "bar(x:_:y:)", ignoreArgs: false, result: true),
+      (match: .call, of: "myFuncTypeVar(_:_:)", against: "myFuncTypeVar", ignoreArgs: true, result: true),
+      (match: .call, of: "myFuncTypeVar(_:_:)", against: "myFuncTypeVar", ignoreArgs: false, result: false),
+      (match: .reference, of: "bar(y:)", against: "bar(y:)", ignoreArgs: false, result: true),
+      (match: .reference, of: "bar(y:)", against: "bar(x:_:y:)", ignoreArgs: false, result: false),
+      (match: .reference, of: "bar", against: "bar(x:_:y:)", ignoreArgs: false, result: true),
+      (match: .reference, of: "Foo(x:)", against: "Foo", ignoreArgs: false, result: false),
+      (match: .call, of: "Foo(x:)", against: "Foo", ignoreArgs: true, result: true),
+      (match: .call, of: "Foo(x:)", against: "Foo", ignoreArgs: false, result: false),
+      (match: .pattern, of: "first(_:)", against: "first(x:y:)", ignoreArgs: false, result: true),
+      (match: .pattern, of: "first", against: "first(x:y:)", ignoreArgs: false, result: true),
+      (match: .pattern, of: "first(_:z:)", against: "first(x:y:)", ignoreArgs: false, result: false),
+      (match: .pattern, of: "first(_:)", against: "first", ignoreArgs: false, result: false),
+      (match: .pattern, of: "first(_:)", against: "first()", ignoreArgs: false, result: true),
+      (match: .pattern, of: "first(_:_:)", against: "first()", ignoreArgs: false, result: true)
+    ]
+
+    for test in cases {
+      let matcher = CompletionMatcher(for: ExpectedResult(name: SwiftName(test.of)!, kind: test.match))
+      XCTAssertEqual(matcher.match(test.against, ignoreArgLabels: test.ignoreArgs), test.result, "comparing \(test.match.rawValue) of \(test.of) against \(test.against) \(test.ignoreArgs ? "ex" : "in")cluding args does not return \(test.result)")
+    }
+  }
+
   func testRewriteActionGenerator() {
     let actions = BasicRewriteActionGenerator().generate(for: testFile)
     verify(actions, rewriteMode: .basic, expectedActionTypes: [.codeComplete, .cursorInfo, .rangeInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText])
@@ -95,7 +195,7 @@ class ActionGeneratorTests: XCTestCase {
       switch action {
       case .cursorInfo(let offset):
         XCTAssertTrue(offset >= 0 && offset <= eof)
-      case .codeComplete(let offset), .conformingMethodList(let offset), .typeContextInfo(let offset):
+      case .codeComplete(let offset, _), .conformingMethodList(let offset), .typeContextInfo(let offset):
         XCTAssertTrue(offset >= 0 && offset <= eof)
       case .rangeInfo(let offset, let length):
         XCTAssertTrue(offset >= 0 && offset <= eof)
@@ -185,7 +285,7 @@ final class ActionMarkup {
         switch action {
         case .cursorInfo(let offset):
           return [(offset, "I")]
-        case .codeComplete(let offset):
+        case .codeComplete(let offset, _):
           return [(offset, "C")]
         case .rangeInfo(let offset, let length):
           return [(offset, "R"), (offset + length, "E")]

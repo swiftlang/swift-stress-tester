@@ -114,8 +114,8 @@ public struct StressTester {
       switch action {
       case .cursorInfo(let offset):
         try report(document.cursorInfo(offset: offset))
-      case .codeComplete(let offset):
-        try report(document.codeComplete(offset: offset))
+      case .codeComplete(let offset, let expectedResult):
+        try report(document.codeComplete(offset: offset, expectedResult: expectedResult))
       case .rangeInfo(let offset, let length):
         try report(document.rangeInfo(offset: offset, length: length))
       case .replaceText(let offset, let length, let text):

@@ -12,7 +12,10 @@
 
 public enum Action: Equatable {
   case cursorInfo(offset: Int)
-  case codeComplete(offset: Int)
+
+  /// If expectedResult is non-nil, the results should contain expectedResult, otherwise the results should
+  /// not be checked.
+  case codeComplete(offset: Int, expectedResult: ExpectedResult?)
   case rangeInfo(offset: Int, length: Int)
   case replaceText(offset: Int, length: Int, text: String)
   case typeContextInfo(offset: Int)
@@ -25,8 +28,8 @@ extension Action: CustomStringConvertible {
     switch self {
     case .cursorInfo(let offset):
       return "CusorInfo at offset \(offset)"
-    case .codeComplete(let offset):
-      return "CodeComplete at offset \(offset)"
+    case .codeComplete(let offset, let expectedResult):
+      return "CodeComplete at offset \(offset) with expectedResult \(expectedResult?.name.name ?? "None")"
     case .rangeInfo(let from, let length):
       return "RangeInfo from offset \(from) for length \(length)"
     case .replaceText(let from, let length, let text):
@@ -43,7 +46,7 @@ extension Action: CustomStringConvertible {
 
 extension Action: Codable {
   enum CodingKeys: String, CodingKey {
-    case action, offset, length, text
+    case action, offset, length, text, expectedResult
   }
   public enum BaseAction: String, Codable {
     case cursorInfo, codeComplete, rangeInfo, replaceText, typeContextInfo, conformingMethodList, collectExpressionType
@@ -57,7 +60,8 @@ extension Action: Codable {
       self = .cursorInfo(offset: offset)
     case .codeComplete:
       let offset = try container.decode(Int.self, forKey: .offset)
-      self = .codeComplete(offset: offset)
+      let expectedResult = try container.decodeIfPresent(ExpectedResult.self, forKey: .expectedResult)
+      self = .codeComplete(offset: offset, expectedResult: expectedResult)
     case .rangeInfo:
       let offset = try container.decode(Int.self, forKey: .offset)
       let length = try container.decode(Int.self, forKey: .length)
@@ -84,9 +88,10 @@ extension Action: Codable {
     case .cursorInfo(let offset):
       try container.encode(BaseAction.cursorInfo, forKey: .action)
       try container.encode(offset, forKey: .offset)
-    case .codeComplete(let offset):
+    case .codeComplete(let offset, let expectedResult):
       try container.encode(BaseAction.codeComplete, forKey: .action)
       try container.encode(offset, forKey: .offset)
+      try container.encodeIfPresent(expectedResult, forKey: .expectedResult)
     case .rangeInfo(let startOffset, let length):
       try container.encode(BaseAction.rangeInfo, forKey: .action)
       try container.encode(startOffset, forKey: .offset)
@@ -105,5 +110,45 @@ extension Action: Codable {
     case .collectExpressionType:
       try container.encode(BaseAction.collectExpressionType, forKey: .action)
     }
+  }
+}
+
+public struct ExpectedResult: Codable, Equatable {
+  public enum Kind: String, Codable { case reference, call, pattern }
+  public let name: SwiftName
+  public let kind: Kind
+
+  public init(name: SwiftName, kind: Kind) {
+    self.name = name
+    self.kind = kind
+  }
+}
+
+public struct SwiftName: Codable, Equatable {
+  public let base: String
+  public let argLabels: [String]
+  public var name: String {
+    argLabels.isEmpty
+        ? base
+        : "\(base)(\(argLabels.map{ "\($0.isEmpty ? "_" : $0):" }.joined()))"
+  }
+
+  public init?(_ name: String) {
+    if let argStart = name.firstIndex(of: "(") {
+      guard let argEnd = name.firstIndex(of: ")") else { return nil }
+      base = String(name[..<argStart])
+      argLabels = name[name.index(after: argStart)..<argEnd]
+        .split(separator: ":", omittingEmptySubsequences: false)
+        .dropLast()
+        .map{ $0 == "_" ? "" : String($0)}
+    } else {
+      base = name
+      argLabels = []
+    }
+  }
+
+  init(base: String, labels: [String]) {
+    self.base = base
+    self.argLabels = labels.map{ $0 == "_" ? "" : $0 }
   }
 }

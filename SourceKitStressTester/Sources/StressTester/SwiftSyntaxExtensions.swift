@@ -77,8 +77,14 @@ extension TokenSyntax {
   var isReference: Bool {
     guard isIdentifier else { return false }
     guard let parent = parent else { return false }
+    return parent.is(ExprSyntaxProtocol.self) ||
+      parent.is(TypeSyntaxProtocol.self) ||
+      parent.is(TupleExprElementSyntax.self)
+  }
 
-    return parent.is(ExprSyntaxProtocol.self) || parent.is(TypeSyntaxProtocol.self)
+  var textWithoutBackticks: String {
+    guard text.first == "`" && text.last == "`" else { return text }
+    return String(text.dropFirst().dropLast())
   }
 
   var isLiteralExprClose: Bool {

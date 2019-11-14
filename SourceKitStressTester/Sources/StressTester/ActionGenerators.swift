@@ -51,7 +51,8 @@ extension ActionGenerator {
     for frontAction in actionToken.frontActions {
       switch frontAction {
       case .codeComplete:
-        actions.append(.codeComplete(offset: contentStart))
+        let expected: ExpectedResult? = withReplaceTexts ? nil : actionToken.frontExpectedResult
+        actions.append(.codeComplete(offset: contentStart, expectedResult: expected))
       case .conformingMethodList:
         actions.append(.conformingMethodList(offset: contentStart))
       case .typeContextInfo:
@@ -83,7 +84,7 @@ extension ActionGenerator {
       case .cursorInfo:
         actions.append(.cursorInfo(offset: contentEnd))
       case .codeComplete:
-        actions.append(.codeComplete(offset: contentEnd))
+        actions.append(.codeComplete(offset: contentEnd, expectedResult: nil))
       case .conformingMethodList:
         actions.append(.conformingMethodList(offset: contentEnd))
       case .typeContextInfo:
@@ -161,7 +162,7 @@ public final class TypoActionGenerator: ActionGenerator {
     public func generate(for tree: SourceFileSyntax) -> [Action] {
         let collector = ActionTokenCollector()
         return collector.collect(from: tree)
-            .flatMap { generateActions(for: $0.token) }
+            .flatMap { generateActions(for: $0) }
     }
 
     private func updateSpelling(_ kind: TokenKind) -> (original: String, new: String)? {
@@ -192,14 +193,15 @@ public final class TypoActionGenerator: ActionGenerator {
         }
     }
 
-    private func generateActions(for token: TokenSyntax) -> [Action] {
+    private func generateActions(for actionToken: ActionToken) -> [Action] {
+        let token = actionToken.token
         guard let spelling = updateSpelling(token.tokenKind), token.presence == .present else { return [] }
         let contentStart = token.positionAfterSkippingLeadingTrivia.utf8Offset
         let contentLength = token.contentLength.utf8Length
         return [
             .replaceText(offset: contentStart, length: contentLength, text: spelling.new),
             .cursorInfo(offset: contentStart),
-            .codeComplete(offset: contentStart + spelling.new.utf8.count),
+            .codeComplete(offset: contentStart + spelling.new.utf8.count, expectedResult: actionToken.frontExpectedResult),
             .typeContextInfo(offset: contentStart + spelling.new.utf8.count),
             .conformingMethodList(offset: contentStart + spelling.new.utf8.count),
             .replaceText(offset: contentStart, length: spelling.new.utf8.count, text: spelling.original)
@@ -417,12 +419,14 @@ private struct ActionToken {
   let rearActions: [SourcePosAction]
   let endedRangeStartTokens: [TokenSyntax]
   let startedRangeEndTokens: [TokenSyntax]
+  let frontExpectedResult: ExpectedResult?
 
   init(_ token: TokenSyntax, atDepth depth: Int, withFrontActions front: [SourcePosAction], withRearActions rear: [SourcePosAction]) {
     self.token = token
     self.depth = depth
     self.frontActions = front
     self.rearActions = rear
+    self.frontExpectedResult = ActionToken.expectedResult(for: token)
 
     var previous: TokenSyntax? = token
     self.endedRangeStartTokens = token.tokenKind == .eof ? [] : token.ancestors
@@ -438,6 +442,92 @@ private struct ActionToken {
         defer { previous = ancestor.lastToken }
         return ancestor.lastToken == previous ? nil : ancestor.lastToken
       }
+  }
+
+  /// A nil result means the results shouldn't be checked, e.g. if the provided token corresponds to the
+  /// name of a newly declared variable.
+  static private func expectedResult(for token: TokenSyntax) -> ExpectedResult? {
+    guard token.isReference else { return nil }
+
+    // FIXME: test dollar identifiers once code completion reports them
+    if case .dollarIdentifier = token.tokenKind { return nil }
+
+    // FIXME: completely ignore ifconfig clauses (conditions and code blocks)
+    if token.ancestors.contains(where: { $0.is(IfConfigClauseListSyntax.self) }) { return nil }
+
+    guard let parent = token.parent else { return nil }
+
+    // Report argument label completions for any arguments other than the first
+    if let tupleElem = parent.as(TupleExprElementSyntax.self), tupleElem.label == token {
+      switch tupleElem.parent?.parent?.as(SyntaxEnum.self) {
+      case .functionCallExpr: fallthrough
+      case .subscriptExpr: fallthrough
+      case .expressionSegment:
+        guard tupleElem.indexInParent != 0 else { return nil }
+        return ExpectedResult(name: SwiftName(base: token.textWithoutBackticks + ":", labels: []), kind: .reference)
+      default:
+        return nil
+      }
+    }
+    if let parent = parent.as(IdentifierExprSyntax.self), parent.identifier == token {
+      if let refArgs = parent.declNameArguments {
+        let name = SwiftName(base: token.text, labels: refArgs.arguments.map{ $0.name.text })
+        return ExpectedResult(name: name, kind: .reference)
+      }
+      if let (kind, callArgs) = getParentArgs(of: parent) {
+        let name = SwiftName(base: token.text, labels: callArgs)
+        return ExpectedResult(name: name, kind: kind)
+      }
+    }
+    if let parent = parent.as(MemberAccessExprSyntax.self), parent.name == token {
+      if let refArgs = parent.declNameArguments {
+        let name = SwiftName(base: token.text, labels: refArgs.arguments.map{ $0.name.text })
+        return ExpectedResult(name: name, kind: .reference)
+      }
+      if let (kind, callArgs) = getParentArgs(of: parent) {
+        let name = SwiftName(base: token.text, labels: callArgs)
+        return ExpectedResult(name: name, kind: kind)
+      }
+    }
+    let name = SwiftName(base: token.text, labels: [])
+    return ExpectedResult(name: name, kind: .reference)
+  }
+
+  static func getParentArgs<T:SyntaxProtocol>(of syntax: T) -> (kind: ExpectedResult.Kind, args: [String])? {
+    guard let parent = syntax.parent else { return nil }
+    if let call = parent.as(FunctionCallExprSyntax.self) {
+      // Check for: Bar.foo(instanceOfBar)(x:1)
+      if call.argumentList.count == 1 &&
+         call.argumentList.allSatisfy({$0.label == nil}) {
+        if let outerCall = call.parent?.as(FunctionCallExprSyntax.self),
+           Syntax(outerCall.calledExpression) == parent {
+          // The outer call args correspond to foo if they have any labels. If
+          // they don't have labels we can't actually tell syntactically whether
+          // the outer or inner argument list corresponds to foo. In that case
+          // though reporting the outer argument list is the safer choice as it
+          // can be empty - indicating that foo may have no paramters - while
+          // the inner list always has one argument. If foo has at least one
+          // parameter, the number of unlabelled arguments we report here
+          // doesn't matter, so either list is fine. The logic that matches
+          // the argument list reported here against the actual parameters
+          // reported in the completion result assumes any parameter could be
+          // defaulted or variadic, so with too few arguments the unmatched
+          // params are assumed to be defaulted, and with too many arguments and
+          // at least one parameter, the extras are assumed to be variadic terms
+          // of the last parameter. If foo has no parameters however, there's no
+          // possibly-variadic parameter to match arguments, so it will fail.
+          return (.call, outerCall.argumentList.map{ $0.label?.text ?? "_" })
+        }
+      }
+      let kind: ExpectedResult.Kind
+      if call.ancestors.contains(where: { $0.is(ExpressionPatternSyntax.self) }) {
+        kind = .pattern
+      } else {
+        kind = .call
+      }
+      return (kind, call.argumentList.map{ $0.label?.text ?? "_" })
+    }
+    return nil
   }
 }
 
