@@ -140,7 +140,7 @@ extension SyntaxProtocol {
   /// Return the non-type erased version of this syntax node if it conforms to 
   /// `Decl`. Otherwise return `nil`.
   func `as`(_: Decl.Protocol) -> Decl? {
-    return Syntax(self).as(SyntaxProtocol.self) as? Decl
+    return Syntax(self).asProtocol(SyntaxProtocol.self) as? Decl
   }
 }
 
