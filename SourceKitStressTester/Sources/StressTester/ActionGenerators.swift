@@ -563,7 +563,7 @@ private class ActionTokenCollector: SyntaxAnyVisitor {
     if token.isIdentifier {
       return [.cursorInfo, .codeComplete, .typeContextInfo, .conformingMethodList]
     }
-    if !token.isOperator && token.ancestors.contains(where: {($0.is(ExprSyntaxProtocol.self) || $0.is(TypeSyntaxProtocol.self)) && $0.firstToken == token}) {
+    if !token.isOperator && token.ancestors.contains(where: {($0.isProtocol(ExprSyntaxProtocol.self) || $0.isProtocol(TypeSyntaxProtocol.self)) && $0.firstToken == token}) {
       return [.codeComplete, .typeContextInfo, .conformingMethodList]
     }
     if case .contextualKeyword(let text) = token.tokenKind, ["get", "set", "didSet", "willSet"].contains(text) {
@@ -576,7 +576,7 @@ private class ActionTokenCollector: SyntaxAnyVisitor {
     if token.isIdentifier {
       return [.codeComplete, .typeContextInfo, .conformingMethodList]
     }
-    if !token.isOperator && token.ancestors.contains(where: {($0.is(ExprSyntaxProtocol.self) || $0.is(TypeSyntaxProtocol.self)) && $0.lastToken == token}) {
+    if !token.isOperator && token.ancestors.contains(where: {($0.isProtocol(ExprSyntaxProtocol.self) || $0.isProtocol(TypeSyntaxProtocol.self)) && $0.lastToken == token}) {
       return [.codeComplete, .typeContextInfo, .conformingMethodList]
     }
     if case .contextualKeyword(let text) = token.tokenKind, ["get", "set", "didSet", "willSet"].contains(text) {

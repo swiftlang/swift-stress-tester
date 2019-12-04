@@ -77,8 +77,8 @@ extension TokenSyntax {
   var isReference: Bool {
     guard isIdentifier else { return false }
     guard let parent = parent else { return false }
-    return parent.is(ExprSyntaxProtocol.self) ||
-      parent.is(TypeSyntaxProtocol.self) ||
+    return parent.isProtocol(ExprSyntaxProtocol.self) ||
+      parent.isProtocol(TypeSyntaxProtocol.self) ||
       parent.is(TupleExprElementSyntax.self)
   }
 
