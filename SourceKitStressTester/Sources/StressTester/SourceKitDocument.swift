@@ -299,14 +299,11 @@ struct SourceKitDocument {
       return expected.kind == .call
     case .kind_DeclVarGlobal, .kind_DeclVarStatic, .kind_DeclVarClass, .kind_DeclVarInstance, .kind_DeclVarParam, .kind_DeclVarLocal:
       // Any variable/property of function type can be called, and looks the
-      // same as a function call as far as the expected rersult is concerned,
+      // same as a function call as far as the expected result is concerned,
       // but it's name won't have any argument labels.
-      // If this result's type has an -> in it somewhere and the expected
-      // result only has empty argument labels (if any), it *may* be in this
-      // category, so match on the base name only.
-      let typeName = result.getString(.key_TypeName)
-      return expected.kind == .call && typeName.contains("->") &&
-        expected.name.argLabels.allSatisfy{ $0.isEmpty }
+      // If the expected result is a call that only has empty argument labels
+      // (if any), it *may* be in this category, so match on the base name only.
+      return expected.kind == .call && expected.name.argLabels.allSatisfy{ $0.isEmpty }
     default:
       return false
     }
