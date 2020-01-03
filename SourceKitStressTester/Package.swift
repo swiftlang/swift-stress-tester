@@ -75,12 +75,12 @@ let package = Package(
 if getenv("SWIFTCI_USE_LOCAL_DEPS") == nil {
   // Building standalone.
   package.dependencies += [
-    .package(url: "https://github.com/apple/swift-package-manager.git", .branch("master")),
+    .package(url: "https://github.com/apple/swift-tools-support-core.git", .branch("master")),
     .package(url: "https://github.com/apple/swift-syntax.git", .branch("master")),
   ]
 } else {
   package.dependencies += [
-    .package(path: "../../swiftpm"),
+    .package(path: "../../swiftpm/TSC"),
     .package(path: "../../swift-syntax"),
   ]
 }
