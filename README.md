@@ -1,5 +1,8 @@
 <img src="https://swift.org/assets/images/swift.svg" alt="Swift logo" height="70" >
 
+
+
+
 # Swift Stress Tester
 
 This project aims to provide stress testing utilities to help find reproducible crashes and other failures in tools that process Swift source code, such as the Swift compiler and SourceKit. These utilities will ideally be written in Swift and make use the SwiftSyntax and/or SwiftLang libraries to parse, generate and modify Swift source inputs.
