@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import SwiftLang
+import SwiftSourceKit
 import SwiftSyntax
 import Common
 import Foundation

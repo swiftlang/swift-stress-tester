@@ -13,7 +13,7 @@
 import Foundation
 import XCTest
 import StressTester
-import SwiftLang
+import SwiftSourceKit
 import Common
 
 class ActionGeneratorTests: XCTestCase {
