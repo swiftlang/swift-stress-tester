@@ -168,6 +168,8 @@ extension RequestSet: ArgumentKind {
 
   public init(argument: String) throws {
     switch argument.lowercased() {
+    case "format":
+      self = .format
     case "cursorinfo":
       self = .cursorInfo
     case "rangeinfo":

@@ -153,6 +153,31 @@ struct SourceKitDocument {
     return (info, response)
   }
 
+  func format(offset: Int) throws -> (RequestInfo, SourceKitdResponse) {
+    let request = SourceKitdRequest(uid: .request_EditorFormatText)
+    guard let converter = self.converter else { fatalError("didn't call open?") }
+
+    request.addParameter(.key_SourceFile, value: file)
+    request.addParameter(.key_Name, value: file)
+    request.addParameter(.key_SourceText, value: "")
+
+    let options = request.addDictionaryParameter(.key_FormatOptions)
+    options.add(.key_IndentSwitchCase, value: 0)
+    options.add(.key_IndentWidth, value: 2)
+    options.add(.key_TabWidth, value: 2)
+    options.add(.key_UseTabs, value: 0)
+
+    let location = converter.location(for: AbsolutePosition(utf8Offset: offset))
+    request.addParameter(.key_Line, value: location.line!)
+    request.addParameter(.key_Length, value: 1)
+
+    let info = RequestInfo.format(document: documentInfo, offset: offset)
+    let response = try sendWithTimeout(request, info: info)
+    try throwIfInvalid(response, request: info)
+
+    return (info, response)
+  }
+
   func semanticRefactoring(actionKind: SourceKitdUID, actionName: String,
                            offset: Int, newName: String? = nil) throws -> (RequestInfo, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_SemanticRefactoring)
