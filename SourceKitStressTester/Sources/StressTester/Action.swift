@@ -18,6 +18,7 @@ public enum Action: Equatable {
   case codeComplete(offset: Int, expectedResult: ExpectedResult?)
   case rangeInfo(offset: Int, length: Int)
   case replaceText(offset: Int, length: Int, text: String)
+  case format(offset: Int)
   case typeContextInfo(offset: Int)
   case conformingMethodList(offset: Int)
   case collectExpressionType
@@ -34,6 +35,8 @@ extension Action: CustomStringConvertible {
       return "RangeInfo from offset \(from) for length \(length)"
     case .replaceText(let from, let length, let text):
       return "ReplaceText from offset \(from) for length \(length) with \(text.debugDescription)"
+    case .format(let offset):
+      return "Format line containing offset \(offset)"
     case .typeContextInfo(let offset):
       return "TypeContextInfo at offset \(offset)"
     case .conformingMethodList(let offset):
@@ -49,7 +52,8 @@ extension Action: Codable {
     case action, offset, length, text, expectedResult
   }
   public enum BaseAction: String, Codable {
-    case cursorInfo, codeComplete, rangeInfo, replaceText, typeContextInfo, conformingMethodList, collectExpressionType
+    case cursorInfo, codeComplete, rangeInfo, replaceText, format,
+      typeContextInfo, conformingMethodList, collectExpressionType
   }
 
   public init(from decoder: Decoder) throws {
@@ -71,6 +75,9 @@ extension Action: Codable {
       let length = try container.decode(Int.self, forKey: .length)
       let text = try container.decode(String.self, forKey: .text)
       self = .replaceText(offset: offset, length: length, text: text)
+    case .format:
+      let offset = try container.decode(Int.self, forKey: .offset)
+      self = .format(offset: offset)
     case .typeContextInfo:
       let offset = try container.decode(Int.self, forKey: .offset)
       self = .typeContextInfo(offset: offset)
@@ -101,6 +108,9 @@ extension Action: Codable {
       try container.encode(offset, forKey: .offset)
       try container.encode(length, forKey: .length)
       try container.encode(text, forKey: .text)
+    case .format(let offset):
+      try container.encode(BaseAction.format, forKey: .action)
+      try container.encode(offset, forKey: .offset)
     case .typeContextInfo(let offset):
       try container.encode(BaseAction.typeContextInfo, forKey: .action)
       try container.encode(offset, forKey: .offset)

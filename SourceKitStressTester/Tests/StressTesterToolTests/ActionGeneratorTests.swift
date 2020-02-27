@@ -23,7 +23,7 @@ class ActionGeneratorTests: XCTestCase {
 
   func testRequestActionGenerator() {
     let actions = RequestActionGenerator().generate(for: testFile)
-    verify(actions, rewriteMode: .none, expectedActionTypes: [.codeComplete, .cursorInfo, .rangeInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType])
+    verify(actions, rewriteMode: .none, expectedActionTypes: [.format, .codeComplete, .cursorInfo, .rangeInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType])
 
     XCTAssertEqual(actions.filter{
       if case .collectExpressionType = $0 { return true }
@@ -32,21 +32,21 @@ class ActionGeneratorTests: XCTestCase {
 
     // I=CursorInfo, C=CodeComplete, T=TypeContextInfo, M=ConformingMethodList, R=RangeInfo(start), E=RangeInfo(end)
     XCTAssertEqual(ActionMarkup(actions, in: testFileContent).markedUpSource, """
-    <RR>func <ICTM>minMax<RRCTM>(<IRCTM>array<CTM>: <RCTM>[<ICTM>Int<CTM>]<EECTM>)<E> <R>-> <RCTM>(<IRRCTM>min<CTM>: <ICTM>Int<CTM>,<E> <IRCTM>max<CTM>: <ICTM>Int<EECTM>)<EEECTM> <R>{
-        <RR>var <IRCTM>currentMin<CTM> <R>= <IRCTM>array<CTM>[<CTM>0<CTM>]<EEEECTM>
-        <R>var <IRCTM>currentMax<CTM> <R>= <IRCTM>array<CTM>[<CTM>0<CTM>]<EEEECTM>
-        <R>for <ICTM>value<CTM> in <IRCTM>array<CTM>[<RCTM>1<CTM>..<<IRCTM>array<CTM>.<ICTM>count<EECTM>]<ECTM> <R>{
-            <R>if <IRCTM>value<CTM> < <ICTM>currentMin<ECTM> <R>{
-                <IRCTM>currentMin<CTM> = <ICTM>value<ECTM>
-            }<E> else <R>if <IRCTM>value<CTM> > <ICTM>currentMax<ECTM> <R>{
-                <IRCTM>currentMax<CTM> = <ICTM>value<ECTM>
-            }<EEE>
-        }<EE>
-        <R>return <RCTM>(<IRRCTM>currentMin<CTM>,<E> <ICTM>currentMax<ECTM>)<EEECTM>
-    }<EE>
+    <FRR>func <FICTM>minMax<FRRCTM>(<FIRCTM>array<FCTM>: <FRCTM>[<FICTM>Int<FCTM>]<FEECTM>)<E> <FR>-> <FRCTM>(<FIRRCTM>min<FCTM>: <FICTM>Int<FCTM>,<E> <FIRCTM>max<FCTM>: <FICTM>Int<FEECTM>)<EEECTM> <FR>{
+        <FRR>var <FIRCTM>currentMin<CTM> <FR>= <FIRCTM>array<FCTM>[<FCTM>0<FCTM>]<EEEECTM>
+        <FR>var <FIRCTM>currentMax<CTM> <FR>= <FIRCTM>array<FCTM>[<FCTM>0<FCTM>]<EEEECTM>
+        <FR>for <FICTM>value<CTM> <F>in <FIRCTM>array<FCTM>[<FRCTM>1<FCTM>..<<FIRCTM>array<FCTM>.<FICTM>count<FEECTM>]<ECTM> <FR>{
+            <FR>if <FIRCTM>value<CTM> <F>< <FICTM>currentMin<ECTM> <FR>{
+                <FIRCTM>currentMin<CTM> <F>= <FICTM>value<ECTM>
+            <F>}<E> <F>else <FR>if <FIRCTM>value<CTM> <F>> <FICTM>currentMax<ECTM> <FR>{
+                <FIRCTM>currentMax<CTM> <F>= <FICTM>value<ECTM>
+            <F>}<EEE>
+        <F>}<EE>
+        <FR>return <FRCTM>(<FIRRCTM>currentMin<FCTM>,<E> <FICTM>currentMax<FECTM>)<EEECTM>
+    <F>}<EE>
 
-    <R>let <IRCTM>result<CTM> <R>= <IRCTM>minMax<CTM>(<IRCTM>array<CTM>: <RCTM>[<RRCTM>10<CTM>,<E> <RCTM>43<CTM>,<E> <RCTM>1<CTM>,<E> <CTM>2018<ECTM>]<EECTM>)<EEEECTM>
-    <IRCTM>print<CTM>(<RCTM>"<R>range: <R>\\(<IRCTM>result<CTM>.<ICTM>min<ECTM>)<E> – <R>\\(<IRCTM>result<CTM>.<ICTM>max<ECTM>)<EE>"<ECTM>)<EECTM>
+    <FR>let <FIRCTM>result<CTM> <FR>= <FIRCTM>minMax<FCTM>(<FIRCTM>array<FCTM>: <FRCTM>[<FRRCTM>10<FCTM>,<E> <FRCTM>43<FCTM>,<E> <FRCTM>1<FCTM>,<E> <FCTM>2018<FECTM>]<FEECTM>)<EEEECTM>
+    <FIRCTM>print<FCTM>(<FRCTM>\"<FR>range: <FR>\\<F>(<FIRCTM>result<FCTM>.<FICTM>min<FECTM>)<FE> – <FR>\\<F>(<FIRCTM>result<FCTM>.<FICTM>max<FECTM>)<FFEE>\"<FECTM>)<FEECTM>
     """)
   }
 
@@ -152,22 +152,22 @@ class ActionGeneratorTests: XCTestCase {
 
   func testRewriteActionGenerator() {
     let actions = BasicRewriteActionGenerator().generate(for: testFile)
-    verify(actions, rewriteMode: .basic, expectedActionTypes: [.codeComplete, .cursorInfo, .rangeInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText])
+    verify(actions, rewriteMode: .basic, expectedActionTypes: [.format, .codeComplete, .cursorInfo, .rangeInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText])
   }
 
   func testTypoRewriteActionGenerator() {
     let actions = TypoActionGenerator().generate(for: testFile)
-    verify(actions, rewriteMode: .typoed, expectedActionTypes: [.codeComplete, .cursorInfo, .conformingMethodList, .typeContextInfo, .replaceText])
+    verify(actions, rewriteMode: .typoed, expectedActionTypes: [.format, .codeComplete, .cursorInfo, .conformingMethodList, .typeContextInfo, .replaceText])
   }
 
   func testConcurrentRewriteActionGenerator() {
     let actions = ConcurrentRewriteActionGenerator().generate(for: testFile)
-    verify(actions, rewriteMode: .concurrent, expectedActionTypes: [.codeComplete, .cursorInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText, .rangeInfo])
+    verify(actions, rewriteMode: .concurrent, expectedActionTypes: [.format, .codeComplete, .cursorInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText, .rangeInfo])
   }
 
   func testInsideOutActionGenerator() {
     let actions = InsideOutRewriteActionGenerator().generate(for: testFile)
-    verify(actions, rewriteMode: .insideOut, expectedActionTypes: [.codeComplete, .cursorInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText, .rangeInfo])
+    verify(actions, rewriteMode: .insideOut, expectedActionTypes: [.format, .codeComplete, .cursorInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText, .rangeInfo])
 
     let edits = InsideOutRewriteActionGenerator().generate(for: "a.b([.c])").filter {
         guard case .replaceText = $0 else { return false }
@@ -206,6 +206,8 @@ class ActionGeneratorTests: XCTestCase {
         state.replace(offset: offset, length: length, with: text)
       case .collectExpressionType:
         break
+      case .format(let offset):
+        XCTAssertTrue(offset >= 0 && offset <= eof)
       }
     }
     XCTAssertEqual(state.source, testFileContent)
@@ -226,6 +228,8 @@ class ActionGeneratorTests: XCTestCase {
         return .conformingMethodList
       case .collectExpressionType:
         return .collectExpressionType
+      case .format:
+        return .format
       }
     })
 
@@ -297,6 +301,8 @@ final class ActionMarkup {
           return [(offset, "M")]
         case .collectExpressionType:
           return [] // no associated location
+        case .format(let offset):
+          return [(offset, "F")]
         }
       }
       .enumerated()

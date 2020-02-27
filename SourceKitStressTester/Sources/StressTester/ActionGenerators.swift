@@ -57,7 +57,7 @@ extension ActionGenerator {
         actions.append(.conformingMethodList(offset: contentStart))
       case .typeContextInfo:
         actions.append(.typeContextInfo(offset: contentStart))
-      case .cursorInfo:
+      case .cursorInfo, .format:
         break // handled after content insertion
       }
     }
@@ -74,6 +74,8 @@ extension ActionGenerator {
       break // handled before content insertion
       case .cursorInfo:
         actions.append(.cursorInfo(offset: contentStart))
+      case .format:
+        actions.append(.format(offset: contentStart))
       }
     }
 
@@ -89,6 +91,8 @@ extension ActionGenerator {
         actions.append(.conformingMethodList(offset: contentEnd))
       case .typeContextInfo:
         actions.append(.typeContextInfo(offset: contentEnd))
+      case .format:
+        actions.append(.format(offset: contentEnd))
       }
     }
 
@@ -140,16 +144,18 @@ public final class RequestActionGenerator: ActionGenerator {
       return 0
     case .collectExpressionType:
       return 1
-    case .cursorInfo:
+    case .format:
       return 2
-    case .rangeInfo:
+    case .cursorInfo:
       return 3
-    case .codeComplete:
+    case .rangeInfo:
       return 4
-    case .typeContextInfo:
+    case .codeComplete:
       return 5
-    case .conformingMethodList:
+    case .typeContextInfo:
       return 6
+    case .conformingMethodList:
+      return 7
     }
   }
 }
@@ -201,6 +207,7 @@ public final class TypoActionGenerator: ActionGenerator {
         return [
             .replaceText(offset: contentStart, length: contentLength, text: spelling.new),
             .cursorInfo(offset: contentStart),
+            .format(offset: contentStart),
             .codeComplete(offset: contentStart + spelling.new.utf8.count, expectedResult: actionToken.frontExpectedResult),
             .typeContextInfo(offset: contentStart + spelling.new.utf8.count),
             .conformingMethodList(offset: contentStart + spelling.new.utf8.count),
@@ -409,7 +416,7 @@ private final class ActionTokenGroup {
 }
 
 private enum SourcePosAction {
-  case cursorInfo, codeComplete, conformingMethodList, typeContextInfo
+  case cursorInfo, codeComplete, conformingMethodList, typeContextInfo, format
 }
 
 private struct ActionToken {
@@ -561,15 +568,15 @@ private class ActionTokenCollector: SyntaxAnyVisitor {
 
   private func getFrontActions(for token: TokenSyntax) -> [SourcePosAction] {
     if token.isIdentifier {
-      return [.cursorInfo, .codeComplete, .typeContextInfo, .conformingMethodList]
+      return [.cursorInfo, .format, .codeComplete, .typeContextInfo, .conformingMethodList]
     }
     if !token.isOperator && token.ancestors.contains(where: {($0.isProtocol(ExprSyntaxProtocol.self) || $0.isProtocol(TypeSyntaxProtocol.self)) && $0.firstToken == token}) {
-      return [.codeComplete, .typeContextInfo, .conformingMethodList]
+      return [.format, .codeComplete, .typeContextInfo, .conformingMethodList]
     }
     if case .contextualKeyword(let text) = token.tokenKind, ["get", "set", "didSet", "willSet"].contains(text) {
-      return [.codeComplete, .typeContextInfo, .conformingMethodList]
+      return [.format, .codeComplete, .typeContextInfo, .conformingMethodList]
     }
-    return []
+    return [.format]
   }
 
   private func getRearActions(for token: TokenSyntax) -> [SourcePosAction] {

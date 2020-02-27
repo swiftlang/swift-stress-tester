@@ -59,6 +59,8 @@ public struct StressTester {
           return options.requests.contains(.cursorInfo)
         case .rangeInfo:
           return options.requests.contains(.rangeInfo)
+        case .format:
+          return options.requests.contains(.format)
         case .codeComplete:
           guard options.requests.contains(.codeComplete), astRebuilds <= limit else { return false }
           astRebuilds += 1
@@ -120,6 +122,8 @@ public struct StressTester {
         try report(document.rangeInfo(offset: offset, length: length))
       case .replaceText(let offset, let length, let text):
         _ = try document.replaceText(offset: offset, length: length, text: text)
+      case .format(let offset):
+        try report(document.format(offset: offset))
       case .typeContextInfo(let offset):
         try report(document.typeContextInfo(offset: offset))
       case .conformingMethodList(let offset):
@@ -214,6 +218,9 @@ public struct RequestSet: OptionSet {
     if self.contains(.collectExpressionType) {
       requests.append("CollectExpressionType")
     }
+    if self.contains(.format) {
+      requests.append("Format")
+    }
     return requests
   }
 
@@ -223,6 +230,7 @@ public struct RequestSet: OptionSet {
   public static let typeContextInfo = RequestSet(rawValue: 1 << 3)
   public static let conformingMethodList = RequestSet(rawValue: 1 << 4)
   public static let collectExpressionType = RequestSet(rawValue: 1 << 5)
+  public static let format = RequestSet(rawValue: 1 << 6)
 
-  public static let all: RequestSet = [.cursorInfo, .rangeInfo, .codeComplete, .typeContextInfo, .conformingMethodList, .collectExpressionType]
+  public static let all: RequestSet = [.cursorInfo, .rangeInfo, .codeComplete, .typeContextInfo, .conformingMethodList, .collectExpressionType, .format]
 }

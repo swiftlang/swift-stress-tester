@@ -62,6 +62,11 @@ public struct ExpectedIssue: Equatable, Codable {
         match(offset, against: specOffset) &&
         match(length, against: specLength) &&
         match(text, against: specText)
+    case .format(let document, let offset):
+      guard case .format(let specOffset) = issueDetail else { return false }
+      return match(document.path, against: path) &&
+        match(document.modification?.summaryCode, against: modification) &&
+        match(offset, against: specOffset)
     case .cursorInfo(let document, let offset, _):
       guard case .cursorInfo(let specOffset) = issueDetail else { return false }
       return match(document.path, against: path) &&
@@ -170,6 +175,10 @@ public extension ExpectedIssue {
         path = document.path
         modification = document.modification?.summaryCode
         issueDetail = .cursorInfo(offset: offset)
+      case .format(let document, let offset):
+        path = document.path
+        modification = document.modification?.summaryCode
+        issueDetail = .format(offset: offset)
       case .codeComplete(let document, let offset, _):
         path = document.path
         modification = document.modification?.summaryCode
@@ -203,6 +212,7 @@ public extension ExpectedIssue {
     case editorClose
     case editorReplaceText(offset: Int?, length: Int?, text: String?)
     case cursorInfo(offset: Int?)
+    case format(offset: Int?)
     case codeComplete(offset: Int?)
     case rangeInfo(offset: Int?, length: Int?)
     case typeContextInfo(offset: Int?)
@@ -226,6 +236,10 @@ public extension ExpectedIssue {
         )
       case .cursorInfo:
         self = .cursorInfo(
+          offset: try container.decodeIfPresent(Int.self, forKey: .offset)
+        )
+      case .format:
+        self = .format(
           offset: try container.decodeIfPresent(Int.self, forKey: .offset)
         )
       case .codeComplete:
@@ -274,6 +288,9 @@ public extension ExpectedIssue {
       case .cursorInfo(let offset):
         try container.encode(RequestBase.cursorInfo, forKey: .kind)
         try container.encode(offset, forKey: .offset)
+      case .format(let offset):
+        try container.encode(RequestBase.format, forKey: .kind)
+        try container.encode(offset, forKey: .offset)
       case .codeComplete(let offset):
         try container.encode(RequestBase.codeComplete, forKey: .kind)
         try container.encode(offset, forKey: .offset)
@@ -306,7 +323,7 @@ public extension ExpectedIssue {
 
     private enum RequestBase: String, Codable {
       case editorOpen, editorClose, editorReplaceText
-      case cursorInfo, codeComplete, rangeInfo, semanticRefactoring, typeContextInfo, conformingMethodList, collectExpressionType
+      case cursorInfo, codeComplete, rangeInfo, semanticRefactoring, typeContextInfo, conformingMethodList, collectExpressionType, format
       case stressTesterCrash
     }
   }

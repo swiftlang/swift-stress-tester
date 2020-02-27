@@ -131,9 +131,9 @@ class SwiftCWrapperToolTests: XCTestCase {
 
     let defaultInvocations = try! String(contentsOf: URL(fileURLWithPath: testInvocationPath)).split(separator: "\n")
     let defaultExpected = [
-      "--format json --page 1/1 --rewrite-mode none --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) swiftc \(testFilePath!)",
-      "--format json --page 1/1 --rewrite-mode concurrent --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) swiftc \(testFilePath!)",
-      "--format json --page 1/1 --rewrite-mode insideOut --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) swiftc \(testFilePath!)"
+      "--format json --page 1/1 --rewrite-mode none --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) swiftc \(testFilePath!)",
+      "--format json --page 1/1 --rewrite-mode concurrent --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) swiftc \(testFilePath!)",
+      "--format json --page 1/1 --rewrite-mode insideOut --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) swiftc \(testFilePath!)"
     ]
 
     XCTAssertEqual(defaultExpected.count, defaultInvocations.count)

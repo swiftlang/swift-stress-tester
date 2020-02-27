@@ -69,6 +69,7 @@ public enum RequestInfo {
   case editorOpen(document: DocumentInfo)
   case editorClose(document: DocumentInfo)
   case editorReplaceText(document: DocumentInfo, offset: Int, length: Int, text: String)
+  case format(document: DocumentInfo, offset: Int)
   case cursorInfo(document: DocumentInfo, offset: Int, args: [String])
   case codeComplete(document: DocumentInfo, offset: Int, args: [String])
   case rangeInfo(document: DocumentInfo, offset: Int, length: Int, args: [String])
@@ -209,7 +210,9 @@ extension RequestInfo: Codable {
     case request, kind, document, offset, length, text, args, typeList
   }
   enum BaseRequest: String, Codable {
-    case editorOpen, editorClose, replaceText, cursorInfo, codeComplete, rangeInfo, semanticRefactoring, typeContextInfo, conformingMethodList, collectExpressionType
+    case editorOpen, editorClose, replaceText, format, cursorInfo, codeComplete,
+      rangeInfo, semanticRefactoring, typeContextInfo, conformingMethodList,
+      collectExpressionType
   }
 
   public init(from decoder: Decoder) throws {
@@ -249,6 +252,10 @@ extension RequestInfo: Codable {
       let length = try container.decode(Int.self, forKey: .length)
       let text = try container.decode(String.self, forKey: .text)
       self = .editorReplaceText(document: document, offset: offset, length: length, text: text)
+    case .format:
+      let document = try container.decode(DocumentInfo.self, forKey: .document)
+      let offset = try container.decode(Int.self, forKey: .offset)
+      self = .format(document: document, offset: offset)
     case .typeContextInfo:
       let document = try container.decode(DocumentInfo.self, forKey: .document)
       let offset = try container.decode(Int.self, forKey: .offset)
@@ -304,6 +311,10 @@ extension RequestInfo: Codable {
       try container.encode(offset, forKey: .offset)
       try container.encode(length, forKey: .length)
       try container.encode(text, forKey: .text)
+    case .format(let document, let offset):
+      try container.encode(BaseRequest.format, forKey: .request)
+      try container.encode(document, forKey: .document)
+      try container.encode(offset, forKey: .offset)
     case .typeContextInfo(let document, let offset, let args):
       try container.encode(BaseRequest.typeContextInfo, forKey: .request)
       try container.encode(document, forKey: .document)
@@ -340,6 +351,8 @@ extension RequestInfo: CustomStringConvertible {
       return "SemanticRefactoring (\(kind)) in \(document) at offset \(offset) with args: \(args.joined(separator: " "))"
     case .editorReplaceText(let document, let offset, let length, let text):
       return "ReplaceText in \(document) at offset \(offset) for length \(length) with text: \(text)"
+    case .format(let document, let offset):
+      return "Format in \(document) at offset \(offset)"
     case .typeContextInfo(let document, let offset, let args):
       return "TypeContextInfo in \(document) at offset \(offset) with args: \(args.joined(separator: " "))"
     case .conformingMethodList(let document, let offset, let typeList, let args):
@@ -433,6 +446,12 @@ extension SourceKitError: CustomStringConvertible {
       let replace = String(source.utf8.dropFirst(offset).prefix(length))!
       let suffix = String(source.utf8.suffix(from: endIndex))!
       return prefix + "<replace-start>" + replace + "<replace-end>" + suffix
+    case .format(let document, let offset):
+      guard let source = document.modification?.content else { return nil }
+      let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
+      let prefix = String(source.utf8.prefix(upTo: index))!
+      let suffix = String(source.utf8.suffix(from: index))!
+      return prefix + "<format>" + suffix
     case .cursorInfo(let document, let offset, _):
       guard let source = document.modification?.content else { return nil }
       let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)

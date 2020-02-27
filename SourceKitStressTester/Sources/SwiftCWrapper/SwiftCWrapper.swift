@@ -41,7 +41,7 @@ public struct SwiftCWrapper {
     self.failFast = failFast
     self.suppressOutput = suppressOutput
     self.rewriteModes = rewriteModes ?? [.none, .concurrent, .insideOut]
-    self.requestKinds = requestKinds ?? [.cursorInfo, .rangeInfo, .codeComplete, .collectExpressionType]
+    self.requestKinds = requestKinds ?? [.format, .cursorInfo, .rangeInfo, .codeComplete, .collectExpressionType]
     self.conformingMethodTypes = conformingMethodTypes
     self.maxJobs = maxJobs
     self.dumpResponsesPath = dumpResponsesPath
@@ -240,6 +240,7 @@ public enum RequestKind: String, CaseIterable {
   case typeContextInfo = "TypeContextInfo"
   case conformingMethodList = "ConformingMethodList"
   case collectExpressionType = "CollectExpressionType"
+  case format = "Format"
   case all = "All"
 }
 
