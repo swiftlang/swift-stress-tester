@@ -350,7 +350,7 @@ struct SourceKitDocument {
   }
 
   private func throwIfInvalid(_ response: SourceKitdResponse, request: RequestInfo) throws {
-    if response.isCompilerCrash || response.isConnectionInterruptionError {
+    if response.isConnectionInterruptionError || response.isCompilerCrash {
       throw SourceKitError.crashed(request: request)
     }
     // FIXME: We don't supply a valid new name for initializer calls for local
