@@ -1,6 +1,5 @@
 import XCTest
 import SwiftSyntax
-import SwiftLang
 import SwiftEvolve
 
 class ShuffleGenericRequirementsEvolutionTests: XCTestCase {
