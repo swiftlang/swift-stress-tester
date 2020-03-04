@@ -60,7 +60,7 @@ if getenv("SWIFTCI_USE_LOCAL_DEPS") == nil {
     ]
 } else {
     package.dependencies += [
-        .package(path: "../../swiftpm/TSC"),
+        .package(path: "../../swiftpm/swift-tools-support-core"),
         .package(path: "../../swift-syntax"),
     ]
 }
