@@ -48,9 +48,9 @@ def parse_args(args):
 
   if ("install" in parsed.build_actions or "all" in parsed.build_actions) and not parsed.prefix:
     ArgumentParser.error("'--prefix' is required with the install action")
-  parsed.swift_exec = os.path.join(parsed.toolchain, 'usr', 'bin', 'swift')
+  parsed.swift_exec = os.path.join(parsed.toolchain, 'bin', 'swift')
 
-  parsed.sourcekitd_dir = os.path.join(parsed.toolchain, 'usr', 'lib')
+  parsed.sourcekitd_dir = os.path.join(parsed.toolchain, 'lib')
 
   # Convert package_dir to absolute path, relative to root of repo.
   repo_path = os.path.dirname(__file__)
@@ -138,7 +138,7 @@ def run(args):
 
   if should_run_action("install", args.build_actions):
     print("** Installing %s **" % package_name)
-    stdlib_dir = os.path.join(args.toolchain, 'usr', 'lib', 'swift', 'macosx')
+    stdlib_dir = os.path.join(args.toolchain, 'lib', 'swift', 'macosx')
     try:
       install_package(args.package_dir,
         install_dir=args.prefix,
