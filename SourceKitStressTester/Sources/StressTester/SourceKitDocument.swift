@@ -311,7 +311,13 @@ struct SourceKitDocument {
       return !found
     }
     if !found {
-        throw SourceKitError.failed(.missingExpectedResult, request: info, response: response.description.spm_chomp())
+      // FIXME: code completion responses can be huge, truncate them for now.
+      let maxSize = 25_000
+      var responseText = response.description
+      if responseText.count > maxSize {
+        responseText = responseText.prefix(maxSize) + "[truncated]"
+      }
+      throw SourceKitError.failed(.missingExpectedResult, request: info, response: responseText.spm_chomp())
     }
   }
 
