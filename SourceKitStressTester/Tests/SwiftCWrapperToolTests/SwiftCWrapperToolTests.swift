@@ -112,8 +112,18 @@ class SwiftCWrapperToolTests: XCTestCase {
       return wrapper.swiftFiles.map { (file, _) in file }
     }
     let dirPath = workspace.appendingPathComponent("ConfusinglyNamedDir.swift", isDirectory: true).path
+    let blacklistedDir = workspace.appendingPathComponent("SourcePackages/checkouts/SomeSubRepo", isDirectory: true).path
+    let blacklistedFile = workspace.appendingPathComponent("SourcePackages/checkouts/SomeSubRepo/file.swift", isDirectory: false).path
     try! FileManager.default.createDirectory(atPath: dirPath, withIntermediateDirectories: false, attributes: nil)
-    XCTAssertEqual(getSwiftFiles(from: [testFilePath, "/made-up.swift", "unrelated/path", dirPath]), [testFilePath])
+    try! FileManager.default.createDirectory(atPath: blacklistedDir, withIntermediateDirectories: true, attributes: nil)
+    guard FileManager.default.createFile(atPath: blacklistedFile, contents: nil) else { fatalError() }
+
+    XCTAssertEqual(getSwiftFiles(from: [testFilePath,
+                                        "/made-up.swift",
+                                        "unrelated/path",
+                                        blacklistedFile,
+                                        dirPath]),
+                   [testFilePath])
   }
 
   func testEnvParsing() {
