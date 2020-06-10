@@ -120,7 +120,8 @@ class ActionGeneratorTests: XCTestCase {
       (match: .reference, of: "myLabel:", against: "myLabel:", ignoreArgs: false, result: true),
       (match: .reference, of: "myLabel:", against: "myLabel", ignoreArgs: false, result: false),
       (match: .reference, of: "myLabel", against: "myLabel:", ignoreArgs: false, result: false),
-      (match: .call, of: "bar(_:)", against: "bar()", ignoreArgs: false, result: false),
+      // C functions don't have any '_' labels in 'against' even if they take arguments.
+      (match: .call, of: "bar(_:)", against: "bar()", ignoreArgs: false, result: true),
       (match: .call, of: "bar()", against: "bar(_:)", ignoreArgs: false, result: true),
       (match: .call, of: "bar(_:)", against: "bar(y:)", ignoreArgs: false, result: false),
       (match: .call, of: "bar(y:)", against: "bar(y:)", ignoreArgs: false, result: true),

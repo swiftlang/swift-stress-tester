@@ -518,7 +518,9 @@ public struct CompletionMatcher {
   private func matchesCall(paramLabels: [String]) -> Bool {
     var remainingArgLabels = expected.name.argLabels[...]
 
-    guard !paramLabels.isEmpty else { return remainingArgLabels.isEmpty }
+    guard !paramLabels.isEmpty else {
+      return remainingArgLabels.allSatisfy { $0.isEmpty }
+    }
     for nextParamLabel in paramLabels {
       if nextParamLabel.isEmpty {
         // No label
