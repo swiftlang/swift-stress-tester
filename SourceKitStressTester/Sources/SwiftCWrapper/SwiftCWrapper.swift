@@ -48,7 +48,7 @@ public struct SwiftCWrapper {
   }
 
   public var swiftFiles: [(String, size: Int)] {
-    let dependencyPaths = ["/.build/checkouts/", "/Pods/", "/Carthage/Checkouts"]
+    let dependencyPaths = ["/.build/checkouts/", "/Pods/", "/Carthage/Checkouts", "/SourcePackages/checkouts/"]
     return arguments
       .flatMap { DriverFileList(at: $0)?.paths ?? [$0] }
       .filter { argument in
@@ -242,29 +242,6 @@ public enum RequestKind: String, CaseIterable {
   case collectExpressionType = "CollectExpressionType"
   case format = "Format"
   case all = "All"
-}
-
-struct SwiftFile: Comparable {
-  let file: URL
-
-  init?(_ path: String) {
-    self.file = URL(fileURLWithPath: path, isDirectory: false)
-    guard isSwiftFile && isProjectFile else { return nil }
-  }
-
-  var isSwiftFile: Bool {
-    return file.pathExtension == "swift"
-  }
-
-  var isProjectFile: Bool {
-    // TODO: make this configurable
-    let dependencyPaths = ["/.build/checkouts/", "/Pods/", "/Carthage/Checkouts", "/submodules/"]
-    return dependencyPaths.allSatisfy {!file.path.contains($0)}
-  }
-
-  static func < (lhs: SwiftFile, rhs: SwiftFile) -> Bool {
-    return lhs.file.path < rhs.file.path
-  }
 }
 
 fileprivate extension TimeInterval {
