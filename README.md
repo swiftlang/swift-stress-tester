@@ -27,6 +27,8 @@ $ ./swift/utils/build-script --test --skip-build-benchmark --skip-test-cmark --s
 
 For local development you'll first need to download and install a recent [swift.org development snapshot](https://swift.org/download/#snapshots) toolchain that matches the latest commit on master in the [SwiftSyntax](https://github.com/apple/swift-syntax). This is because the Stress Tester depends on the latest version of SwiftSyntax and SwiftSyntax integrates into the latests version of the compiler.
 
+The toolchain is installed into `/Library/Developer/Toolchains/` if installed for all users. Note that the `$TOOLCHAIN_DIR` variables below should include `/usr` at the end of their path, eg. `TOOLCHAIN_DIR=/Library/Developer/Toolchains/swift-DEVELOPMENT-SNAPSHOT-<...>.xctoolchain/usr`.
+
 #### Via Xcode
 
 To generate an Xcode project that's set up correctly, run `build-script-helper.py`, passing the path to the downloaded toolchain via the `--toolchain` option, the tool's package name in the `--package-dir` option, and the `generate-xcodeproj` action:
