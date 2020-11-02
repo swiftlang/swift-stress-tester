@@ -25,7 +25,7 @@ $ ./swift/utils/build-script --test --skip-build-benchmark --skip-test-cmark --s
 
 ### For local development
 
-For local development you'll first need to download and install a recent [swift.org development snapshot](https://swift.org/download/#snapshots) toolchain that matches the latest commit on master in the [SwiftSyntax](https://github.com/apple/swift-syntax). This is because the Stress Tester depends on the latest version of SwiftSyntax and SwiftSyntax integrates into the latests version of the compiler.
+For local development you'll first need to download and install a recent [swift.org development snapshot](https://swift.org/download/#snapshots) toolchain that matches the latest commit on main in the [SwiftSyntax](https://github.com/apple/swift-syntax). This is because the Stress Tester depends on the latest version of SwiftSyntax and SwiftSyntax integrates into the latests version of the compiler.
 
 #### Via Xcode
 
@@ -52,7 +52,7 @@ $ ./Utilities/build-script-helper.py test --package-dir SourceKitStressTester --
 
 ## Running
 
-Building will create either one or two executables, depending on the package you build. These will be in the package directory's `.build/debug` sudbirectory if building on the command line or via the Swift repo's build-script, and under `Products/Debug` in the Xcode project's `DerivedData` directory if building there. They are also available in the `usr/bin` directory of recent trunk and swift 5.0 development toolchains from swift.org, if you're just interested in running them, rather than building them locally.
+Building will create either one or two executables, depending on the package you build. These will be in the package directory's `.build/debug` subdirectory if building on the command line or via the Swift repo's build-script, and under `Products/Debug` in the Xcode project's `DerivedData` directory if building there. They are also available in the `usr/bin` directory of recent trunk and swift 5.0 development toolchains from swift.org, if you're just interested in running them, rather than building them locally.
 
 See the individual packages' README files for information about how to run and use their executables.
 

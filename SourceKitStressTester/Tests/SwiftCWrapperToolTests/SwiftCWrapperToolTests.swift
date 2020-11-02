@@ -173,13 +173,13 @@ class SwiftCWrapperToolTests: XCTestCase {
 
   func testIssueManager() {
     let xfail = ExpectedIssue(
-      applicableConfigs: ["master"], issueUrl: "<issue-url>",
+      applicableConfigs: ["main"], issueUrl: "<issue-url>",
       path: "*/foo/bar.swift", modification: nil,
       issueDetail: .editorReplaceText(offset: 42, length: 0, text: nil)
     )
 
     let xfail2 = ExpectedIssue(
-      applicableConfigs: ["master"], issueUrl: "<issue-url",
+      applicableConfigs: ["main"], issueUrl: "<issue-url",
       path: "*/foo/bar.swift", modification: nil,
       issueDetail: .stressTesterCrash(status: 2, arguments: "*concurrent*"))
 
