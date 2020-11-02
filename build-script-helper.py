@@ -67,13 +67,13 @@ def parse_args(args):
 
 
 def run(args):
-  sourcekit_searchpath=args.sourcekitd_dir
   package_name = os.path.basename(args.package_dir)
 
   env = dict(os.environ)
   # Use local dependencies (i.e. checked out next sourcekit-lsp).
   if not args.no_local_deps:
     env['SWIFTCI_USE_LOCAL_DEPS'] = "1"
+  env['SWIFT_STRESS_TESTER_SOURCEKIT_SEARCHPATH'] = args.sourcekitd_dir
 
   if args.update:
     print("** Updating dependencies of %s **" % package_name)
@@ -94,7 +94,6 @@ def run(args):
       swift_exec=args.swift_exec,
       action='build',
       products=get_products(args.package_dir),
-      sourcekit_searchpath=sourcekit_searchpath,
       build_dir=args.build_dir,
       multiroot_data_file=args.multiroot_data_file,
       config=args.config,
@@ -109,7 +108,7 @@ def run(args):
       'Generating the Xcode project failed',
       args.package_dir,
       swift_exec=args.swift_exec,
-      sourcekit_searchpath=sourcekit_searchpath,
+      sourcekit_searchpath=args.sourcekitd_dir,
       env=env,
       verbose=args.verbose)
 
@@ -121,7 +120,6 @@ def run(args):
       swift_exec=args.swift_exec,
       action='test',
       products=['%sPackageTests' % package_name],
-      sourcekit_searchpath=sourcekit_searchpath,
       build_dir=args.build_dir,
       multiroot_data_file=args.multiroot_data_file,
       config=args.config,
@@ -135,7 +133,7 @@ def run(args):
       'Installing %s failed' % package_name,
       args.package_dir,
       install_dir=args.prefix,
-      sourcekit_searchpath=sourcekit_searchpath,
+      sourcekit_searchpath=args.sourcekitd_dir,
       build_dir=output_dir,
       rpaths_to_delete=[stdlib_dir],
       verbose=args.verbose)
@@ -176,14 +174,14 @@ def update_swiftpm_dependencies(package_dir, swift_exec, build_dir, env, verbose
   check_call(args, env=env, verbose=verbose)
 
 
-def invoke_swift(package_dir, swift_exec, action, products, sourcekit_searchpath, build_dir, multiroot_data_file, config, env, verbose):
-  # Until rdar://53881101 is implemented, we cannot request a build of multiple 
+def invoke_swift(package_dir, swift_exec, action, products, build_dir, multiroot_data_file, config, env, verbose):
+  # Until rdar://53881101 is implemented, we cannot request a build of multiple
   # targets simultaneously. For now, just build one product after the other.
   for product in products:
-    invoke_swift_single_product(package_dir, swift_exec, action, product, sourcekit_searchpath, build_dir, multiroot_data_file, config, env, verbose)
+    invoke_swift_single_product(package_dir, swift_exec, action, product, build_dir, multiroot_data_file, config, env, verbose)
 
 
-def invoke_swift_single_product(package_dir, swift_exec, action, product, sourcekit_searchpath, build_dir, multiroot_data_file, config, env, verbose):
+def invoke_swift_single_product(package_dir, swift_exec, action, product, build_dir, multiroot_data_file, config, env, verbose):
   args = [swift_exec, action, '--package-path', package_dir, '-c', config, '--build-path', build_dir]
 
   if multiroot_data_file:
@@ -197,7 +195,6 @@ def invoke_swift_single_product(package_dir, swift_exec, action, product, source
   # Tell SwiftSyntax that we are building in a build-script environment so that
   # it does not need to rebuilt if it has already been built before.
   env['SWIFT_BUILD_SCRIPT_ENVIRONMENT'] = '1'
-  env['SWIFT_STRESS_TESTER_SOURCEKIT_SEARCHPATH'] = sourcekit_searchpath
 
   check_call(args, env=env, verbose=verbose)
 
