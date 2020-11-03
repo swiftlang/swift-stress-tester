@@ -141,9 +141,9 @@ class SwiftCWrapperToolTests: XCTestCase {
 
     let defaultInvocations = try! String(contentsOf: URL(fileURLWithPath: testInvocationPath)).split(separator: "\n")
     let defaultExpected = [
-      "--format json --page 1/1 --rewrite-mode none --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) swiftc \(testFilePath!)",
-      "--format json --page 1/1 --rewrite-mode concurrent --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) swiftc \(testFilePath!)",
-      "--format json --page 1/1 --rewrite-mode insideOut --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) swiftc \(testFilePath!)"
+      "--format json --page 1/1 --rewrite-mode none --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType --swiftc \(testSwiftCPath!) \(testFilePath!) -- \(testFilePath!)",
+      "--format json --page 1/1 --rewrite-mode concurrent --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType --swiftc \(testSwiftCPath!) \(testFilePath!) -- \(testFilePath!)",
+      "--format json --page 1/1 --rewrite-mode insideOut --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType --swiftc \(testSwiftCPath!) \(testFilePath!) -- \(testFilePath!)"
     ]
 
     XCTAssertEqual(defaultExpected.count, defaultInvocations.count)
@@ -162,8 +162,8 @@ class SwiftCWrapperToolTests: XCTestCase {
 
     let customInvocations = try! String(contentsOf: URL(fileURLWithPath: testInvocationPath)).split(separator: "\n")
     let customExpected = [
-      "--format json --page 1/1 --rewrite-mode basic --request CursorInfo --request RangeInfo --request CodeComplete --request TypeContextInfo --request ConformingMethodList --request CollectExpressionType --request All --type-list-item s:SomeUSR --type-list-item s:OtherUSR --type-list-item s:ThirdUSR \(testFilePath!) swiftc \(testFilePath!)",
-      "--format json --page 1/1 --rewrite-mode insideOut --request CursorInfo --request RangeInfo --request CodeComplete --request TypeContextInfo --request ConformingMethodList --request CollectExpressionType --request All --type-list-item s:SomeUSR --type-list-item s:OtherUSR --type-list-item s:ThirdUSR \(testFilePath!) swiftc \(testFilePath!)"
+      "--format json --page 1/1 --rewrite-mode basic --request CursorInfo --request RangeInfo --request CodeComplete --request TypeContextInfo --request ConformingMethodList --request CollectExpressionType --request All --type-list-item s:SomeUSR --type-list-item s:OtherUSR --type-list-item s:ThirdUSR --swiftc \(testSwiftCPath!) \(testFilePath!) -- \(testFilePath!)",
+      "--format json --page 1/1 --rewrite-mode insideOut --request CursorInfo --request RangeInfo --request CodeComplete --request TypeContextInfo --request ConformingMethodList --request CollectExpressionType --request All --type-list-item s:SomeUSR --type-list-item s:OtherUSR --type-list-item s:ThirdUSR --swiftc \(testSwiftCPath!) \(testFilePath!) -- \(testFilePath!)"
     ]
     XCTAssertEqual(customExpected.count, customInvocations.count)
     for invocation in customInvocations {
@@ -186,19 +186,19 @@ class SwiftCWrapperToolTests: XCTestCase {
     let document1 = DocumentInfo(path: "/baz/foo/bar.swift", modification: nil)
     let request1 = RequestInfo.editorReplaceText(document: document1, offset: 42, length: 0, text: ".")
     let error1 = SourceKitError.crashed(request: request1)
-    let issue1 = StressTesterIssue.failed(error1)
+    let issue1 = StressTesterIssue.failed(sourceKitError: error1, arguments: "")
 
     let request2 = RequestInfo.editorReplaceText(document: document1, offset: 42, length: 2, text: "hello")
     let error2 = SourceKitError.crashed(request: request2)
-    let issue2 = StressTesterIssue.failed(error2)
+    let issue2 = StressTesterIssue.failed(sourceKitError: error2, arguments: "")
 
     let document2 = DocumentInfo(path: "/baz/bar.swift", modification: nil)
     let request3 = RequestInfo.editorReplaceText(document: document2, offset: 42, length: 0, text: ".")
     let error3 = SourceKitError.crashed(request: request3)
-    let issue3 = StressTesterIssue.failed(error3)
+    let issue3 = StressTesterIssue.failed(sourceKitError: error3, arguments: "")
 
     let error4 = SourceKitError.failed(.errorResponse, request: request1, response: "foo")
-    let issue4 = StressTesterIssue.failed(error4)
+    let issue4 = StressTesterIssue.failed(sourceKitError: error4, arguments: "")
 
     let issue5 = StressTesterIssue.errored(status: 2, file: "/bob/foo/bar.swift",
                                           arguments: "--rewrite-mode concurrent /bob/foo/bar.swift swiftc /bob/foo/bar.swift")

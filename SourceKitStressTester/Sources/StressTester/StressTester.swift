@@ -16,16 +16,10 @@ import SwiftSyntax
 import Common
 
 public struct StressTester {
-  let file: URL
-  let source: String
-  let compilerArgs: [String]
   let options: StressTesterOptions
   let connection: SourceKitdService
 
-  public init(for file: URL, compilerArgs: [String], options: StressTesterOptions) {
-    self.source = try! String(contentsOf: file, encoding: .utf8)
-    self.file = file
-    self.compilerArgs = compilerArgs.flatMap { DriverFileList(at: $0)?.paths ?? [$0] }
+  public init(options: StressTesterOptions) {
     self.options = options
     self.connection = SourceKitdService()
   }
@@ -45,7 +39,64 @@ public struct StressTester {
     }
   }
 
-  func computeStartStateAndActions(from tree: SourceFileSyntax) -> (state: SourceState, actions: [Action]) {
+  public func run(for file: URL, swiftc: String, compilerArgs: [String]) throws {
+    let compilerArgs = compilerArgs.flatMap {
+      DriverFileList(at: $0)?.paths ?? [$0]
+    }
+    var document = SourceKitDocument(file,
+                                     swiftc: swiftc,
+                                     args: compilerArgs,
+                                     tempDir: options.tempDir,
+                                     connection: connection,
+                                     containsErrors: true)
+
+    // compute the actions for the entire tree
+    let (tree, _) = try document.open(rewriteMode: options.rewriteMode)
+    let (actions, replacements) = computeActions(from: tree)
+
+    if let dryRunAction = options.dryRun {
+      try dryRunAction(actions)
+      return
+    }
+
+    if !replacements.isEmpty {
+      // Update initial state
+      _ = try document.update() { sourceState in
+        for action in replacements {
+          if case .replaceText(let offset, let length, let text) = action {
+            sourceState.replace(offset: offset, length: length, with: text)
+          }
+        }
+      }
+    }
+
+    for action in actions {
+      switch action {
+      case .cursorInfo(let offset):
+        try report(document.cursorInfo(offset: offset))
+      case .codeComplete(let offset, let expectedResult):
+        try report(document.codeComplete(offset: offset, expectedResult: expectedResult))
+      case .rangeInfo(let offset, let length):
+        try report(document.rangeInfo(offset: offset, length: length))
+      case .replaceText(let offset, let length, let text):
+        _ = try document.replaceText(offset: offset, length: length, text: text)
+      case .format(let offset):
+        try report(document.format(offset: offset))
+      case .typeContextInfo(let offset):
+        try report(document.typeContextInfo(offset: offset))
+      case .conformingMethodList(let offset):
+        try report(document.conformingMethodList(offset: offset, typeList: options.conformingMethodsTypeList))
+      case .collectExpressionType:
+        try report(document.collectExpressionType())
+      case .testModule:
+        try report(document.moduleInterfaceGen())
+      }
+    }
+
+    _ = try document.close()
+  }
+
+  private func computeActions(from tree: SourceFileSyntax) -> (page: [Action], replacements: [Action]) {
     let limit = options.astBuildLimit ?? Int.max
     var astRebuilds = 0
     var locationsInvalidated = false
@@ -82,58 +133,22 @@ public struct StressTester {
           }
           astRebuilds += 1
           return true
+        case .testModule:
+          return options.requests.contains(.testModule)
         }
       }
       .divide(into: options.page.count)
 
-    let page = Array(pages[options.page.index])
-    guard !options.page.isFirst else {
-      return (SourceState(rewriteMode: options.rewriteMode, content: source), page)
-    }
-
-    // Compute the initial state of the source file for this page
-    var state = SourceState(rewriteMode: options.rewriteMode, content: source)
-    pages[..<options.page.index].joined().forEach {
-      if case .replaceText(let offset, let length, let text) = $0 {
-        state.replace(offset: offset, length: length, with: text)
-      }
-    }
-    return (state, page)
-  }
-
-  public func run() throws {
-    var document = SourceKitDocument(file.path, args: compilerArgs, connection: connection, containsErrors: true)
-
-    // compute the actions for the entire tree
-    let (tree, _) = try document.open()
-    let (state, actions) = computeStartStateAndActions(from: tree)
-
-    // reopen the document in the starting state
-    _ = try document.close()
-    _ = try document.open(state: state)
-
-    for action in actions {
-      switch action {
-      case .cursorInfo(let offset):
-        try report(document.cursorInfo(offset: offset))
-      case .codeComplete(let offset, let expectedResult):
-        try report(document.codeComplete(offset: offset, expectedResult: expectedResult))
-      case .rangeInfo(let offset, let length):
-        try report(document.rangeInfo(offset: offset, length: length))
-      case .replaceText(let offset, let length, let text):
-        _ = try document.replaceText(offset: offset, length: length, text: text)
-      case .format(let offset):
-        try report(document.format(offset: offset))
-      case .typeContextInfo(let offset):
-        try report(document.typeContextInfo(offset: offset))
-      case .conformingMethodList(let offset):
-        try report(document.conformingMethodList(offset: offset, typeList: options.conformingMethodsTypeList))
-      case .collectExpressionType:
-        try report(document.collectExpressionType())
-      }
-    }
-
-    _ = try document.close()
+    return (
+      page: Array(pages[options.page.index]),
+      replacements: pages[..<options.page.index].joined()
+        .filter {
+          if case .replaceText = $0 {
+            return true
+          }
+          return false
+        }
+    )
   }
 
   private func report(_ result: (RequestInfo, SourceKitdResponse)) throws {
@@ -181,12 +196,29 @@ private extension SourceKitdUID {
 }
 
 public struct StressTesterOptions {
-  public var astBuildLimit: Int?
   public var requests: RequestSet
   public var rewriteMode: RewriteMode
   public var conformingMethodsTypeList: [String]
-  public var responseHandler: ((SourceKitResponseData) throws -> Void)?
   public var page: Page
+  public var tempDir: URL
+  public var astBuildLimit: Int?
+  public var responseHandler: ((SourceKitResponseData) throws -> Void)?
+  public var dryRun: (([Action]) throws -> Void)?
+
+  public init(requests: RequestSet, rewriteMode: RewriteMode,
+              conformingMethodsTypeList: [String], page: Page,
+              tempDir: URL, astBuildLimit: Int? = nil,
+              responseHandler: ((SourceKitResponseData) throws -> Void)? = nil,
+              dryRun: (([Action]) throws -> Void)? = nil) {
+    self.requests = requests
+    self.rewriteMode = rewriteMode
+    self.conformingMethodsTypeList = conformingMethodsTypeList
+    self.page = page
+    self.tempDir = tempDir
+    self.astBuildLimit = astBuildLimit
+    self.responseHandler = responseHandler
+    self.dryRun = dryRun
+  }
 }
 
 public struct RequestSet: OptionSet {
@@ -198,26 +230,26 @@ public struct RequestSet: OptionSet {
 
   public var valueNames: [String] {
     var requests = [String]()
-    if self.contains(.codeComplete) {
+    if contains(.codeComplete) {
       requests.append("CodeComplete")
     }
-    if self.contains(.cursorInfo) {
+    if contains(.cursorInfo) {
       requests.append("CursorInfo")
     }
-    if self.contains(.rangeInfo) {
+    if contains(.rangeInfo) {
       requests.append("RangeInfo")
     }
-    if self.contains(.typeContextInfo) {
+    if contains(.typeContextInfo) {
       requests.append("TypeContextInfo")
     }
-    if self.contains(.conformingMethodList) {
+    if contains(.conformingMethodList) {
       requests.append("ConformingMethodList")
     }
-    if self.contains(.collectExpressionType) {
+    if contains(.collectExpressionType) {
       requests.append("CollectExpressionType")
     }
-    if self.contains(.format) {
-      requests.append("Format")
+    if contains(.testModule) {
+      requests.append("TestModule")
     }
     return requests
   }
@@ -229,8 +261,12 @@ public struct RequestSet: OptionSet {
   public static let conformingMethodList = RequestSet(rawValue: 1 << 4)
   public static let collectExpressionType = RequestSet(rawValue: 1 << 5)
   public static let format = RequestSet(rawValue: 1 << 6)
+  public static let testModule = RequestSet(rawValue: 1 << 7)
 
-  public static let all: RequestSet = [.cursorInfo, .rangeInfo, .codeComplete, .typeContextInfo, .conformingMethodList, .collectExpressionType, .format]
+  public static let ide: RequestSet = [.cursorInfo, .rangeInfo, .codeComplete,
+                                      .typeContextInfo, .conformingMethodList,
+                                      .collectExpressionType, .format]
+  public static let all: RequestSet = ide.union(RequestSet([.testModule]))
 }
 
 extension RequestSet: CustomStringConvertible {

@@ -21,14 +21,25 @@ class ActionGeneratorTests: XCTestCase {
   var testFile: URL!
   var testFileContent: String!
 
+  private let ALL_ACTIONS: [Action.BaseAction] = [
+    .format, .codeComplete, .cursorInfo, .rangeInfo, .conformingMethodList,
+    .typeContextInfo, .collectExpressionType, .replaceText, .testModule]
+
   func testRequestActionGenerator() {
     let actions = RequestActionGenerator().generate(for: testFile)
-    verify(actions, rewriteMode: .none, expectedActionTypes: [.format, .codeComplete, .cursorInfo, .rangeInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType])
+    let expectedActions = ALL_ACTIONS.filter({ $0 != .replaceText })
+
+    verify(actions, rewriteMode: .none, expectedActionTypes: expectedActions)
 
     XCTAssertEqual(actions.filter{
       if case .collectExpressionType = $0 { return true }
       return false
     }.count, 1, "there is a single CollectExpressionType action")
+
+    XCTAssertEqual(actions.filter{
+      if case .testModule = $0 { return true }
+      return false
+    }.count, 1, "there is a single TestModule action")
 
     // I=CursorInfo, C=CodeComplete, T=TypeContextInfo, M=ConformingMethodList, R=RangeInfo(start), E=RangeInfo(end)
     XCTAssertEqual(ActionMarkup(actions, in: testFileContent).markedUpSource, """
@@ -153,22 +164,23 @@ class ActionGeneratorTests: XCTestCase {
 
   func testRewriteActionGenerator() {
     let actions = BasicRewriteActionGenerator().generate(for: testFile)
-    verify(actions, rewriteMode: .basic, expectedActionTypes: [.format, .codeComplete, .cursorInfo, .rangeInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText])
+    verify(actions, rewriteMode: .basic, expectedActionTypes: ALL_ACTIONS)
   }
 
   func testTypoRewriteActionGenerator() {
     let actions = TypoActionGenerator().generate(for: testFile)
-    verify(actions, rewriteMode: .typoed, expectedActionTypes: [.format, .codeComplete, .cursorInfo, .conformingMethodList, .typeContextInfo, .replaceText])
+    let expectedActions = ALL_ACTIONS.filter({ $0 != .rangeInfo && $0 != .collectExpressionType})
+    verify(actions, rewriteMode: .typoed, expectedActionTypes: expectedActions)
   }
 
   func testConcurrentRewriteActionGenerator() {
     let actions = ConcurrentRewriteActionGenerator().generate(for: testFile)
-    verify(actions, rewriteMode: .concurrent, expectedActionTypes: [.format, .codeComplete, .cursorInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText, .rangeInfo])
+    verify(actions, rewriteMode: .concurrent, expectedActionTypes: ALL_ACTIONS)
   }
 
   func testInsideOutActionGenerator() {
     let actions = InsideOutRewriteActionGenerator().generate(for: testFile)
-    verify(actions, rewriteMode: .insideOut, expectedActionTypes: [.format, .codeComplete, .cursorInfo, .conformingMethodList, .typeContextInfo, .collectExpressionType, .replaceText, .rangeInfo])
+    verify(actions, rewriteMode: .insideOut, expectedActionTypes: ALL_ACTIONS)
 
     let edits = InsideOutRewriteActionGenerator().generate(for: "a.b([.c])").filter {
         guard case .replaceText = $0 else { return false }
@@ -209,6 +221,8 @@ class ActionGeneratorTests: XCTestCase {
         break
       case .format(let offset):
         XCTAssertTrue(offset >= 0 && offset <= eof)
+      case .testModule:
+        break;
       }
     }
     XCTAssertEqual(state.source, testFileContent)
@@ -231,6 +245,8 @@ class ActionGeneratorTests: XCTestCase {
         return .collectExpressionType
       case .format:
         return .format
+      case .testModule:
+        return .testModule
       }
     })
 
@@ -304,6 +320,8 @@ final class ActionMarkup {
           return [] // no associated location
         case .format(let offset):
           return [(offset, "F")]
+        case .testModule:
+          return []
         }
       }
       .enumerated()

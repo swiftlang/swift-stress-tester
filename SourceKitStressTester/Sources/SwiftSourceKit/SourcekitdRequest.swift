@@ -135,8 +135,7 @@ public struct SourceKitdRequest: CustomStringConvertible {
     return req.dict
   }
 
-  public func addCompilerArgsToRequest(_ compilerArguments: [String]?,
-                                       _ bufferName: String? = nil) {
+  public func addCompilerArgs(_ compilerArguments: [String]?) {
     let args = self.addArrayParameter(SourceKitdUID.key_CompilerArgs)
 
     if let compilerArguments = compilerArguments {
