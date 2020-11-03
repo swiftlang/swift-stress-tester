@@ -23,12 +23,15 @@ import sys
 import os, platform
 import subprocess
 
+
 def printerr(message):
     print(message, file=sys.stderr)
+
 
 def main(argv_prefix = []):
   args = parse_args(argv_prefix + sys.argv[1:])
   run(args)
+
 
 def parse_args(args):
   parser = argparse.ArgumentParser(prog='BUILD-SCRIPT-HELPER.PY')
@@ -62,94 +65,78 @@ def parse_args(args):
 
   return parsed
 
+
 def run(args):
-  sourcekit_searchpath=args.sourcekitd_dir
   package_name = os.path.basename(args.package_dir)
 
   env = dict(os.environ)
   # Use local dependencies (i.e. checked out next sourcekit-lsp).
   if not args.no_local_deps:
     env['SWIFTCI_USE_LOCAL_DEPS'] = "1"
+  env['SWIFT_STRESS_TESTER_SOURCEKIT_SEARCHPATH'] = args.sourcekitd_dir
 
   if args.update:
     print("** Updating dependencies of %s **" % package_name)
-    try:
-      update_swiftpm_dependencies(package_dir=args.package_dir,
-        swift_exec=args.swift_exec,
-        build_dir=args.build_dir,
-        env=env,
-        verbose=args.verbose)
-    except subprocess.CalledProcessError as e:
-      printerr('FAIL: Updating dependencies of %s failed' % package_name)
-      printerr('Executing: %s' % ' '.join(e.cmd))
-      sys.exit(1)
+    handle_errors(update_swiftpm_dependencies,
+      'Updating dependencies of %s failed' % package_name,
+      package_dir=args.package_dir,
+      swift_exec=args.swift_exec,
+      build_dir=args.build_dir,
+      env=env,
+      verbose=args.verbose)
 
   # The test action creates its own build. No need to build if we are just testing
   if should_run_any_action(['build', 'install'], args.build_actions):
     print("** Building %s **" % package_name)
-    try:
-      invoke_swift(package_dir=args.package_dir,
-        swift_exec=args.swift_exec,
-        action='build',
-        products=get_products(args.package_dir),
-        sourcekit_searchpath=sourcekit_searchpath,
-        build_dir=args.build_dir,
-        multiroot_data_file=args.multiroot_data_file,
-        config=args.config,
-        env=env,
-        verbose=args.verbose)
-    except subprocess.CalledProcessError as e:
-      printerr('FAIL: Building %s failed' % package_name)
-      printerr('Executing: %s' % ' '.join(e.cmd))
-      sys.exit(1)
+    handle_errors(invoke_swift,
+      'Building %s failed' % package_name,
+      package_dir=args.package_dir,
+      swift_exec=args.swift_exec,
+      action='build',
+      products=get_products(args.package_dir),
+      build_dir=args.build_dir,
+      multiroot_data_file=args.multiroot_data_file,
+      config=args.config,
+      env=env,
+      verbose=args.verbose)
 
   output_dir = os.path.realpath(os.path.join(args.build_dir, args.config))
 
   if should_run_action("generate-xcodeproj", args.build_actions):
     print("** Generating Xcode project for %s **" % package_name)
-    try:
-      generate_xcodeproj(args.package_dir,
-        swift_exec=args.swift_exec,
-        sourcekit_searchpath=sourcekit_searchpath,
-        env=env,
-        verbose=args.verbose)
-    except subprocess.CalledProcessError as e:
-      printerr('FAIL: Generating the Xcode project failed')
-      printerr('Executing: %s' % ' '.join(e.cmd))
-      sys.exit(1)
+    handle_errors(generate_xcodeproj,
+      'Generating the Xcode project failed',
+      args.package_dir,
+      swift_exec=args.swift_exec,
+      sourcekit_searchpath=args.sourcekitd_dir,
+      env=env,
+      verbose=args.verbose)
 
   if should_run_action("test", args.build_actions):
     print("** Testing %s **" % package_name)
-    try:
-      invoke_swift(package_dir=args.package_dir,
-        swift_exec=args.swift_exec,
-        action='test',
-        products=['%sPackageTests' % package_name],
-        sourcekit_searchpath=sourcekit_searchpath,
-        build_dir=args.build_dir,
-        multiroot_data_file=args.multiroot_data_file,
-        config=args.config,
-        env=env,
-        verbose=args.verbose)
-    except subprocess.CalledProcessError as e:
-      printerr('FAIL: Testing %s failed' % package_name)
-      printerr('Executing: %s' % ' '.join(e.cmd))
-      sys.exit(1)
+    handle_errors(invoke_swift,
+      'Testing %s failed' % package_name,
+      package_dir=args.package_dir,
+      swift_exec=args.swift_exec,
+      action='test',
+      products=['%sPackageTests' % package_name],
+      build_dir=args.build_dir,
+      multiroot_data_file=args.multiroot_data_file,
+      config=args.config,
+      env=env,
+      verbose=args.verbose)
 
   if should_run_action("install", args.build_actions):
     print("** Installing %s **" % package_name)
     stdlib_dir = os.path.join(args.toolchain, 'lib', 'swift', 'macosx')
-    try:
-      install_package(args.package_dir,
-        install_dir=args.prefix,
-        sourcekit_searchpath=sourcekit_searchpath,
-        build_dir=output_dir,
-        rpaths_to_delete=[stdlib_dir],
-        verbose=args.verbose)
-    except subprocess.CalledProcessError as e:
-      printerr('FAIL: Installing %s failed' % package_name)
-      printerr('Executing: %s' % ' '.join(e.cmd))
-      sys.exit(1)
+    handle_errors(install_package,
+      'Installing %s failed' % package_name,
+      args.package_dir,
+      install_dir=args.prefix,
+      sourcekit_searchpath=args.sourcekitd_dir,
+      build_dir=output_dir,
+      rpaths_to_delete=[stdlib_dir],
+      verbose=args.verbose)
 
 
 # Returns true if any of the actions in `action_names` should be run.
@@ -169,19 +156,32 @@ def should_run_action(action_name, selected_actions):
     return False
 
 
+def handle_errors(func, message, *args, **kwargs):
+  try:
+    func(*args, **kwargs)
+  except subprocess.CalledProcessError as e:
+    printerr('FAIL: %s' % message)
+    printerr('Executing: %s' % ' '.join(e.cmd))
+    sys.exit(1)
+  except OSError as e:
+    printerr('FAIL: %s' % message)
+    printerr('Executing subprocess failed: %s. Add --verbose to see command' % e)
+    sys.exit(1)
+
+
 def update_swiftpm_dependencies(package_dir, swift_exec, build_dir, env, verbose):
   args = [swift_exec, 'package', '--package-path', package_dir, '--build-path', build_dir, 'update']
   check_call(args, env=env, verbose=verbose)
 
 
-def invoke_swift(package_dir, swift_exec, action, products, sourcekit_searchpath, build_dir, multiroot_data_file, config, env, verbose):
-  # Until rdar://53881101 is implemented, we cannot request a build of multiple 
+def invoke_swift(package_dir, swift_exec, action, products, build_dir, multiroot_data_file, config, env, verbose):
+  # Until rdar://53881101 is implemented, we cannot request a build of multiple
   # targets simultaneously. For now, just build one product after the other.
   for product in products:
-    invoke_swift_single_product(package_dir, swift_exec, action, product, sourcekit_searchpath, build_dir, multiroot_data_file, config, env, verbose)
+    invoke_swift_single_product(package_dir, swift_exec, action, product, build_dir, multiroot_data_file, config, env, verbose)
 
 
-def invoke_swift_single_product(package_dir, swift_exec, action, product, sourcekit_searchpath, build_dir, multiroot_data_file, config, env, verbose):
+def invoke_swift_single_product(package_dir, swift_exec, action, product, build_dir, multiroot_data_file, config, env, verbose):
   args = [swift_exec, action, '--package-path', package_dir, '-c', config, '--build-path', build_dir]
 
   if multiroot_data_file:
@@ -195,7 +195,6 @@ def invoke_swift_single_product(package_dir, swift_exec, action, product, source
   # Tell SwiftSyntax that we are building in a build-script environment so that
   # it does not need to rebuilt if it has already been built before.
   env['SWIFT_BUILD_SCRIPT_ENVIRONMENT'] = '1'
-  env['SWIFT_STRESS_TESTER_SOURCEKIT_SEARCHPATH'] = sourcekit_searchpath
 
   check_call(args, env=env, verbose=verbose)
 
@@ -217,7 +216,7 @@ def install_package(package_dir, install_dir, sourcekit_searchpath, build_dir, r
     rpaths_to_delete_for_this_product = list(rpaths_to_delete)
     # Add the rpath to the stdlib in in the toolchain
     rpaths_to_add = ['@executable_path/../lib/swift/macosx']
-    
+
     if product in ['sk-stress-test', 'swift-evolve']:
       # Make the rpath to sourcekitd relative in the toolchain
       rpaths_to_delete_for_this_product += [sourcekit_searchpath]
@@ -228,6 +227,7 @@ def install_package(package_dir, install_dir, sourcekit_searchpath, build_dir, r
       rpaths_to_add=rpaths_to_add,
       verbose=verbose)
 
+
 def install(src, dest, rpaths_to_delete, rpaths_to_add, verbose):
   copy_cmd=['rsync', '-a', src, dest]
   print('installing %s to %s' % (os.path.basename(src), dest))
@@ -237,6 +237,7 @@ def install(src, dest, rpaths_to_delete, rpaths_to_add, verbose):
     remove_rpath(dest, rpath, verbose=verbose)
   for rpath in rpaths_to_add:
     add_rpath(dest, rpath, verbose=verbose)
+
 
 def generate_xcodeproj(package_dir, swift_exec, sourcekit_searchpath, env, verbose):
   package_name = os.path.basename(package_dir)
@@ -251,6 +252,7 @@ def generate_xcodeproj(package_dir, swift_exec, sourcekit_searchpath, env, verbo
 
   args = [swift_exec, 'package', '--package-path', package_dir, 'generate-xcodeproj', '--xcconfig-overrides', config_path, '--output', xcodeproj_path]
   check_call(args, env=env, verbose=verbose)
+
 
 def add_rpath(binary, rpath, verbose):
   cmd = ['install_name_tool', '-add_rpath', rpath, binary]
@@ -278,6 +280,7 @@ def escape_cmd_arg(arg):
   else:
     return arg
 
+
 def get_products(package_dir):
   # FIXME: We ought to be able to query SwiftPM for this info.
   if package_dir.endswith("/SourceKitStressTester"):
@@ -286,6 +289,7 @@ def get_products(package_dir):
     return ['swift-evolve']
   else:
     return []
+
 
 if __name__ == '__main__':
   main()
