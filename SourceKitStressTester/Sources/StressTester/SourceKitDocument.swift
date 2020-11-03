@@ -317,7 +317,7 @@ struct SourceKitDocument {
       if responseText.count > maxSize {
         responseText = responseText.prefix(maxSize) + "[truncated]"
       }
-      throw SourceKitError.failed(.missingExpectedResult, request: info, response: responseText.spm_chomp())
+      throw SourceKitError.failed(.missingExpectedResult, request: info, response: responseText.trimmingCharacters(in: .newlines))
     }
   }
 
@@ -362,7 +362,7 @@ struct SourceKitDocument {
     // FIXME: We don't supply a valid new name for initializer calls for local
     // rename requests. Ignore these errors for now.
     if response.isError, !response.description.contains("does not match the arity of the old name") {
-      throw SourceKitError.failed(.errorResponse, request: request, response: response.description.spm_chomp())
+      throw SourceKitError.failed(.errorResponse, request: request, response: response.description.trimmingCharacters(in: .newlines))
     }
   }
 

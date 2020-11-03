@@ -129,6 +129,15 @@ public struct Page: Codable {
   }
 }
 
+extension Page: CustomStringConvertible {
+  public var description: String {
+    if number == 1 && count == 1 {
+      return "none"
+    }
+    return "\(number) of \(count)"
+  }
+}
+
 extension StressTesterMessage: Codable {
   enum CodingKeys: String, CodingKey {
     case message, error, responseData

@@ -42,7 +42,7 @@ let package = Package(
     ),
     .target(
       name: "StressTester",
-      dependencies: ["Common", "SwiftToolsSupport-auto", "SwiftSyntax", "SwiftSourceKit"],
+      dependencies: ["Common", "SwiftToolsSupport-auto", "ArgumentParser", "SwiftSyntax", "SwiftSourceKit"],
       swiftSettings: [.unsafeFlags(["-Fsystem", sourcekitSearchPath])],
       linkerSettings: [.unsafeFlags(["-Xlinker", "-F", "-Xlinker", sourcekitSearchPath])]
     ),
@@ -85,11 +85,13 @@ if getenv("SWIFTCI_USE_LOCAL_DEPS") == nil {
   // Building standalone.
   package.dependencies += [
     .package(url: "https://github.com/apple/swift-tools-support-core.git", .branch("main")),
+    .package(url: "https://github.com/apple/swift-argument-parser.git", .branch("main")),
     .package(url: "https://github.com/apple/swift-syntax.git", .branch("main")),
   ]
 } else {
   package.dependencies += [
     .package(path: "../../swiftpm/swift-tools-support-core"),
+    .package(path: "../../swift-argument-parser"),
     .package(path: "../../swift-syntax"),
   ]
 }

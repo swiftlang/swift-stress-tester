@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2014 - 2019 Apple Inc. and the Swift project authors
+// Copyright (c) 2014 - 2020 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -181,14 +181,12 @@ private extension SourceKitdUID {
 }
 
 public struct StressTesterOptions {
-  public init() {}
-
-  public var astBuildLimit: Int? = nil
-  public var requests: RequestSet = .all
-  public var rewriteMode: RewriteMode = .none
-  public var conformingMethodsTypeList = ["s:SQ", "s:SH"] // Equatable and Hashable
-  public var responseHandler: ((SourceKitResponseData) throws -> Void)? = nil
-  public var page = Page(1, of: 1)
+  public var astBuildLimit: Int?
+  public var requests: RequestSet
+  public var rewriteMode: RewriteMode
+  public var conformingMethodsTypeList: [String]
+  public var responseHandler: ((SourceKitResponseData) throws -> Void)?
+  public var page: Page
 }
 
 public struct RequestSet: OptionSet {
@@ -233,4 +231,15 @@ public struct RequestSet: OptionSet {
   public static let format = RequestSet(rawValue: 1 << 6)
 
   public static let all: RequestSet = [.cursorInfo, .rangeInfo, .codeComplete, .typeContextInfo, .conformingMethodList, .collectExpressionType, .format]
+}
+
+extension RequestSet: CustomStringConvertible {
+  public var description: String {
+    if self == .ide {
+      return "\"IDE\""
+    } else if self == .all {
+      return "\"All\""
+    }
+    return String(describing: valueNames)
+  }
 }
