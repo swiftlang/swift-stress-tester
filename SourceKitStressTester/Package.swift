@@ -37,12 +37,11 @@ let package = Package(
                                      "-Xlinker", "-F", "-Xlinker", sourcekitSearchPath])]
     ),
     .target(
-      name: "Common",
-      dependencies: ["SwiftToolsSupport-auto"]
+      name: "Common"
     ),
     .target(
       name: "StressTester",
-      dependencies: ["Common", "SwiftToolsSupport-auto", "SwiftSyntax", "SwiftSourceKit"],
+      dependencies: ["Common", "ArgumentParser", "SwiftSyntax", "SwiftSourceKit"],
       swiftSettings: [.unsafeFlags(["-Fsystem", sourcekitSearchPath])],
       linkerSettings: [.unsafeFlags(["-Xlinker", "-F", "-Xlinker", sourcekitSearchPath])]
     ),
@@ -66,17 +65,11 @@ let package = Package(
       name: "StressTesterToolTests",
       dependencies: ["StressTester"],
       swiftSettings: [.unsafeFlags(["-Fsystem", sourcekitSearchPath])],
-      // SwiftPM does not get the rpath for XCTests in multiroot packages right (rdar://56793593)
-      // Add the correct rpath here
-      linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@loader_path/../../../",
-                                     "-Xlinker", "-F", "-Xlinker", sourcekitSearchPath])]
+      linkerSettings: [.unsafeFlags(["-Xlinker", "-F", "-Xlinker", sourcekitSearchPath])]
     ),
     .testTarget(
       name: "SwiftCWrapperToolTests",
-      dependencies: ["SwiftCWrapper"],
-      // SwiftPM does not get the rpath for XCTests in multiroot packages right (rdar://56793593)
-      // Add the correct rpath here
-      linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@loader_path/../../../"])]
+      dependencies: ["SwiftCWrapper"]
     )
   ]
 )
@@ -85,11 +78,13 @@ if getenv("SWIFTCI_USE_LOCAL_DEPS") == nil {
   // Building standalone.
   package.dependencies += [
     .package(url: "https://github.com/apple/swift-tools-support-core.git", .branch("main")),
+    .package(url: "https://github.com/apple/swift-argument-parser.git", .branch("main")),
     .package(url: "https://github.com/apple/swift-syntax.git", .branch("main")),
   ]
 } else {
   package.dependencies += [
     .package(path: "../../swiftpm/swift-tools-support-core"),
+    .package(path: "../../swift-argument-parser"),
     .package(path: "../../swift-syntax"),
   ]
 }

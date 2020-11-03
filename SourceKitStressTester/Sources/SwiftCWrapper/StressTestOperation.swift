@@ -80,7 +80,7 @@ final class StressTestOperation: Operation {
     self.file = file
     self.mode = rewriteMode
     self.part = part
-    self.process = ProcessRunner(launchPath: executable, arguments: stressTesterArgs + [file, "swiftc"] + compilerArgs)
+    self.process = ProcessRunner(launchPath: executable, arguments: stressTesterArgs + [file, "--"] + compilerArgs)
   }
 
   var summary: String {
