@@ -66,17 +66,11 @@ let package = Package(
       name: "StressTesterToolTests",
       dependencies: ["StressTester"],
       swiftSettings: [.unsafeFlags(["-Fsystem", sourcekitSearchPath])],
-      // SwiftPM does not get the rpath for XCTests in multiroot packages right (rdar://56793593)
-      // Add the correct rpath here
-      linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@loader_path/../../../",
-                                     "-Xlinker", "-F", "-Xlinker", sourcekitSearchPath])]
+      linkerSettings: [.unsafeFlags(["-Xlinker", "-F", "-Xlinker", sourcekitSearchPath])]
     ),
     .testTarget(
       name: "SwiftCWrapperToolTests",
-      dependencies: ["SwiftCWrapper"],
-      // SwiftPM does not get the rpath for XCTests in multiroot packages right (rdar://56793593)
-      // Add the correct rpath here
-      linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@loader_path/../../../"])]
+      dependencies: ["SwiftCWrapper"]
     )
   ]
 )
