@@ -16,9 +16,8 @@ import Common
 import Foundation
 
 struct SourceKitDocument {
-  let file: URL
   let swiftc: String
-  let args: [String]
+  let args: CompilerArgs
   let tempDir: URL
   let connection: SourceKitdService
   let containsErrors: Bool
@@ -37,7 +36,7 @@ struct SourceKitDocument {
     if let state = sourceState, state.wasModified {
       modification = DocumentModification(mode: state.mode, content: state.source)
     }
-    return DocumentInfo(path: file.path, modification: modification)
+    return DocumentInfo(path: args.forFile.path, modification: modification)
   }
 
   // An empty diagnostic consumer to practice the diagnostic APIs associated
@@ -48,10 +47,9 @@ struct SourceKitDocument {
     let needsLineColumn: Bool = true
   }
 
-  init(_ file: URL, swiftc: String, args: [String],
+  init(swiftc: String, args: CompilerArgs,
        tempDir: URL, connection: SourceKitdService,
        containsErrors: Bool = false) {
-    self.file = file
     self.swiftc = swiftc
     self.args = args
     self.tempDir = tempDir
@@ -61,39 +59,32 @@ struct SourceKitDocument {
   }
 
   mutating func open(rewriteMode: RewriteMode) throws -> (SourceFileSyntax, SourceKitdResponse) {
-    return try openOrUpdate(rewriteMode: rewriteMode)
+    let source = try! String(contentsOf: args.forFile, encoding: .utf8)
+    sourceState = SourceState(rewriteMode: rewriteMode, content: source)
+    return try openOrUpdate(path: args.forFile.path)
   }
 
-  // FIXME: Can we not have the escaping here? It clearly doesn't since the
-  //        function it's calling doesn't escape?
-  mutating func update(updateSource: @escaping (inout SourceState) -> Void) throws -> (SourceFileSyntax, SourceKitdResponse) {
-    return try openOrUpdate(updateSource: updateSource)
+  mutating func update(updateSource: (inout SourceState) -> Void) throws -> (SourceFileSyntax, SourceKitdResponse) {
+    var sourceState = self.sourceState!
+    try close()
+    updateSource(&sourceState)
+    self.sourceState = sourceState
+    return try openOrUpdate(source: sourceState.source)
   }
 
-  private mutating func openOrUpdate(rewriteMode: RewriteMode? = nil,
-                                     updateSource: ((inout SourceState) -> Void)? = nil)
+  private mutating func openOrUpdate(path: String? = nil, source: String? = nil)
   throws -> (SourceFileSyntax, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_EditorOpen)
-
-    if let rewriteMode = rewriteMode {
-      let source = try! String(contentsOf: file, encoding: .utf8)
-      sourceState = SourceState(rewriteMode: rewriteMode, content: source)
-
-      request.addParameter(.key_SourceFile, value: file.path)
-    } else if let updateSource = updateSource {
-      var sourceState = self.sourceState!
-      _ = try close()
-      updateSource(&sourceState)
-      self.sourceState = sourceState
-
+    if let path = path {
+      request.addParameter(.key_SourceFile, value: path)
+    } else if let sourceState = sourceState {
       request.addParameter(.key_SourceText, value: sourceState.source)
     }
-
-    request.addParameter(.key_Name, value: file.path)
+    request.addParameter(.key_Name, value: args.forFile.path)
     request.addParameter(.key_EnableSyntaxMap, value: 0)
     request.addParameter(.key_EnableStructure, value: 0)
     request.addParameter(.key_SyntacticOnly, value: 1)
-    request.addCompilerArgs(args)
+    request.addCompilerArgs(args.sourcekitdArgs)
 
     let info = RequestInfo.editorOpen(document: documentInfo)
     let response = try sendWithTimeout(request, info: info)
@@ -104,12 +95,13 @@ struct SourceKitDocument {
     return (tree!, response)
   }
 
+  @discardableResult
   mutating func close() throws -> SourceKitdResponse {
     sourceState = nil
 
     let request = SourceKitdRequest(uid: .request_EditorClose)
-    request.addParameter(.key_SourceFile, value: file.path)
-    request.addParameter(.key_Name, value: file.path)
+    request.addParameter(.key_SourceFile, value: args.forFile.path)
+    request.addParameter(.key_Name, value: args.forFile.path)
 
     let info = RequestInfo.editorClose(document: documentInfo)
     let response = try sendWithTimeout(request, info: info)
@@ -120,13 +112,14 @@ struct SourceKitDocument {
   func rangeInfo(offset: Int, length: Int) throws -> (RequestInfo, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_RangeInfo)
 
-    request.addParameter(.key_SourceFile, value: file.path)
+    request.addParameter(.key_SourceFile, value: args.forFile.path)
     request.addParameter(.key_Offset, value: offset)
     request.addParameter(.key_Length, value: length)
     request.addParameter(.key_RetrieveRefactorActions, value: 1)
-    request.addCompilerArgs(args)
+    request.addCompilerArgs(args.sourcekitdArgs)
 
-    let info = RequestInfo.rangeInfo(document: documentInfo, offset: offset, length: length, args: args)
+    let info = RequestInfo.rangeInfo(document: documentInfo, offset: offset,
+                                     length: length, args: args.sourcekitdArgs)
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
@@ -147,12 +140,13 @@ struct SourceKitDocument {
   func cursorInfo(offset: Int) throws -> (RequestInfo, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_CursorInfo)
 
-    request.addParameter(.key_SourceFile, value: file.path)
+    request.addParameter(.key_SourceFile, value: args.forFile.path)
     request.addParameter(.key_Offset, value: offset)
     request.addParameter(.key_RetrieveRefactorActions, value: 1)
-    request.addCompilerArgs(args)
+    request.addCompilerArgs(args.sourcekitdArgs)
 
-    let info = RequestInfo.cursorInfo(document: documentInfo, offset: offset, args: args)
+    let info = RequestInfo.cursorInfo(document: documentInfo, offset: offset,
+                                      args: args.sourcekitdArgs)
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
@@ -182,8 +176,8 @@ struct SourceKitDocument {
     let request = SourceKitdRequest(uid: .request_EditorFormatText)
     guard let converter = self.converter else { fatalError("didn't call open?") }
 
-    request.addParameter(.key_SourceFile, value: file.path)
-    request.addParameter(.key_Name, value: file.path)
+    request.addParameter(.key_SourceFile, value: args.forFile.path)
+    request.addParameter(.key_Name, value: args.forFile.path)
     request.addParameter(.key_SourceText, value: "")
 
     let options = request.addDictionaryParameter(.key_FormatOptions)
@@ -209,16 +203,19 @@ struct SourceKitDocument {
     guard let converter = self.converter else { fatalError("didn't call open?") }
 
     request.addParameter(.key_ActionUID, value: actionKind)
-    request.addParameter(.key_SourceFile, value: file.path)
+    request.addParameter(.key_SourceFile, value: args.forFile.path)
     let location = converter.location(for: AbsolutePosition(utf8Offset: offset))
     request.addParameter(.key_Line, value: location.line!)
     request.addParameter(.key_Column, value: location.column!)
     if let newName = newName, actionName == "Local Rename" {
       request.addParameter(.key_Name, value: newName)
     }
-    request.addCompilerArgs(args)
+    request.addCompilerArgs(args.sourcekitdArgs)
 
-    let info = RequestInfo.semanticRefactoring(document: documentInfo, offset: offset, kind: actionName, args: args)
+    let info = RequestInfo.semanticRefactoring(document: documentInfo,
+                                               offset: offset,
+                                               kind: actionName,
+                                               args: args.sourcekitdArgs)
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
@@ -228,14 +225,15 @@ struct SourceKitDocument {
   func codeComplete(offset: Int, expectedResult: ExpectedResult?) throws -> (RequestInfo, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_CodeComplete)
 
-    request.addParameter(.key_SourceFile, value: file.path)
+    request.addParameter(.key_SourceFile, value: args.forFile.path)
     if let sourceState = sourceState {
       request.addParameter(.key_SourceText, value: sourceState.source)
     }
     request.addParameter(.key_Offset, value: offset)
-    request.addCompilerArgs(args)
+    request.addCompilerArgs(args.sourcekitdArgs)
 
-    let info = RequestInfo.codeComplete(document: documentInfo, offset: offset, args: args)
+    let info = RequestInfo.codeComplete(document: documentInfo, offset: offset,
+                                        args: args.sourcekitdArgs)
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
@@ -249,14 +247,16 @@ struct SourceKitDocument {
   func typeContextInfo(offset: Int) throws -> (RequestInfo, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_TypeContextInfo)
 
-    request.addParameter(.key_SourceFile, value: file.path)
+    request.addParameter(.key_SourceFile, value: args.forFile.path)
     if let sourceState = sourceState {
       request.addParameter(.key_SourceText, value: sourceState.source)
     }
     request.addParameter(.key_Offset, value: offset)
-    request.addCompilerArgs(args)
+    request.addCompilerArgs(args.sourcekitdArgs)
 
-    let info = RequestInfo.typeContextInfo(document: documentInfo, offset: offset, args: args)
+    let info = RequestInfo.typeContextInfo(document: documentInfo,
+                                           offset: offset,
+                                           args: args.sourcekitdArgs)
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
@@ -266,7 +266,7 @@ struct SourceKitDocument {
   func conformingMethodList(offset: Int, typeList: [String]) throws -> (RequestInfo, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_ConformingMethodList)
 
-    request.addParameter(.key_SourceFile, value: file.path)
+    request.addParameter(.key_SourceFile, value: args.forFile.path)
     if let sourceState = sourceState {
       request.addParameter(.key_SourceText, value: sourceState.source)
     }
@@ -275,9 +275,12 @@ struct SourceKitDocument {
     let expressionTypeList = request.addArrayParameter(.key_ExpressionTypeList)
     for type in typeList { expressionTypeList.add(type) }
 
-    request.addCompilerArgs(args)
+    request.addCompilerArgs(args.sourcekitdArgs)
 
-    let info = RequestInfo.conformingMethodList(document: documentInfo, offset: offset, typeList: typeList, args: args)
+    let info = RequestInfo.conformingMethodList(document: documentInfo,
+                                                offset: offset,
+                                                typeList: typeList,
+                                                args: args.sourcekitdArgs)
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
@@ -287,10 +290,11 @@ struct SourceKitDocument {
   func collectExpressionType() throws -> (RequestInfo, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_CollectExpressionType)
 
-    request.addParameter(.key_SourceFile, value: file.path)
-    request.addCompilerArgs(args)
+    request.addParameter(.key_SourceFile, value: args.forFile.path)
+    request.addCompilerArgs(args.sourcekitdArgs)
 
-    let info = RequestInfo.collectExpressionType(document: documentInfo, args: args)
+    let info = RequestInfo.collectExpressionType(document: documentInfo,
+                                                 args: args.sourcekitdArgs)
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
@@ -301,7 +305,7 @@ struct SourceKitDocument {
     guard let sourceState = sourceState else { return }
 
     let moduleName = tempModulePath.deletingPathExtension().lastPathComponent
-    let args = self.args.filter { $0 != file.path } + [
+    let args = self.args.processArgs + [
       "-Xfrontend", "-experimental-allow-module-with-compiler-errors",
       "-emit-module", "-module-name", moduleName, "-emit-module-path",
       tempModulePath.path,
@@ -322,7 +326,7 @@ struct SourceKitDocument {
   func moduleInterfaceGen() throws -> (RequestInfo, SourceKitdResponse) {
     try emitModule()
 
-    let args = self.args +
+    let args = self.args.sourcekitdArgs +
       ["-I\(tempModulePath.deletingLastPathComponent().path)"]
     let moduleName = tempModulePath.deletingPathExtension().lastPathComponent
 
@@ -341,7 +345,7 @@ struct SourceKitDocument {
 
   mutating func replaceText(offset: Int, length: Int, text: String) throws -> (SourceFileSyntax, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_EditorReplaceText)
-    request.addParameter(.key_Name, value: file.path)
+    request.addParameter(.key_Name, value: args.forFile.path)
     request.addParameter(.key_Offset, value: offset)
     request.addParameter(.key_Length, value: length)
     request.addParameter(.key_SourceText, value: text)
@@ -443,7 +447,7 @@ struct SourceKitDocument {
                                     parseTransition: reparseTransition,
                                     diagnosticEngine: diagEngine)
     } else {
-      tree = try SyntaxParser.parse(file, diagnosticEngine: diagEngine)
+      tree = try SyntaxParser.parse(args.forFile, diagnosticEngine: diagEngine)
     }
     return tree
   }

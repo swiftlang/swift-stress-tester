@@ -12,6 +12,7 @@
 
 import Common
 import StressTester
+import TestHelpers
 import XCTest
 
 class StressTesterToolTests: XCTestCase {
@@ -28,6 +29,9 @@ class StressTesterToolTests: XCTestCase {
     // No compiler args
     XCTAssertThrowsError(try StressTesterTool.parse([testFile.path]))
 
+    // Compiler args missing file
+    XCTAssertThrowsError(try StressTesterTool.parse([testFile.path, "--", "anything"]))
+
     // Defaults
     StressTesterToolTests.assertParse(valid) { defaults in
       XCTAssertEqual(defaults.rewriteMode, .none)
@@ -40,7 +44,7 @@ class StressTesterToolTests: XCTestCase {
       XCTAssertEqual(defaults.conformingMethodsTypeList, ["s:SQ", "s:SH"])
       XCTAssertEqual(defaults.swiftc, swiftcPath)
       XCTAssertEqual(defaults.file, testFile)
-      XCTAssertEqual(defaults.compilerArgs, [testFile.path])
+      XCTAssertEqual(defaults.compilerArgs, [CompilerArg(testFile.path)])
     }
 
     let allLong: [String] = [
@@ -82,7 +86,7 @@ class StressTesterToolTests: XCTestCase {
         XCTAssertEqual(tool.tempDir, workspace)
         XCTAssertEqual(tool.swiftc, swiftcPath)
         XCTAssertEqual(tool.file, testFile!)
-        XCTAssertEqual(tool.compilerArgs, [testFile!.path])
+        XCTAssertEqual(tool.compilerArgs, [CompilerArg(testFile!.path)])
       }
     }
     assertValid(allLong)
@@ -111,8 +115,11 @@ class StressTesterToolTests: XCTestCase {
                                       })
 
     let tester = StressTester(options: options)
-    XCTAssertNoThrow(try tester.run(for: testFile, swiftc: swiftcPath,
-                                    compilerArgs: [testFile.path]),
+    XCTAssertNoThrow(try tester.run(swiftc: swiftcPath,
+                                    compilerArgs: CompilerArgs(
+                                      for: testFile,
+                                      args: [CompilerArg(testFile.path)],
+                                      tempDir: workspace)),
                      "no sourcekitd crashes in test program")
     XCTAssertFalse(responses.isEmpty, "produces responses")
     XCTAssertTrue(responses.allSatisfy { response in
@@ -123,26 +130,30 @@ class StressTesterToolTests: XCTestCase {
   }
 
   func testModuleRequest() {
-    var addedActions = [Action]()
+    let swiftc = ExecutableScript(
+      at: workspace.appendingPathComponent("swiftc", isDirectory: false),
+      exitCode: 0,recordInvocationIn:
+        workspace.appendingPathComponent("invocation.txt", isDirectory: false))
+
     let options = StressTesterOptions(requests: .testModule,
                                       rewriteMode: .none,
                                       conformingMethodsTypeList: [],
                                       page: Page(),
-                                      tempDir: workspace,
-                                      dryRun: { actions in
-                                        addedActions.append(contentsOf: actions)
-                                      })
+                                      tempDir: workspace)
 
     let tester = StressTester(options: options)
-    try! tester.run(for: testFile, swiftc: swiftcPath,
-                    compilerArgs: [testFile.path])
+    // Expect interface request to fail since no module will be generated
+    XCTAssertThrowsError(try tester.run(swiftc: swiftc.file.path,
+                                        compilerArgs: CompilerArgs(
+                                          for: testFile,
+                                          args: [CompilerArg(testFile.path)],
+                                          tempDir: workspace)))
 
-    XCTAssertFalse(addedActions.isEmpty, "produces actions")
-    XCTAssertEqual(addedActions.last!, .testModule)
-    XCTAssertTrue(addedActions[..<(addedActions.count - 1)].allSatisfy { action in
-      if case .replaceText = action { return true }
-      return false
-    }, "request filter is respected")
+    let invocations = swiftc.retrieveInvocations()
+    let expectedInvocation = "-Xfrontend -experimental-allow-module-with-compiler-errors -emit-module -module-name Test -emit-module-path \(workspace.appendingPathComponent("Test.swiftmodule").path) -"
+    XCTAssertEqual(1, invocations.count)
+    XCTAssertEqual(expectedInvocation, String(invocations[0]),
+                  "incorrect args sent to swiftc")
   }
 
   override func setUp() {
@@ -165,6 +176,11 @@ class StressTesterToolTests: XCTestCase {
       """.data(using: .utf8))
 
     swiftcPath = pathFromXcrun(for: "swiftc")
+  }
+
+  override func tearDown() {
+    super.tearDown()
+    try? FileManager.default.removeItem(at: workspace)
   }
 
   private static func assertParse(_ args: [String],

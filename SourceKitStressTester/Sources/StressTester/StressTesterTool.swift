@@ -81,11 +81,18 @@ public struct StressTesterTool: ParsableCommand {
   public var file: URL
 
   @Argument(help: "Swift compiler arguments for the provided file")
-  public var compilerArgs: [String]
+  public var compilerArgs: [CompilerArg]
 
   public init() {}
 
   public mutating func validate() throws {
+    let hasFileCompilerArg = compilerArgs.contains { arg in
+      arg.transformed.contains { $0 == file.path }
+    }
+    if !hasFileCompilerArg {
+      throw ValidationError("\(file.path) missing from compiler args")
+    }
+
     guard FileManager.default.fileExists(atPath: file.path) else {
       throw ValidationError("File does not exist at \(file.path)")
     }
@@ -140,9 +147,11 @@ public struct StressTesterTool: ParsableCommand {
     )
 
     do {
+      let processedArgs = CompilerArgs(for: file,
+                                       args: compilerArgs,
+                                       tempDir: tempDir!)
       let tester = StressTester(options: options)
-      try tester.run(for: file, swiftc: swiftc!,
-                     compilerArgs: compilerArgs)
+      try tester.run(swiftc: swiftc!, compilerArgs: processedArgs)
     } catch let error as SourceKitError {
       let message = StressTesterMessage.detected(error)
       try StressTesterTool.report(message, as: format)
@@ -214,3 +223,9 @@ extension RequestSet: ExpressibleByArgument {
 }
 
 extension RewriteMode: ExpressibleByArgument {}
+
+extension CompilerArg : ExpressibleByArgument {
+  public init(argument: String) {
+    self.init(argument)
+  }
+}

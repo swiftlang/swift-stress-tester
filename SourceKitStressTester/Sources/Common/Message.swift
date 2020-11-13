@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
-import TSCBasic
 
 public protocol Message: Codable, CustomStringConvertible {}
 
@@ -118,12 +117,7 @@ public struct Page: Codable, Equatable {
     return number - 1
   }
 
-  public init() {
-    self.number = 1
-    self.count = 1
-  }
-
-  public init(_ number: Int, of count: Int) {
+  public init(_ number: Int = 1, of count: Int = 1) {
     assert(number >= 1 && number <= count)
     self.number = number
     self.count = count
@@ -529,7 +523,7 @@ extension SourceKitError: CustomStringConvertible {
       return document.modification?.content
     case .writeModule(let document, _):
       return document.modification?.content
-    case .interfaceGen(let document,_,  _):
+    case .interfaceGen(let document, _, _):
       return document.modification?.content
     }
   }

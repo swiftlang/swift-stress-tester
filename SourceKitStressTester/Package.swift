@@ -37,12 +37,11 @@ let package = Package(
                                      "-Xlinker", "-F", "-Xlinker", sourcekitSearchPath])]
     ),
     .target(
-      name: "Common",
-      dependencies: ["SwiftToolsSupport-auto"]
+      name: "Common"
     ),
     .target(
       name: "StressTester",
-      dependencies: ["Common", "SwiftToolsSupport-auto", "ArgumentParser", "SwiftSyntax", "SwiftSourceKit"],
+      dependencies: ["Common", "ArgumentParser", "SwiftSyntax", "SwiftSourceKit"],
       swiftSettings: [.unsafeFlags(["-Fsystem", sourcekitSearchPath])],
       linkerSettings: [.unsafeFlags(["-Xlinker", "-F", "-Xlinker", sourcekitSearchPath])]
     ),
@@ -62,15 +61,18 @@ let package = Package(
       dependencies: ["SwiftCWrapper"]
     ),
 
+    .target(
+      name: "TestHelpers"
+    ),
     .testTarget(
       name: "StressTesterToolTests",
-      dependencies: ["StressTester"],
+      dependencies: ["StressTester", "TestHelpers"],
       swiftSettings: [.unsafeFlags(["-Fsystem", sourcekitSearchPath])],
       linkerSettings: [.unsafeFlags(["-Xlinker", "-F", "-Xlinker", sourcekitSearchPath])]
     ),
     .testTarget(
       name: "SwiftCWrapperToolTests",
-      dependencies: ["SwiftCWrapper"]
+      dependencies: ["SwiftCWrapper", "TestHelpers"]
     )
   ]
 )

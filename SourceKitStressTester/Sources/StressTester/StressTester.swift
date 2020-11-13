@@ -39,12 +39,8 @@ public struct StressTester {
     }
   }
 
-  public func run(for file: URL, swiftc: String, compilerArgs: [String]) throws {
-    let compilerArgs = compilerArgs.flatMap {
-      DriverFileList(at: $0)?.paths ?? [$0]
-    }
-    var document = SourceKitDocument(file,
-                                     swiftc: swiftc,
+  public func run(swiftc: String, compilerArgs: CompilerArgs) throws {
+    var document = SourceKitDocument(swiftc: swiftc,
                                      args: compilerArgs,
                                      tempDir: options.tempDir,
                                      connection: connection,
@@ -52,20 +48,18 @@ public struct StressTester {
 
     // compute the actions for the entire tree
     let (tree, _) = try document.open(rewriteMode: options.rewriteMode)
-    let (actions, replacements) = computeActions(from: tree)
+    let (actions, priorActions) = computeActions(from: tree)
 
     if let dryRunAction = options.dryRun {
       try dryRunAction(actions)
       return
     }
 
-    if !replacements.isEmpty {
+    if !priorActions.isEmpty {
       // Update initial state
       _ = try document.update() { sourceState in
-        for action in replacements {
-          if case .replaceText(let offset, let length, let text) = action {
-            sourceState.replace(offset: offset, length: length, with: text)
-          }
+        for case .replaceText(let offset, let length, let text) in priorActions {
+          sourceState.replace(offset: offset, length: length, with: text)
         }
       }
     }
@@ -93,10 +87,10 @@ public struct StressTester {
       }
     }
 
-    _ = try document.close()
+    try document.close()
   }
 
-  private func computeActions(from tree: SourceFileSyntax) -> (page: [Action], replacements: [Action]) {
+  private func computeActions(from tree: SourceFileSyntax) -> (page: [Action], priorActions: [Action]) {
     let limit = options.astBuildLimit ?? Int.max
     var astRebuilds = 0
     var locationsInvalidated = false
@@ -141,13 +135,7 @@ public struct StressTester {
 
     return (
       page: Array(pages[options.page.index]),
-      replacements: pages[..<options.page.index].joined()
-        .filter {
-          if case .replaceText = $0 {
-            return true
-          }
-          return false
-        }
+      priorActions: Array(pages[..<options.page.index].joined())
     )
   }
 

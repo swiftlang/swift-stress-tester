@@ -288,6 +288,11 @@ class ActionGeneratorTests: XCTestCase {
 
     FileManager.default.createFile(atPath: testFile.path, contents: testFileContent.data(using: .utf8))
   }
+
+  override func tearDown() {
+    super.tearDown()
+    try? FileManager.default.removeItem(at: workspace)
+  }
 }
 
 final class ActionMarkup {

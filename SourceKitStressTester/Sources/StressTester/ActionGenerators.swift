@@ -211,16 +211,21 @@ public final class TypoActionGenerator: ActionGenerator {
         guard let spelling = updateSpelling(token.tokenKind), token.presence == .present else { return [] }
         let contentStart = token.positionAfterSkippingLeadingTrivia.utf8Offset
         let contentLength = token.contentLength.utf8Length
-        return [
+
+        var actions: [Action] = [
             .replaceText(offset: contentStart, length: contentLength, text: spelling.new),
             .cursorInfo(offset: contentStart),
             .format(offset: contentStart),
             .codeComplete(offset: contentStart + spelling.new.utf8.count, expectedResult: actionToken.frontExpectedResult),
             .typeContextInfo(offset: contentStart + spelling.new.utf8.count),
-            .conformingMethodList(offset: contentStart + spelling.new.utf8.count),
-            .testModule,
-            .replaceText(offset: contentStart, length: spelling.new.utf8.count, text: spelling.original)
-        ]
+            .conformingMethodList(offset: contentStart + spelling.new.utf8.count)]
+        if actionToken.inFunctionBody {
+            actions.append(.testModule)
+        }
+        actions.append(.replaceText(offset: contentStart,
+                                    length: spelling.new.utf8.count,
+                                    text: spelling.original))
+        return actions
     }
 }
 
