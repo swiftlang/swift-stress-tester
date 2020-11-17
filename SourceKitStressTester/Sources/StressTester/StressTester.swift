@@ -184,7 +184,7 @@ private extension SourceKitdUID {
 }
 
 public struct StressTesterOptions {
-  public var requests: RequestSet
+  public var requests: Set<RequestKind>
   public var rewriteMode: RewriteMode
   public var conformingMethodsTypeList: [String]
   public var page: Page
@@ -193,7 +193,7 @@ public struct StressTesterOptions {
   public var responseHandler: ((SourceKitResponseData) throws -> Void)?
   public var dryRun: (([Action]) throws -> Void)?
 
-  public init(requests: RequestSet, rewriteMode: RewriteMode,
+  public init(requests: Set<RequestKind>, rewriteMode: RewriteMode,
               conformingMethodsTypeList: [String], page: Page,
               tempDir: URL, astBuildLimit: Int? = nil,
               responseHandler: ((SourceKitResponseData) throws -> Void)? = nil,
@@ -206,67 +206,5 @@ public struct StressTesterOptions {
     self.astBuildLimit = astBuildLimit
     self.responseHandler = responseHandler
     self.dryRun = dryRun
-  }
-}
-
-public struct RequestSet: OptionSet {
-  public let rawValue: Int
-
-  public init(rawValue: Int) {
-    self.rawValue = rawValue
-  }
-
-  public var valueNames: [String] {
-    var requests = [String]()
-    if contains(.codeComplete) {
-      requests.append("CodeComplete")
-    }
-    if contains(.cursorInfo) {
-      requests.append("CursorInfo")
-    }
-    if contains(.rangeInfo) {
-      requests.append("RangeInfo")
-    }
-    if contains(.typeContextInfo) {
-      requests.append("TypeContextInfo")
-    }
-    if contains(.conformingMethodList) {
-      requests.append("ConformingMethodList")
-    }
-    if contains(.collectExpressionType) {
-      requests.append("CollectExpressionType")
-    }
-    if self.contains(.format) {
-      requests.append("Format")
-    }
-    if self.contains(.testModule) {
-      requests.append("TestModule")
-    }
-    return requests
-  }
-
-  public static let cursorInfo = RequestSet(rawValue: 1 << 0)
-  public static let rangeInfo = RequestSet(rawValue: 1 << 1)
-  public static let codeComplete = RequestSet(rawValue: 1 << 2)
-  public static let typeContextInfo = RequestSet(rawValue: 1 << 3)
-  public static let conformingMethodList = RequestSet(rawValue: 1 << 4)
-  public static let collectExpressionType = RequestSet(rawValue: 1 << 5)
-  public static let format = RequestSet(rawValue: 1 << 6)
-  public static let testModule = RequestSet(rawValue: 1 << 7)
-
-  public static let ide: RequestSet = [.cursorInfo, .rangeInfo, .codeComplete,
-                                       .typeContextInfo, .conformingMethodList,
-                                       .collectExpressionType, .format]
-  public static let all: RequestSet = ide.union(RequestSet([.testModule]))
-}
-
-extension RequestSet: CustomStringConvertible {
-  public var description: String {
-    if self == .ide {
-      return "\"IDE\""
-    } else if self == .all {
-      return "\"All\""
-    }
-    return String(describing: valueNames)
   }
 }

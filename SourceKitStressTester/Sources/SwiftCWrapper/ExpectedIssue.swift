@@ -344,5 +344,38 @@ public extension ExpectedIssue {
       case cursorInfo, codeComplete, rangeInfo, semanticRefactoring, typeContextInfo, conformingMethodList, collectExpressionType, format, writeModule, interfaceGen
       case stressTesterCrash
     }
+
+    func enabledFor(request: RequestKind) -> Bool {
+      switch self {
+      case .editorOpen:
+        return true
+      case .editorClose:
+        return true
+      case .editorReplaceText:
+        return true
+      case .cursorInfo:
+        return request == .cursorInfo
+      case .format:
+        return request == .format
+      case .codeComplete:
+        return request == .codeComplete
+      case .rangeInfo:
+        return request == .rangeInfo
+      case .typeContextInfo:
+        return request == .typeContextInfo
+      case .conformingMethodList:
+        return request == .conformingMethodList
+      case .collectExpressionType:
+        return request == .collectExpressionType
+      case .writeModule:
+        return request == .testModule
+      case .interfaceGen:
+        return request == .testModule
+      case .semanticRefactoring:
+        return request == .cursorInfo || request == .rangeInfo
+      case .stressTesterCrash:
+        return true
+      }
+    }
   }
 }

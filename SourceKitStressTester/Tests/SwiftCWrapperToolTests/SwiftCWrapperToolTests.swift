@@ -111,7 +111,7 @@ class SwiftCWrapperToolTests: XCTestCase {
     func getSwiftFiles(from list: [String]) -> [String] {
       let wrapper: SwiftCWrapper = SwiftCWrapper(
         swiftcArgs: list, swiftcPath: "", stressTesterPath: "",
-        astBuildLimit: nil, rewriteModes: nil, requestKinds: nil,
+        astBuildLimit: nil, rewriteModes: [], requestKinds: Set(),
         conformingMethodTypes: nil, ignoreIssues: false, issueManager: nil,
         maxJobs: nil, dumpResponsesPath: nil, failFast: false,
         suppressOutput: false)
@@ -142,40 +142,31 @@ class SwiftCWrapperToolTests: XCTestCase {
       "SK_STRESS_TEST": testStressTesterFile.path,
     ]
 
-    // check the produced invocations with default settings
+    // Check the produced invocations with default settings
     let singleFileArgs: [String] = [testSwiftCWrapperFile.path, testFile.path]
     XCTAssertNoThrow(XCTAssertEqual(try SwiftCWrapperTool(arguments: singleFileArgs, environment: defaultEnvironment).run(), 0))
 
     let defaultInvocations = tester.retrieveInvocations()
-    let defaultExpected = [
-      "--format json --page 1/1 --rewrite-mode none --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType --swiftc \(testSwiftCFile.path) \(testFile.path) -- \(testFile.path)",
-      "--format json --page 1/1 --rewrite-mode concurrent --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType --swiftc \(testSwiftCFile.path) \(testFile.path) -- \(testFile.path)",
-      "--format json --page 1/1 --rewrite-mode insideOut --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType --swiftc \(testSwiftCFile.path) \(testFile.path) -- \(testFile.path)"
-    ]
+    XCTAssertEqual(defaultInvocations.count, 3)
+    assertInvocationsMatch(invocations: defaultInvocations,
+                           rewriteModes: [.none, .concurrent, .insideOut])
 
-    XCTAssertEqual(defaultExpected.count, defaultInvocations.count)
-    for invocation in defaultInvocations {
-      XCTAssertTrue(defaultExpected.contains(String(invocation)))
-    }
-
-    // check custom request kinds and rewrite modes are propagated through correctly
-    try! FileManager.default.removeItem(at: testInvocationFile)
+    // Check custom request kinds and rewrite modes are propagated through correctly
+    let customRequestKinds = [RequestKind.cursorInfo, RequestKind.rangeInfo]
     let customEnvironment = defaultEnvironment.merging([
-      "SK_STRESS_REQUESTS": "CursorInfo RangeInfo CodeComplete TypeContextInfo ConformingMethodList CollectExpressionType all",
-      "SK_STRESS_REWRITE_MODES": "basic insideOut",
+      "SK_STRESS_REQUESTS": customRequestKinds
+        .map({ "\($0.rawValue)" }).joined(separator: " "),
+      "SK_STRESS_REWRITE_MODES": [RewriteMode.basic, RewriteMode.insideOut]
+        .map({ "\($0.rawValue)" }).joined(separator: " "),
       "SK_STRESS_CONFORMING_METHOD_TYPES": "s:SomeUSR s:OtherUSR s:ThirdUSR"
     ], uniquingKeysWith: { _, new in new })
     XCTAssertNoThrow(XCTAssertEqual(try SwiftCWrapperTool(arguments: singleFileArgs, environment: customEnvironment).run(), 0))
 
     let customInvocations = tester.retrieveInvocations()
-    let customExpected = [
-      "--format json --page 1/1 --rewrite-mode basic --request CursorInfo --request RangeInfo --request CodeComplete --request TypeContextInfo --request ConformingMethodList --request CollectExpressionType --request All --type-list-item s:SomeUSR --type-list-item s:OtherUSR --type-list-item s:ThirdUSR --swiftc \(testSwiftCFile.path) \(testFile.path) -- \(testFile.path)",
-      "--format json --page 1/1 --rewrite-mode insideOut --request CursorInfo --request RangeInfo --request CodeComplete --request TypeContextInfo --request ConformingMethodList --request CollectExpressionType --request All --type-list-item s:SomeUSR --type-list-item s:OtherUSR --type-list-item s:ThirdUSR --swiftc \(testSwiftCFile.path) \(testFile.path) -- \(testFile.path)"
-    ]
-    XCTAssertEqual(customExpected.count, customInvocations.count)
-    for invocation in customInvocations {
-      XCTAssertTrue(customExpected.contains(String(invocation)), "Unexpected invocation: \(invocation)")
-    }
+    XCTAssertEqual(customInvocations.count, 2)
+    assertInvocationsMatch(invocations: customInvocations,
+                           rewriteModes: [.basic, .insideOut],
+                           requestKinds: customRequestKinds)
   }
 
   func testIssueManager() {
@@ -263,5 +254,42 @@ class SwiftCWrapperToolTests: XCTestCase {
   override func tearDown() {
     super.tearDown()
     try? FileManager.default.removeItem(at: workspace)
+  }
+
+  private func assertInvocationsMatch(invocations: [Substring],
+                                      rewriteModes: [RewriteMode],
+                                      requestKinds: [RequestKind] = RequestKind.ideRequests) {
+    for invocation in invocations {
+      XCTAssertTrue(invocation.contains("--format json"),
+                    "Missing json format in '\(invocation)'")
+      XCTAssertTrue(invocation.contains("--page 1/1"),
+                    "Missing page in '\(invocation)'")
+
+      var foundModes = [RewriteMode]()
+      for rewriteMode in RewriteMode.allCases {
+        if invocation.contains("--rewrite-mode \(rewriteMode)") {
+          foundModes.append(rewriteMode)
+        }
+      }
+      XCTAssertEqual(foundModes.count, 1,
+                     "Found multiple rewrite modes \(foundModes) in '\(invocation)'")
+      XCTAssertTrue(rewriteModes.contains(foundModes[0]),
+                    "Expected a rewrite mode matching \(rewriteModes) in '\(invocation)'")
+
+      var foundRequests = [RequestKind]()
+      for request in RequestKind.allCases {
+        if invocation.contains("--request \(request)") {
+          foundRequests.append(request)
+        }
+      }
+      XCTAssertTrue(Set(foundRequests)
+                      .intersection(requestKinds).count == requestKinds.count,
+                    "Expected only request kinds \(requestKinds) in '\(invocation)'")
+
+      XCTAssertTrue(invocation.contains("--swiftc \(testSwiftCFile.path)"),
+                    "Incorrect swiftc path in '\(invocation)'")
+      XCTAssertTrue(invocation.contains("\(testFile.path) -- \(testFile.path)"),
+                    "Incorrect file paths in '\(invocation)'")
+    }
   }
 }

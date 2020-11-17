@@ -38,7 +38,7 @@ class StressTesterToolTests: XCTestCase {
       XCTAssertEqual(defaults.format, .humanReadable)
       XCTAssertEqual(defaults.limit, nil)
       XCTAssertEqual(defaults.page, Page())
-      XCTAssertEqual(defaults.request, [.ide])
+      XCTAssertEqual(defaults.requests, [.ide])
       XCTAssertEqual(defaults.dryRun, false)
       XCTAssertEqual(defaults.reportResponses, false)
       XCTAssertEqual(defaults.conformingMethodsTypeList, ["s:SQ", "s:SH"])
@@ -79,7 +79,7 @@ class StressTesterToolTests: XCTestCase {
         XCTAssertEqual(tool.format, .json)
         XCTAssertEqual(tool.limit, 1)
         XCTAssertEqual(tool.page, Page(2, of: 5))
-        XCTAssertEqual(tool.request, [.cursorInfo, .codeComplete])
+        XCTAssertEqual(tool.requests, [.cursorInfo, .codeComplete])
         XCTAssertEqual(tool.dryRun, true)
         XCTAssertEqual(tool.reportResponses, true)
         XCTAssertEqual(tool.conformingMethodsTypeList, ["foo", "bar"])
@@ -105,7 +105,7 @@ class StressTesterToolTests: XCTestCase {
 
   func testDumpResponses() {
     var responses = [SourceKitResponseData]()
-    let options = StressTesterOptions(requests: .codeComplete,
+    let options = StressTesterOptions(requests: [.codeComplete],
                                       rewriteMode: .none,
                                       conformingMethodsTypeList: [],
                                       page: Page(),
@@ -140,7 +140,7 @@ class StressTesterToolTests: XCTestCase {
                 "-num-threads", "2",
                 "-output-file-map", "/none/here",
                 testFile.path].map({ CompilerArg($0) })
-    let options = StressTesterOptions(requests: .testModule,
+    let options = StressTesterOptions(requests: [.testModule],
                                       rewriteMode: .none,
                                       conformingMethodsTypeList: [],
                                       page: Page(),
