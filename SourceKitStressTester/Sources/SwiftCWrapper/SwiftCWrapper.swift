@@ -147,10 +147,10 @@ public struct SwiftCWrapper {
         fatalError("unterminated operation")
       case .errored(let status):
         detectedIssue = .errored(status: status, file: operation.file,
-                                 arguments: operation.args.joined(separator: " "))
+                                 arguments: escapeArgs(operation.args))
       case .failed(let sourceKitError):
         detectedIssue = .failed(sourceKitError: sourceKitError,
-                                arguments: operation.args.joined(separator: " "))
+                                arguments: escapeArgs(operation.args))
         fallthrough
       case .passed:
         processedFiles.insert(operation.file)
@@ -274,14 +274,13 @@ public enum StressTesterIssue: CustomStringConvertible {
 
   public var description: String {
     switch self {
-    case .failed(let error, _):
-      return String(describing: error)
-    case .errored(let status, let file, let arguments):
+    case .failed(let sourceKitError, let arguments):
+      return String(describing: sourceKitError) +
+        "\n\nReproduce with:\nsk-stress-test \(arguments)\n"
+    case .errored(let status, _, let arguments):
       return """
-        sk-stress-test errored
-          exit code: \(status)
-          file: \(file)
-          arguments: \(arguments)
+        sk-stress-test errored with exit code \(status). Reproduce with:
+        sk-stress-test \(arguments)\n
         """
     }
   }

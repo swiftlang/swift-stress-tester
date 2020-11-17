@@ -101,6 +101,15 @@ public struct CompilerArgs {
   }
 }
 
+public func escapeArgs(_ args: [String]) -> String {
+  return args.map { arg in
+    if arg.contains(" ") {
+      return "\"\(arg)\""
+    }
+    return arg
+  }.joined(separator: " ")
+}
+
 func fileListArgs(arg: String) -> [String]? {
   guard arg.starts(with: "@") else {
     return nil
