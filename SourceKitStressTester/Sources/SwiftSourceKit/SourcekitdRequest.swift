@@ -138,16 +138,9 @@ public struct SourceKitdRequest: CustomStringConvertible {
   public func addCompilerArgsToRequest(_ compilerArguments: [String]?,
                                        _ bufferName: String? = nil) {
     let args = self.addArrayParameter(SourceKitdUID.key_CompilerArgs)
-
     if let compilerArguments = compilerArguments {
       for argument in compilerArguments {
-        switch argument {
-        // Exclude some arguments which SourceKit doesn't want or need.
-        case "-Xfrontend":
-          break
-        default:
-          args.add(argument)
-        }
+        args.add(argument)
       }
     }
   }
