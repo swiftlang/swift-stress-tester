@@ -136,7 +136,7 @@ public struct SwiftCWrapper {
         fatalError("cancelled operation before failed operation")
       case .unexecuted:
         fatalError("unterminated operation")
-      case .errored(let status, let arguments):
+      case .errored(let status):
         detectedIssue = .errored(status: status, file: operation.file, arguments: arguments.joined(separator: " "))
       case .failed(let sourceKitError):
         detectedIssue = .failed(sourceKitError)

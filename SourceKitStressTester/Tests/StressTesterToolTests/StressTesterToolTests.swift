@@ -27,6 +27,9 @@ class StressTesterToolTests: XCTestCase {
     // No compiler args
     XCTAssertThrowsError(try StressTesterTool.parse([testFile.path]))
 
+    // Compiler args missing file
+    XCTAssertThrowsError(try StressTesterTool.parse([testFile.path, "--", "anything"]))
+
     // Defaults
     StressTesterToolTests.assertParse(valid) { defaults in
       XCTAssertEqual(defaults.rewriteMode, .none)
@@ -38,7 +41,7 @@ class StressTesterToolTests: XCTestCase {
       XCTAssertEqual(defaults.reportResponses, false)
       XCTAssertEqual(defaults.conformingMethodsTypeList, ["s:SQ", "s:SH"])
       XCTAssertEqual(defaults.file, testFile)
-      XCTAssertEqual(defaults.compilerArgs, [testFile.path])
+      XCTAssertEqual(defaults.compilerArgs, [CompilerArg(testFile!.path)])
     }
 
     let allLong: [String] = [
@@ -50,6 +53,7 @@ class StressTesterToolTests: XCTestCase {
       "--dry-run",
       "--report-responses",
       "--type-list-item", "foo", "--type-list-item", "bar",
+      "--temp-dir", workspace.path,
       testFile.path, "--", testFile.path
     ]
     let allShort: [String] = [
@@ -61,9 +65,10 @@ class StressTesterToolTests: XCTestCase {
       "-d",
       "--report-responses", // no short
       "-t", "foo", "-t", "bar",
+      "--temp-dir", workspace.path, // no short
       testFile.path, "--", testFile.path
     ]
-    let assertValid = { [testFile] (args: [String]) in
+    let assertValid = { [workspace, testFile] (args: [String]) in
       StressTesterToolTests.assertParse(args) { tool in
         XCTAssertEqual(tool.rewriteMode, .basic)
         XCTAssertEqual(tool.format, .json)
@@ -73,8 +78,9 @@ class StressTesterToolTests: XCTestCase {
         XCTAssertEqual(tool.dryRun, true)
         XCTAssertEqual(tool.reportResponses, true)
         XCTAssertEqual(tool.conformingMethodsTypeList, ["foo", "bar"])
+        XCTAssertEqual(tool.tempDir, workspace)
         XCTAssertEqual(tool.file, testFile!)
-        XCTAssertEqual(tool.compilerArgs, [testFile!.path])
+        XCTAssertEqual(tool.compilerArgs, [CompilerArg(testFile!.path)])
       }
     }
     assertValid(allLong)
@@ -101,9 +107,11 @@ class StressTesterToolTests: XCTestCase {
                                         responses.append(responseData)
                                       })
 
-    let tester = StressTester(for: testFile, compilerArgs: [testFile.path],
-                              options: options)
-    XCTAssertNoThrow(try tester.run(),
+    let tester = StressTester(options: options)
+    XCTAssertNoThrow(try tester.run(compilerArgs: CompilerArgs(
+                                      for: testFile,
+                                      args: [CompilerArg(testFile.path)],
+                                      tempDir: workspace)),
                      "no sourcekitd crashes in test program")
     XCTAssertFalse(responses.isEmpty, "produces responses")
     XCTAssertTrue(responses.allSatisfy { response in

@@ -16,16 +16,10 @@ import SwiftSyntax
 import Common
 
 public struct StressTester {
-  let file: URL
-  let source: String
-  let compilerArgs: [String]
   let options: StressTesterOptions
   let connection: SourceKitdService
 
-  public init(for file: URL, compilerArgs: [String], options: StressTesterOptions) {
-    self.source = try! String(contentsOf: file, encoding: .utf8)
-    self.file = file
-    self.compilerArgs = compilerArgs.flatMap { DriverFileList(at: $0)?.paths ?? [$0] }
+  public init(options: StressTesterOptions) {
     self.options = options
     self.connection = SourceKitdService()
   }
@@ -45,7 +39,54 @@ public struct StressTester {
     }
   }
 
-  func computeStartStateAndActions(from tree: SourceFileSyntax) -> (state: SourceState, actions: [Action]) {
+  public func run(compilerArgs: CompilerArgs) throws {
+    var document = SourceKitDocument(args: compilerArgs,
+                                     connection: connection,
+                                     containsErrors: true)
+
+    // compute the actions for the entire tree
+    let (tree, _) = try document.open(rewriteMode: options.rewriteMode)
+    let (actions, priorActions) = computeActions(from: tree)
+
+    if let dryRunAction = options.dryRun {
+      try dryRunAction(actions)
+      return
+    }
+
+    if !priorActions.isEmpty {
+      // Update initial state
+      _ = try document.update() { sourceState in
+        for case .replaceText(let offset, let length, let text) in priorActions {
+          sourceState.replace(offset: offset, length: length, with: text)
+        }
+      }
+    }
+
+    for action in actions {
+      switch action {
+      case .cursorInfo(let offset):
+        try report(document.cursorInfo(offset: offset))
+      case .codeComplete(let offset, let expectedResult):
+        try report(document.codeComplete(offset: offset, expectedResult: expectedResult))
+      case .rangeInfo(let offset, let length):
+        try report(document.rangeInfo(offset: offset, length: length))
+      case .replaceText(let offset, let length, let text):
+        _ = try document.replaceText(offset: offset, length: length, text: text)
+      case .format(let offset):
+        try report(document.format(offset: offset))
+      case .typeContextInfo(let offset):
+        try report(document.typeContextInfo(offset: offset))
+      case .conformingMethodList(let offset):
+        try report(document.conformingMethodList(offset: offset, typeList: options.conformingMethodsTypeList))
+      case .collectExpressionType:
+        try report(document.collectExpressionType())
+      }
+    }
+
+    try document.close()
+  }
+
+  private func computeActions(from tree: SourceFileSyntax) -> (page: [Action], priorActions: [Action]) {
     let limit = options.astBuildLimit ?? Int.max
     var astRebuilds = 0
     var locationsInvalidated = false
@@ -86,54 +127,10 @@ public struct StressTester {
       }
       .divide(into: options.page.count)
 
-    let page = Array(pages[options.page.index])
-    guard !options.page.isFirst else {
-      return (SourceState(rewriteMode: options.rewriteMode, content: source), page)
-    }
-
-    // Compute the initial state of the source file for this page
-    var state = SourceState(rewriteMode: options.rewriteMode, content: source)
-    pages[..<options.page.index].joined().forEach {
-      if case .replaceText(let offset, let length, let text) = $0 {
-        state.replace(offset: offset, length: length, with: text)
-      }
-    }
-    return (state, page)
-  }
-
-  public func run() throws {
-    var document = SourceKitDocument(file.path, args: compilerArgs, connection: connection, containsErrors: true)
-
-    // compute the actions for the entire tree
-    let (tree, _) = try document.open()
-    let (state, actions) = computeStartStateAndActions(from: tree)
-
-    // reopen the document in the starting state
-    _ = try document.close()
-    _ = try document.open(state: state)
-
-    for action in actions {
-      switch action {
-      case .cursorInfo(let offset):
-        try report(document.cursorInfo(offset: offset))
-      case .codeComplete(let offset, let expectedResult):
-        try report(document.codeComplete(offset: offset, expectedResult: expectedResult))
-      case .rangeInfo(let offset, let length):
-        try report(document.rangeInfo(offset: offset, length: length))
-      case .replaceText(let offset, let length, let text):
-        _ = try document.replaceText(offset: offset, length: length, text: text)
-      case .format(let offset):
-        try report(document.format(offset: offset))
-      case .typeContextInfo(let offset):
-        try report(document.typeContextInfo(offset: offset))
-      case .conformingMethodList(let offset):
-        try report(document.conformingMethodList(offset: offset, typeList: options.conformingMethodsTypeList))
-      case .collectExpressionType:
-        try report(document.collectExpressionType())
-      }
-    }
-
-    _ = try document.close()
+    return (
+      page: Array(pages[options.page.index]),
+      priorActions: Array(pages[..<options.page.index].joined())
+    )
   }
 
   private func report(_ result: (RequestInfo, SourceKitdResponse)) throws {
@@ -187,17 +184,20 @@ public struct StressTesterOptions {
   public var page: Page
   public var astBuildLimit: Int?
   public var responseHandler: ((SourceKitResponseData) throws -> Void)?
+  public var dryRun: (([Action]) throws -> Void)?
 
   public init(requests: RequestSet, rewriteMode: RewriteMode,
               conformingMethodsTypeList: [String], page: Page,
               astBuildLimit: Int? = nil,
-              responseHandler: ((SourceKitResponseData) throws -> Void)? = nil) {
+              responseHandler: ((SourceKitResponseData) throws -> Void)? = nil,
+              dryRun: (([Action]) throws -> Void)? = nil) {
     self.requests = requests
     self.rewriteMode = rewriteMode
     self.conformingMethodsTypeList = conformingMethodsTypeList
     self.page = page
     self.astBuildLimit = astBuildLimit
     self.responseHandler = responseHandler
+    self.dryRun = dryRun
   }
 }
 
