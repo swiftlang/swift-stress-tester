@@ -41,10 +41,11 @@ def parse_args(args):
   parser.add_argument('--prefix', help='install path')
   parser.add_argument('--config', default='debug')
   parser.add_argument('--build-dir', default='.build')
-  parser.add_argument('--multiroot-data-file', help='Path to an Xcode workspace to create a unified build of SwiftSyntax with other projects.')
+  parser.add_argument('--multiroot-data-file', help='path to an Xcode workspace to create a unified build of SwiftSyntax with other projects.')
   parser.add_argument('--toolchain', required=True, help='the toolchain to use when building this package')
   parser.add_argument('--update', action='store_true', help='update all SwiftPM dependencies')
   parser.add_argument('--no-local-deps', action='store_true', help='use normal remote dependencies when building')
+  parser.add_argument('--sourcekitd-dir', help='directory containing sourcekit library, defaults to <toolchain>/lib')
   parser.add_argument('build_actions', help="Extra actions to perform. Can be any number of the following", choices=['all', 'build', 'test', 'install', 'generate-xcodeproj'], nargs="*", default=['build'])
 
   parsed = parser.parse_args(args)
@@ -53,7 +54,8 @@ def parse_args(args):
     ArgumentParser.error("'--prefix' is required with the install action")
   parsed.swift_exec = os.path.join(parsed.toolchain, 'bin', 'swift')
 
-  parsed.sourcekitd_dir = os.path.join(parsed.toolchain, 'lib')
+  if not parsed.sourcekitd_dir:
+    parsed.sourcekitd_dir = os.path.join(parsed.toolchain, 'lib')
 
   # Convert package_dir to absolute path, relative to root of repo.
   repo_path = os.path.dirname(__file__)
