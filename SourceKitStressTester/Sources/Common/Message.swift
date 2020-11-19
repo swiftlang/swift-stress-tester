@@ -11,18 +11,10 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
-import TSCBasic
 
 public protocol Message: Codable, CustomStringConvertible {}
 
 public extension Message {
-  func write(to stream: FileOutputByteStream) throws {
-    let data: Data = try JSONEncoder().encode(self)
-    // messages are separated by newlines
-    stream <<< data <<< "\n"
-    stream.flush()
-  }
-
   init?(from data: Data) {
     guard let message = try? JSONDecoder().decode(Self.self, from: data) else { return nil }
     self = message
@@ -112,7 +104,7 @@ public enum RewriteMode: String, Codable, CaseIterable {
   case insideOut
 }
 
-public struct Page: Codable {
+public struct Page: Codable, Equatable {
   public let number: Int
   public let count: Int
   public var isFirst: Bool {
@@ -122,10 +114,19 @@ public struct Page: Codable {
     return number - 1
   }
 
-  public init(_ number: Int, of count: Int) {
+  public init(_ number: Int = 1, of count: Int = 1) {
     assert(number >= 1 && number <= count)
     self.number = number
     self.count = count
+  }
+}
+
+extension Page: CustomStringConvertible {
+  public var description: String {
+    if number == 1 && count == 1 {
+      return "none"
+    }
+    return "\(number) of \(count)"
   }
 }
 

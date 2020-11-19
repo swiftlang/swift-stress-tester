@@ -10,69 +10,101 @@
 //
 //===----------------------------------------------------------------------===//
 
-import XCTest
 import Common
 import StressTester
+import XCTest
 
 class StressTesterToolTests: XCTestCase {
   var workspace: URL!
-
-  var stressTesterPath: String!
-  var testFilePath: String!
+  var testFile: URL!
 
   func testCommandLine() {
-    let noSourceFile: [String] = [stressTesterPath]
-    XCTAssertThrowsError(try StressTesterTool(arguments: noSourceFile).parse())
+    let valid: [String] = [testFile.path, "--", testFile.path]
 
-    let noCompilerArgs: [String] = [stressTesterPath, testFilePath]
-    XCTAssertThrowsError(try StressTesterTool(arguments: noCompilerArgs).parse())
+    // No source file
+    XCTAssertThrowsError(try StressTesterTool.parse([]))
 
-    let validSuffix: [String] = [testFilePath, "swiftc", testFilePath]
-    let valid: [String] = [stressTesterPath] + validSuffix
-    XCTAssertNoThrow(try StressTesterTool(arguments: valid).parse())
+    // No compiler args
+    XCTAssertThrowsError(try StressTesterTool.parse([testFile.path]))
 
-    let invalidOptions: [String] = [stressTesterPath, "--not-an-option"] + validSuffix
-    XCTAssertThrowsError(try StressTesterTool(arguments: invalidOptions).parse())
+    // Defaults
+    StressTesterToolTests.assertParse(valid) { defaults in
+      XCTAssertEqual(defaults.rewriteMode, .none)
+      XCTAssertEqual(defaults.format, .humanReadable)
+      XCTAssertEqual(defaults.limit, nil)
+      XCTAssertEqual(defaults.page, Page())
+      XCTAssertEqual(defaults.request, [.all])
+      XCTAssertEqual(defaults.dryRun, false)
+      XCTAssertEqual(defaults.reportResponses, false)
+      XCTAssertEqual(defaults.conformingMethodsTypeList, ["s:SQ", "s:SH"])
+      XCTAssertEqual(defaults.file, testFile)
+      XCTAssertEqual(defaults.compilerArgs, [testFile.path])
+    }
 
-    let noValue: [String] = [stressTesterPath, "--format"] + validSuffix
-    XCTAssertThrowsError(try StressTesterTool(arguments: noValue).parse())
+    let allLong: [String] = [
+      "--rewrite-mode", "basic",
+      "--format", "json",
+      "--limit", "1",
+      "--page", "2/5",
+      "--request", "CursorInfo", "--request", "CODECOMPLETE",
+      "--dry-run",
+      "--report-responses",
+      "--type-list-item", "foo", "--type-list-item", "bar",
+      testFile.path, "--", testFile.path
+    ]
+    let allShort: [String] = [
+      "-m", "basic",
+      "-f", "json",
+      "-l", "1",
+      "-p", "2/5",
+      "-r", "CursorInfo", "-r", "CODECOMPLETE",
+      "-d",
+      "--report-responses", // no short
+      "-t", "foo", "-t", "bar",
+      testFile.path, "--", testFile.path
+    ]
+    let assertValid = { [testFile] (args: [String]) in
+      StressTesterToolTests.assertParse(args) { tool in
+        XCTAssertEqual(tool.rewriteMode, .basic)
+        XCTAssertEqual(tool.format, .json)
+        XCTAssertEqual(tool.limit, 1)
+        XCTAssertEqual(tool.page, Page(2, of: 5))
+        XCTAssertEqual(tool.request, [.cursorInfo, .codeComplete])
+        XCTAssertEqual(tool.dryRun, true)
+        XCTAssertEqual(tool.reportResponses, true)
+        XCTAssertEqual(tool.conformingMethodsTypeList, ["foo", "bar"])
+        XCTAssertEqual(tool.file, testFile!)
+        XCTAssertEqual(tool.compilerArgs, [testFile!.path])
+      }
+    }
+    assertValid(allLong)
+    assertValid(allShort)
 
-    let unknownValue: [String] = [stressTesterPath, "--format", "blah"] + validSuffix
-    XCTAssertThrowsError(try StressTesterTool(arguments: unknownValue).parse())
+    // Unknown flag
+    XCTAssertThrowsError(try StressTesterTool.parse(["--not-an-option"] + valid))
 
-    let knownValue: [String] = [stressTesterPath, "--format", "json"] + validSuffix
-    XCTAssertNoThrow(try StressTesterTool(arguments: knownValue).parse())
+    // Missing
+    XCTAssertThrowsError(try StressTesterTool.parse(["--format"] + valid))
 
-    let typeMismatch: [String] = [stressTesterPath, "--limit", "hello"] + validSuffix
-    XCTAssertThrowsError(try StressTesterTool(arguments: typeMismatch).parse())
-
-    let validLimit: [String] = [stressTesterPath, "--limit", "1"] + validSuffix
-    XCTAssertNoThrow(try StressTesterTool(arguments: validLimit).parse())
-
-    let invalidRequest: [String] = [stressTesterPath, "--request", "UnknownRequest"] + validSuffix
-    XCTAssertThrowsError(try StressTesterTool(arguments: invalidRequest).parse())
-
-    let validRequest1: [String] = [stressTesterPath, "--request", "CursorInfo"] + validSuffix
-    XCTAssertNoThrow(try StressTesterTool(arguments: validRequest1).parse())
-
-    let validRequest2: [String] = [stressTesterPath, "--request", "CURSORINFO"] + validSuffix
-    XCTAssertNoThrow(try StressTesterTool(arguments: validRequest2).parse())
-
-    let validRequest3: [String] = [stressTesterPath, "--type-list-item", "s:SQ", "--type-list-item", "s:SH"] + validSuffix
-    XCTAssertNoThrow(try StressTesterTool(arguments: validRequest3).parse())
+    // Unknown values
+    XCTAssertThrowsError(try StressTesterTool.parse(["--format", "blah"] + valid))
+    XCTAssertThrowsError(try StressTesterTool.parse(["--request", "Unknown"] + valid))
   }
 
   func testDumpResponses() {
-    var options = StressTesterOptions()
-    options.requests = .codeComplete
-    options.rewriteMode = .none
     var responses = [SourceKitResponseData]()
-    options.responseHandler = { responseData in
-      responses.append(responseData)
-    }
+    let options = StressTesterOptions(requests: .codeComplete,
+                                      rewriteMode: .none,
+                                      conformingMethodsTypeList: [],
+                                      page: Page(),
+                                      responseHandler: { responseData in
+                                        responses.append(responseData)
+                                      })
 
-    let tester = StressTester(for: URL(fileURLWithPath: testFilePath, isDirectory: false), compilerArgs: [testFilePath], options: options)
-    XCTAssertNoThrow(try tester.run(), "no sourcekitd crashes in test program")
+    let tester = StressTester(for: testFile, compilerArgs: [testFile.path],
+                              options: options)
+    XCTAssertNoThrow(try tester.run(),
+                     "no sourcekitd crashes in test program")
     XCTAssertFalse(responses.isEmpty, "produces responses")
     XCTAssertTrue(responses.allSatisfy { response in
       if case .codeComplete = response.request { return true }
@@ -90,18 +122,26 @@ class StressTesterToolTests: XCTestCase {
     try? FileManager.default.removeItem(at: workspace)
     try! FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: false)
 
-    stressTesterPath = workspace
-      .appendingPathComponent("sk-stress-test", isDirectory: false)
-      .path
-    testFilePath = workspace
-      .appendingPathComponent("test.swift", isDirectory: false)
-      .path
+    testFile = workspace
+      .appendingPathComponent("test.swift")
 
-    FileManager.default.createFile(atPath: testFilePath, contents: """
+    FileManager.default.createFile(atPath: testFile.path, contents: """
       func square(_ x: Int) -> Int {
         return x * x
       }
       print(square(9))
       """.data(using: .utf8))
+  }
+
+  private static func assertParse(_ args: [String],
+                                  file: StaticString = #file, line: UInt = #line,
+                                  closure: (StressTesterTool) throws -> Void) {
+    do {
+      let parsed = try StressTesterTool.parse(args)
+      try closure(parsed)
+    } catch {
+      let message = StressTesterTool.message(for: error)
+      XCTFail("\"\(message)\" — \(error)", file: (file), line: line)
+    }
   }
 }

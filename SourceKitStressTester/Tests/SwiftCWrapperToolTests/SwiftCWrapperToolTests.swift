@@ -141,9 +141,9 @@ class SwiftCWrapperToolTests: XCTestCase {
 
     let defaultInvocations = try! String(contentsOf: URL(fileURLWithPath: testInvocationPath)).split(separator: "\n")
     let defaultExpected = [
-      "--format json --page 1/1 --rewrite-mode none --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) swiftc \(testFilePath!)",
-      "--format json --page 1/1 --rewrite-mode concurrent --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) swiftc \(testFilePath!)",
-      "--format json --page 1/1 --rewrite-mode insideOut --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) swiftc \(testFilePath!)"
+      "--format json --page 1/1 --rewrite-mode none --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) -- \(testFilePath!)",
+      "--format json --page 1/1 --rewrite-mode concurrent --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) -- \(testFilePath!)",
+      "--format json --page 1/1 --rewrite-mode insideOut --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) -- \(testFilePath!)"
     ]
 
     XCTAssertEqual(defaultExpected.count, defaultInvocations.count)
@@ -162,8 +162,8 @@ class SwiftCWrapperToolTests: XCTestCase {
 
     let customInvocations = try! String(contentsOf: URL(fileURLWithPath: testInvocationPath)).split(separator: "\n")
     let customExpected = [
-      "--format json --page 1/1 --rewrite-mode basic --request CursorInfo --request RangeInfo --request CodeComplete --request TypeContextInfo --request ConformingMethodList --request CollectExpressionType --request All --type-list-item s:SomeUSR --type-list-item s:OtherUSR --type-list-item s:ThirdUSR \(testFilePath!) swiftc \(testFilePath!)",
-      "--format json --page 1/1 --rewrite-mode insideOut --request CursorInfo --request RangeInfo --request CodeComplete --request TypeContextInfo --request ConformingMethodList --request CollectExpressionType --request All --type-list-item s:SomeUSR --type-list-item s:OtherUSR --type-list-item s:ThirdUSR \(testFilePath!) swiftc \(testFilePath!)"
+      "--format json --page 1/1 --rewrite-mode basic --request CursorInfo --request RangeInfo --request CodeComplete --request TypeContextInfo --request ConformingMethodList --request CollectExpressionType --request All --type-list-item s:SomeUSR --type-list-item s:OtherUSR --type-list-item s:ThirdUSR \(testFilePath!) -- \(testFilePath!)",
+      "--format json --page 1/1 --rewrite-mode insideOut --request CursorInfo --request RangeInfo --request CodeComplete --request TypeContextInfo --request ConformingMethodList --request CollectExpressionType --request All --type-list-item s:SomeUSR --type-list-item s:OtherUSR --type-list-item s:ThirdUSR \(testFilePath!) -- \(testFilePath!)"
     ]
     XCTAssertEqual(customExpected.count, customInvocations.count)
     for invocation in customInvocations {
@@ -201,10 +201,10 @@ class SwiftCWrapperToolTests: XCTestCase {
     let issue4 = StressTesterIssue.failed(error4)
 
     let issue5 = StressTesterIssue.errored(status: 2, file: "/bob/foo/bar.swift",
-                                          arguments: "--rewrite-mode concurrent /bob/foo/bar.swift swiftc /bob/foo/bar.swift")
+                                          arguments: "--rewrite-mode concurrent /bob/foo/bar.swift -- /bob/foo/bar.swift")
     let issue6 = StressTesterIssue.errored(status: 2,
                                             file: "/bob/foo/bar.swift",
-                                            arguments: "--rewrite-mode basic /bob/foo/bar.swift swiftc /bob/foo/bar.swift")
+                                            arguments: "--rewrite-mode basic /bob/foo/bar.swift -- /bob/foo/bar.swift")
 
     XCTAssertTrue(xfail.matches(issue1))
     XCTAssertFalse(xfail.matches(issue2))
