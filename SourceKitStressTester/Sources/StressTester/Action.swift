@@ -22,13 +22,14 @@ public enum Action: Equatable {
   case typeContextInfo(offset: Int)
   case conformingMethodList(offset: Int)
   case collectExpressionType
+  case testModule
 }
 
 extension Action: CustomStringConvertible {
   public var description: String {
     switch self {
     case .cursorInfo(let offset):
-      return "CusorInfo at offset \(offset)"
+      return "CursorInfo at offset \(offset)"
     case .codeComplete(let offset, let expectedResult):
       return "CodeComplete at offset \(offset) with expectedResult \(expectedResult?.name.name ?? "None")"
     case .rangeInfo(let from, let length):
@@ -43,6 +44,8 @@ extension Action: CustomStringConvertible {
       return "ConformingMethodList at offset \(offset)"
     case .collectExpressionType:
       return "CollectExpressionType"
+    case .testModule:
+      return "TestModule"
     }
   }
 }
@@ -53,7 +56,8 @@ extension Action: Codable {
   }
   public enum BaseAction: String, Codable {
     case cursorInfo, codeComplete, rangeInfo, replaceText, format,
-      typeContextInfo, conformingMethodList, collectExpressionType
+      typeContextInfo, conformingMethodList, collectExpressionType,
+      testModule
   }
 
   public init(from decoder: Decoder) throws {
@@ -86,6 +90,8 @@ extension Action: Codable {
       self = .conformingMethodList(offset: offset)
     case .collectExpressionType:
       self = .collectExpressionType
+    case .testModule:
+      self = .testModule
     }
   }
 
@@ -119,6 +125,8 @@ extension Action: Codable {
       try container.encode(offset, forKey: .offset)
     case .collectExpressionType:
       try container.encode(BaseAction.collectExpressionType, forKey: .action)
+    case .testModule:
+      try container.encode(BaseAction.testModule, forKey: .action)
     }
   }
 }

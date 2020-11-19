@@ -71,7 +71,7 @@ extension ActionGenerator {
     for frontAction in actionToken.frontActions {
       switch frontAction {
       case .codeComplete, .conformingMethodList, .typeContextInfo:
-      break // handled before content insertion
+        break // handled before content insertion
       case .cursorInfo:
         actions.append(.cursorInfo(offset: contentStart))
       case .format:
@@ -101,6 +101,10 @@ extension ActionGenerator {
       actions.append(.replaceText(offset: contentEnd, length: 0, text: trailingTrivia))
     }
 
+    if !actionToken.inFunctionBody && withReplaceTexts {
+      actions.append(.testModule)
+    }
+
     return actions
   }
 }
@@ -113,10 +117,10 @@ public final class RequestActionGenerator: ActionGenerator {
 
   public func generate(for tree: SourceFileSyntax) -> [Action] {
     let collector = ActionTokenCollector()
-    let actions: [Action] = [.collectExpressionType] + collector
+    var actions: [Action] = [.collectExpressionType] + collector
       .collect(from: tree)
       .flatMap(generateActions)
-
+    actions.append(.testModule)
     // group actions that resuse a single AST together
     return actions.sorted { rank($0) < rank($1) }
   }
@@ -134,6 +138,7 @@ public final class RequestActionGenerator: ActionGenerator {
       assert(rangeEnd - rangeStart > 0)
       return Action.rangeInfo(offset: rangeStart, length: rangeEnd - rangeStart)
     }
+
     return actions
   }
 
@@ -156,6 +161,8 @@ public final class RequestActionGenerator: ActionGenerator {
       return 6
     case .conformingMethodList:
       return 7
+    case .testModule:
+      return 8
     }
   }
 }
@@ -204,15 +211,21 @@ public final class TypoActionGenerator: ActionGenerator {
         guard let spelling = updateSpelling(token.tokenKind), token.presence == .present else { return [] }
         let contentStart = token.positionAfterSkippingLeadingTrivia.utf8Offset
         let contentLength = token.contentLength.utf8Length
-        return [
+
+        var actions: [Action] = [
             .replaceText(offset: contentStart, length: contentLength, text: spelling.new),
             .cursorInfo(offset: contentStart),
             .format(offset: contentStart),
             .codeComplete(offset: contentStart + spelling.new.utf8.count, expectedResult: actionToken.frontExpectedResult),
             .typeContextInfo(offset: contentStart + spelling.new.utf8.count),
-            .conformingMethodList(offset: contentStart + spelling.new.utf8.count),
-            .replaceText(offset: contentStart, length: spelling.new.utf8.count, text: spelling.original)
-        ]
+            .conformingMethodList(offset: contentStart + spelling.new.utf8.count)]
+        if actionToken.inFunctionBody {
+            actions.append(.testModule)
+        }
+        actions.append(.replaceText(offset: contentStart,
+                                    length: spelling.new.utf8.count,
+                                    text: spelling.original))
+        return actions
     }
 }
 
@@ -422,15 +435,19 @@ private enum SourcePosAction {
 private struct ActionToken {
   let token: TokenSyntax
   let depth: Int
+  let inFunctionBody: Bool
   let frontActions: [SourcePosAction]
   let rearActions: [SourcePosAction]
   let endedRangeStartTokens: [TokenSyntax]
   let startedRangeEndTokens: [TokenSyntax]
   let frontExpectedResult: ExpectedResult?
 
-  init(_ token: TokenSyntax, atDepth depth: Int, withFrontActions front: [SourcePosAction], withRearActions rear: [SourcePosAction]) {
+  init(_ token: TokenSyntax, atDepth depth: Int, inFunctionBody: Bool,
+       withFrontActions front: [SourcePosAction],
+       withRearActions rear: [SourcePosAction]) {
     self.token = token
     self.depth = depth
+    self.inFunctionBody = inFunctionBody
     self.frontActions = front
     self.rearActions = rear
     self.frontExpectedResult = ActionToken.expectedResult(for: token)
@@ -541,10 +558,15 @@ private struct ActionToken {
 private class ActionTokenCollector: SyntaxAnyVisitor {
   var tokens = [ActionToken]()
   var currentDepth = 0
+  var functionDepth = 0
 
   override func visitAny(_ node: Syntax) -> SyntaxVisitorContinueKind {
     if shouldIncreaseDepth(node) {
       currentDepth += 1
+    }
+    if node.is(CodeBlockSyntax.self) &&
+        node.parent?.is(FunctionDeclSyntax.self) == true {
+      functionDepth += 1
     }
     return .visitChildren
   }
@@ -554,6 +576,11 @@ private class ActionTokenCollector: SyntaxAnyVisitor {
       assert(currentDepth > 0)
       currentDepth -= 1
     }
+    if node.is(CodeBlockSyntax.self) &&
+        node.parent?.is(FunctionDeclSyntax.self) == true {
+      assert(functionDepth > 0)
+      functionDepth -= 1
+    }
   }
 
   override func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
@@ -561,6 +588,7 @@ private class ActionTokenCollector: SyntaxAnyVisitor {
     let frontActions = getFrontActions(for: token)
     let rearActions = getRearActions(for: token)
     tokens.append(ActionToken(token, atDepth: currentDepth,
+                              inFunctionBody: functionDepth > 0,
                               withFrontActions: frontActions,
                               withRearActions: rearActions))
     return .visitChildren

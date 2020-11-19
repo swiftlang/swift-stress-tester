@@ -47,7 +47,7 @@ public struct StressTesterTool: ParsableCommand {
     One of '\(RequestSet.all.valueNames.joined(separator: "\", \""))', \"IDE\",
     or \"All\"
     """)
-  public var request: [RequestSet] = [.all]
+  public var request: [RequestSet] = [.ide]
 
   @Flag(name: .shortAndLong, help: """
     Dump the sourcekitd requests the stress tester would perform instead of \
@@ -71,6 +71,11 @@ public struct StressTesterTool: ParsableCommand {
           transform: URL.init(fileURLWithPath:))
   public var tempDir: URL?
 
+  @Option(name: .shortAndLong, help: """
+    Path of swiftc to run, defaults to retrieving from xcrun if not given
+    """)
+  public var swiftc: String?
+
   @Argument(help: "A Swift source file to stress test", completion: .file(),
             transform: URL.init(fileURLWithPath:))
   public var file: URL
@@ -90,6 +95,16 @@ public struct StressTesterTool: ParsableCommand {
 
     guard FileManager.default.fileExists(atPath: file.path) else {
       throw ValidationError("File does not exist at \(file.path)")
+    }
+
+    if swiftc == nil {
+      swiftc = pathFromXcrun(for: "swiftc")
+    }
+    guard let swiftc = swiftc else {
+      throw ValidationError("No swiftc given and no default could be determined")
+    }
+    guard FileManager.default.isExecutableFile(atPath: swiftc) else {
+      throw ValidationError("swiftc at '\(swiftc)' is not executable")
     }
 
     if tempDir == nil {
@@ -115,6 +130,7 @@ public struct StressTesterTool: ParsableCommand {
       rewriteMode: rewriteMode,
       conformingMethodsTypeList: conformingMethodsTypeList,
       page: page,
+      tempDir: tempDir!,
       astBuildLimit: limit,
       responseHandler: !reportResponses ? nil :
         { [format] responseData in
@@ -135,12 +151,15 @@ public struct StressTesterTool: ParsableCommand {
                                        args: compilerArgs,
                                        tempDir: tempDir!)
       let tester = StressTester(options: options)
-      try tester.run(compilerArgs: processedArgs)
+      try tester.run(swiftc: swiftc!, compilerArgs: processedArgs)
     } catch let error as SourceKitError {
       let message = StressTesterMessage.detected(error)
       try StressTesterTool.report(message, as: format)
       throw ExitCode.failure
     }
+
+    // Leave for debugging purposes if there was an error
+    try FileManager.default.removeItem(at: tempDir!)
   }
 
   private static func report<T>(_ message: T, as format: OutputFormat) throws
@@ -193,6 +212,10 @@ extension RequestSet: ExpressibleByArgument {
       self = .conformingMethodList
     case "collectexpressiontype":
       self = .collectExpressionType
+    case "testmodule":
+      self = .testModule
+    case "ide":
+      self = .ide
     case "all":
       self = .all
     default:

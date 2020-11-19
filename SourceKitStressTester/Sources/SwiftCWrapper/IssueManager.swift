@@ -127,7 +127,8 @@ extension StressTesterIssue: Codable {
     switch try container.decode(BaseMessage.self, forKey: .kind) {
     case .failed:
       let sourceKitError = try container.decode(SourceKitError.self, forKey: .sourceKitError)
-      self = .failed(sourceKitError)
+      let arguments = try container.decode(String.self, forKey: .arguments)
+      self = .failed(sourceKitError: sourceKitError, arguments: arguments)
     case .errored:
       let status = try container.decode(Int32.self, forKey: .status)
       let file = try container.decode(String.self, forKey: .file)
@@ -139,9 +140,10 @@ extension StressTesterIssue: Codable {
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
     switch self {
-    case .failed(let sourceKitError):
+    case .failed(let sourceKitError, let arguments):
       try container.encode(BaseMessage.failed, forKey: .kind)
       try container.encode(sourceKitError, forKey: .sourceKitError)
+      try container.encode(arguments, forKey: .arguments)
     case .errored(let status, let file, let arguments):
       try container.encode(BaseMessage.errored, forKey: .kind)
       try container.encode(status, forKey: .status)

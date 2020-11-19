@@ -39,8 +39,10 @@ public struct StressTester {
     }
   }
 
-  public func run(compilerArgs: CompilerArgs) throws {
-    var document = SourceKitDocument(args: compilerArgs,
+  public func run(swiftc: String, compilerArgs: CompilerArgs) throws {
+    var document = SourceKitDocument(swiftc: swiftc,
+                                     args: compilerArgs,
+                                     tempDir: options.tempDir,
                                      connection: connection,
                                      containsErrors: true)
 
@@ -80,6 +82,8 @@ public struct StressTester {
         try report(document.conformingMethodList(offset: offset, typeList: options.conformingMethodsTypeList))
       case .collectExpressionType:
         try report(document.collectExpressionType())
+      case .testModule:
+        try report(document.moduleInterfaceGen())
       }
     }
 
@@ -123,6 +127,8 @@ public struct StressTester {
           }
           astRebuilds += 1
           return true
+        case .testModule:
+          return options.requests.contains(.testModule)
         }
       }
       .divide(into: options.page.count)
@@ -182,19 +188,21 @@ public struct StressTesterOptions {
   public var rewriteMode: RewriteMode
   public var conformingMethodsTypeList: [String]
   public var page: Page
+  public var tempDir: URL
   public var astBuildLimit: Int?
   public var responseHandler: ((SourceKitResponseData) throws -> Void)?
   public var dryRun: (([Action]) throws -> Void)?
 
   public init(requests: RequestSet, rewriteMode: RewriteMode,
               conformingMethodsTypeList: [String], page: Page,
-              astBuildLimit: Int? = nil,
+              tempDir: URL, astBuildLimit: Int? = nil,
               responseHandler: ((SourceKitResponseData) throws -> Void)? = nil,
               dryRun: (([Action]) throws -> Void)? = nil) {
     self.requests = requests
     self.rewriteMode = rewriteMode
     self.conformingMethodsTypeList = conformingMethodsTypeList
     self.page = page
+    self.tempDir = tempDir
     self.astBuildLimit = astBuildLimit
     self.responseHandler = responseHandler
     self.dryRun = dryRun
@@ -210,26 +218,29 @@ public struct RequestSet: OptionSet {
 
   public var valueNames: [String] {
     var requests = [String]()
-    if self.contains(.codeComplete) {
+    if contains(.codeComplete) {
       requests.append("CodeComplete")
     }
-    if self.contains(.cursorInfo) {
+    if contains(.cursorInfo) {
       requests.append("CursorInfo")
     }
-    if self.contains(.rangeInfo) {
+    if contains(.rangeInfo) {
       requests.append("RangeInfo")
     }
-    if self.contains(.typeContextInfo) {
+    if contains(.typeContextInfo) {
       requests.append("TypeContextInfo")
     }
-    if self.contains(.conformingMethodList) {
+    if contains(.conformingMethodList) {
       requests.append("ConformingMethodList")
     }
-    if self.contains(.collectExpressionType) {
+    if contains(.collectExpressionType) {
       requests.append("CollectExpressionType")
     }
     if self.contains(.format) {
       requests.append("Format")
+    }
+    if self.contains(.testModule) {
+      requests.append("TestModule")
     }
     return requests
   }
@@ -241,13 +252,19 @@ public struct RequestSet: OptionSet {
   public static let conformingMethodList = RequestSet(rawValue: 1 << 4)
   public static let collectExpressionType = RequestSet(rawValue: 1 << 5)
   public static let format = RequestSet(rawValue: 1 << 6)
+  public static let testModule = RequestSet(rawValue: 1 << 7)
 
-  public static let all: RequestSet = [.cursorInfo, .rangeInfo, .codeComplete, .typeContextInfo, .conformingMethodList, .collectExpressionType, .format]
+  public static let ide: RequestSet = [.cursorInfo, .rangeInfo, .codeComplete,
+                                       .typeContextInfo, .conformingMethodList,
+                                       .collectExpressionType, .format]
+  public static let all: RequestSet = ide.union(RequestSet([.testModule]))
 }
 
 extension RequestSet: CustomStringConvertible {
   public var description: String {
-    if self == .all {
+    if self == .ide {
+      return "\"IDE\""
+    } else if self == .all {
       return "\"All\""
     }
     return String(describing: valueNames)

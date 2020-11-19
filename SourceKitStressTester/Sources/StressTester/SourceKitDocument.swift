@@ -16,7 +16,9 @@ import Common
 import Foundation
 
 struct SourceKitDocument {
+  let swiftc: String
   let args: CompilerArgs
+  let tempDir: URL
   let connection: SourceKitdService
   let containsErrors: Bool
 
@@ -24,6 +26,10 @@ struct SourceKitDocument {
   private var sourceState: SourceState? = nil
   private var tree: SourceFileSyntax? = nil
   private var converter: SourceLocationConverter? = nil
+
+  private var tempModulePath: URL {
+    tempDir.appendingPathComponent("Test.swiftmodule")
+  }
 
   private var documentInfo: DocumentInfo {
     var modification: DocumentModification? = nil
@@ -41,10 +47,12 @@ struct SourceKitDocument {
     let needsLineColumn: Bool = true
   }
 
-  init(args: CompilerArgs,
-       connection: SourceKitdService,
+  init(swiftc: String, args: CompilerArgs,
+       tempDir: URL, connection: SourceKitdService,
        containsErrors: Bool = false) {
+    self.swiftc = swiftc
     self.args = args
+    self.tempDir = tempDir
     self.connection = connection
     self.containsErrors = containsErrors
     self.diagEngine.addConsumer(EmptyDiagConsumer())
@@ -290,6 +298,51 @@ struct SourceKitDocument {
     let response = try sendWithTimeout(request, info: info)
     try throwIfInvalid(response, request: info)
 
+    return (info, response)
+  }
+
+  private func emitModule() throws {
+    guard let sourceState = sourceState else { return }
+
+    let moduleName = tempModulePath.deletingPathExtension().lastPathComponent
+    let compilerArgs = self.args.processArgs + [
+      "-Xfrontend", "-experimental-allow-module-with-compiler-errors",
+      "-emit-module", "-module-name", moduleName, "-emit-module-path",
+      tempModulePath.path,
+      "-"
+    ]
+
+    let swiftcResult = ProcessRunner(launchPath: swiftc,
+                                     arguments: compilerArgs)
+      .run(input: sourceState.source)
+    if swiftcResult.status != EXIT_SUCCESS {
+      throw SourceKitError.failed(
+        .errorWritingModule,
+        request: .writeModule(document: documentInfo, args: compilerArgs),
+        response: swiftcResult.stderrStr ?? "<could not decode stderr>")
+    }
+  }
+
+  func moduleInterfaceGen() throws -> (RequestInfo, SourceKitdResponse) {
+    try emitModule()
+
+    let moduleDir = tempModulePath.deletingLastPathComponent()
+    let moduleName = tempModulePath.deletingPathExtension().lastPathComponent
+    let interfaceFile = moduleDir.appendingPathComponent("<interface-gen>")
+    let compilerArgs = self.args.sourcekitdArgs +
+      ["-I\(moduleDir.path)"]
+
+    let request = SourceKitdRequest(uid: .request_EditorOpenInterface)
+    request.addParameter(.key_SourceFile, value: args.forFile.path)
+    request.addParameter(.key_Name, value: interfaceFile.path)
+    request.addParameter(.key_ModuleName, value: moduleName)
+    request.addCompilerArgs(compilerArgs)
+
+    let info = RequestInfo.interfaceGen(document: documentInfo,
+                                        moduleName: moduleName,
+                                        args: compilerArgs)
+    let response = try sendWithTimeout(request, info: info)
+    try throwIfInvalid(response, request: info)
     return (info, response)
   }
 
