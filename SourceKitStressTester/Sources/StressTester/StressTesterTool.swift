@@ -66,18 +66,44 @@ public struct StressTesterTool: ParsableCommand {
     """)
   public var conformingMethodsTypeList: [String] = ["s:SQ", "s:SH"] // Equatable and Hashable
 
+  @Option(name: .long,
+          help: "Path to a temporary directory to store intermediate modules",
+          transform: URL.init(fileURLWithPath:))
+  public var tempDir: URL?
+
   @Argument(help: "A Swift source file to stress test", completion: .file(),
             transform: URL.init(fileURLWithPath:))
   public var file: URL
 
   @Argument(help: "Swift compiler arguments for the provided file")
-  public var compilerArgs: [String]
+  public var compilerArgs: [CompilerArg]
 
   public init() {}
 
   public mutating func validate() throws {
+    let hasFileCompilerArg = compilerArgs.contains { arg in
+      arg.transformed.contains { $0 == file.path }
+    }
+    if !hasFileCompilerArg {
+      throw ValidationError("\(file.path) missing from compiler args")
+    }
+
     guard FileManager.default.fileExists(atPath: file.path) else {
       throw ValidationError("File does not exist at \(file.path)")
+    }
+
+    if tempDir == nil {
+      do {
+        tempDir = try FileManager.default.url(
+          for: .itemReplacementDirectory,
+          in: .userDomainMask,
+          appropriateFor: URL(fileURLWithPath: NSTemporaryDirectory()),
+          create: true)
+      } catch let error {
+        throw ValidationError("Could not create temporary directory: \(error.localizedDescription)")
+      }
+    } else if !FileManager.default.fileExists(atPath: tempDir!.path) {
+      throw ValidationError("Temporary directory \(tempDir!.path) does not exist")
     }
   }
 
@@ -95,19 +121,21 @@ public struct StressTesterTool: ParsableCommand {
           try StressTesterTool.report(
             StressTesterMessage.produced(responseData),
             as: format)
-        })
+        },
+      dryRun: !dryRun ? nil :
+        { [format] actions in
+          for action in actions {
+            try StressTesterTool.report(action, as: format)
+          }
+        }
+    )
 
     do {
-      let tester = StressTester(for: file, compilerArgs: compilerArgs,
-                                options: options)
-      if dryRun {
-        let tree = try SyntaxParser.parse(file)
-        try StressTesterTool.report(
-          tester.computeStartStateAndActions(from: tree).actions,
-          as: format)
-      } else {
-        try tester.run()
-      }
+      let processedArgs = CompilerArgs(for: file,
+                                       args: compilerArgs,
+                                       tempDir: tempDir!)
+      let tester = StressTester(options: options)
+      try tester.run(compilerArgs: processedArgs)
     } catch let error as SourceKitError {
       let message = StressTesterMessage.detected(error)
       try StressTesterTool.report(message, as: format)
@@ -174,3 +202,9 @@ extension RequestSet: ExpressibleByArgument {
 }
 
 extension RewriteMode: ExpressibleByArgument {}
+
+extension CompilerArg : ExpressibleByArgument {
+  public init(argument: String) {
+    self.init(argument)
+  }
+}

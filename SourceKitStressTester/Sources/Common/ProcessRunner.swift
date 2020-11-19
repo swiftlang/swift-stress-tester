@@ -13,20 +13,21 @@
 import Foundation
 
 /// Provides convenience APIs for launching and gathering output from a subprocess
-class ProcessRunner {
+public class ProcessRunner {
   private static let serialQueue = DispatchQueue(label: "\(ProcessRunner.self)")
 
   let process: Process
   var launched = false
 
-  init(launchPath: String, arguments: [String], environment: [String: String] = [:]) {
+  public init(launchPath: String, arguments: [String],
+              environment: [String: String] = [:]) {
     process = Process()
     process.launchPath = launchPath
     process.arguments = arguments
     process.environment = environment.merging(ProcessInfo.processInfo.environment) { (current, _) in current }
   }
 
-  func run(capturingOutput: Bool = true) -> ProcessResult {
+  public func run(capturingOutput: Bool = true) -> ProcessResult {
     let out = Pipe()
     var outData = Data()
 
@@ -45,7 +46,7 @@ class ProcessRunner {
     return ProcessResult(status: process.terminationStatus, stdout: outData)
   }
 
-  func terminate() {
+  public func terminate() {
     ProcessRunner.serialQueue.sync {
       if launched {
         process.terminate()
@@ -54,8 +55,24 @@ class ProcessRunner {
   }
 }
 
-/// The exit code and output (if redirected) from a subprocess that has terminated
-struct ProcessResult {
-  let status: Int32
-  let stdout: Data
+/// The exit code and output (if redirected) from a subprocess that has
+/// terminated
+public struct ProcessResult {
+  public let status: Int32
+  public let stdout: Data
+
+  public var stdoutStr: String? {
+    return String(data: stdout, encoding: .utf8)
+  }
+}
+
+public func pathFromXcrun(for tool: String, in toolchain: String? = nil) -> String? {
+  var args = ["-f", tool]
+  if let toolchain = toolchain {
+    args += ["--toolchain", toolchain]
+  }
+  let result = ProcessRunner(launchPath: "/usr/bin/xcrun", arguments: args).run()
+  guard result.status == EXIT_SUCCESS else { return nil }
+
+  return result.stdoutStr?.trimmingCharacters(in: .whitespacesAndNewlines)
 }

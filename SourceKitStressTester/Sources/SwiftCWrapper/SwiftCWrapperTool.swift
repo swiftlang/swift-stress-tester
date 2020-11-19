@@ -53,7 +53,7 @@ public struct SwiftCWrapperTool {
     /// failures json file to mark an unexpected failure as expected.
     let activeConfigEnv = EnvOption("SK_STRESS_ACTIVE_CONFIG", type: String.self)
 
-    guard let swiftc = (try swiftcEnv.get(from: environment) ?? getDefaultSwiftCPath()) else {
+    guard let swiftc = (try swiftcEnv.get(from: environment) ?? pathFromXcrun(for: "swiftc")) else {
       throw EnvOptionError.noFallback(key: swiftcEnv.key, target: "swiftc")
     }
     guard let stressTester = (try stressTesterEnv.get(from: environment) ?? defaultStressTesterPath) else {
@@ -103,18 +103,6 @@ public struct SwiftCWrapperTool {
 
     guard FileManager.default.isExecutableFile(atPath: wrapperPath) else { return nil }
     return wrapperPath
-  }
-
-  func getDefaultSwiftCPath(for toolchain: String? = nil) -> String? {
-    var args = ["-f", "swiftc"]
-    if let toolchain = toolchain {
-      args += ["--toolchain", toolchain]
-    }
-    let result = ProcessRunner(launchPath: "/usr/bin/xcrun", arguments: args).run()
-    guard result.status == EXIT_SUCCESS else { return nil }
-
-    return String(data: result.stdout, encoding: .utf8)?
-      .trimmingCharacters(in: .whitespacesAndNewlines)
   }
 }
 

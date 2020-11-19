@@ -27,9 +27,9 @@ final class StressTestOperation: Operation {
     /// Indicates the operation was executed and no issues were found
     case passed
     /// Indicates the operation was executed and issues were found
-    case failed(SourceKitError)
+    case failed(sourceKitError: SourceKitError)
     /// Indicates the operation was executed, but the stress tester itself failed
-    case errored(status: Int32, arguments: [String])
+    case errored(status: Int32)
 
     var name: String {
       switch self {
@@ -55,14 +55,17 @@ final class StressTestOperation: Operation {
   }
 
   let file: String
-  let part: (Int, of: Int)
-  let mode: RewriteMode
+  let args: [String]
   var status: Status = .unexecuted
   var responses = [SourceKitResponseData]()
 
+  private let part: (Int, of: Int)
+  private let mode: RewriteMode
   private let process: ProcessRunner
 
-  init(file: String, rewriteMode: RewriteMode, requests: [RequestKind]?, conformingMethodTypes: [String]?, limit: Int?, part: (Int, of: Int), reportResponses: Bool, compilerArgs: [String], executable: String) {
+  init(file: String, rewriteMode: RewriteMode, requests: [RequestKind]?,
+       conformingMethodTypes: [String]?, limit: Int?, part: (Int, of: Int),
+       reportResponses: Bool, compilerArgs: [String], executable: String) {
     var stressTesterArgs = ["--format", "json", "--page", "\(part.0)/\(part.of)", "--rewrite-mode", rewriteMode.rawValue]
     if let limit = limit {
       stressTesterArgs += ["--limit", String(limit)]
@@ -76,11 +79,16 @@ final class StressTestOperation: Operation {
     if reportResponses {
       stressTesterArgs += ["--report-responses"]
     }
+    stressTesterArgs.append(file)
+    stressTesterArgs.append("--")
+    stressTesterArgs.append(contentsOf: compilerArgs)
 
     self.file = file
-    self.mode = rewriteMode
+    self.args = stressTesterArgs
     self.part = part
-    self.process = ProcessRunner(launchPath: executable, arguments: stressTesterArgs + [file, "--"] + compilerArgs)
+    self.mode = rewriteMode
+    self.process = ProcessRunner(launchPath: executable,
+                                 arguments: stressTesterArgs)
   }
 
   var summary: String {
@@ -101,15 +109,15 @@ final class StressTestOperation: Operation {
         status = .passed
         self.responses = parsed.sourceKitResponses
       } else if let error = parsed.sourceKitError {
-        status = .failed(error)
+        status = .failed(sourceKitError: error)
         self.responses = parsed.sourceKitResponses
       } else {
         // A non-successful exit code with no error produced-> stress tester failure
-        status = .errored(status: result.status, arguments: process.process.arguments ?? [])
+        status = .errored(status: result.status)
       }
     } else {
       // Non-empty unparseable output -> treat this as a stress tester failure
-      status = .errored(status: result.status, arguments: process.process.arguments ?? [])
+      status = .errored(status: result.status)
     }
   }
 

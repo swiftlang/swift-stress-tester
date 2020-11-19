@@ -19,7 +19,10 @@ public struct DriverFileList {
     guard path.starts(with: "@") else { return nil }
     let url = URL(fileURLWithPath: String(path.dropFirst()), isDirectory: false)
     if let content = try? String(contentsOf: url, encoding: .utf8) {
-      paths = content.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+      paths = content.split(separator: "\n").map {
+        $0.replacingOccurrences(of: "\\", with: "")
+          .trimmingCharacters(in: .whitespacesAndNewlines)
+      }
     } else {
       return nil
     }
