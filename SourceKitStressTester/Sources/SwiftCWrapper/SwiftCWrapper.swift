@@ -71,7 +71,8 @@ public struct SwiftCWrapper {
 
   func run() throws -> Int32 {
     // Execute the compiler
-    let swiftcResult = ProcessRunner(launchPath: swiftcPath, arguments: arguments).run(capturingOutput: false)
+    let swiftcResult = ProcessRunner(launchPath: swiftcPath, arguments: arguments)
+      .run(captureStdout: false, captureStderr: false)
     guard swiftcResult.status == EXIT_SUCCESS else { return swiftcResult.status }
 
     let startTime = Date()

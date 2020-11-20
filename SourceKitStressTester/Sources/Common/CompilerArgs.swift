@@ -53,7 +53,7 @@ public struct CompilerArgs {
           let fileRemoved = listArgs.filter { $0 == file.path }
           if fileRemoved.count != listArgs.count {
             let newFileList = tempDir.appendingPathComponent(UUID().uuidString)
-              .appendingPathExtension(".SwiftFileList")
+              .appendingPathExtension("SwiftFileList")
             let data = Data(fileRemoved.joined(separator: "\n").utf8)
             try! data.write(to: newFileList)
             return newFileList.path
