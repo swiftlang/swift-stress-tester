@@ -27,9 +27,22 @@ public class ProcessRunner {
     process.environment = environment.merging(ProcessInfo.processInfo.environment) { (current, _) in current }
   }
 
-  public func run(captureStdout: Bool = true,
+  public func run(input: String? = nil,
+                  captureStdout: Bool = true,
                   captureStderr: Bool = true) -> ProcessResult {
     let group = DispatchGroup()
+
+    if let input = input {
+      guard let data = input.data(using: .utf8) else {
+        return ProcessResult(status: 1,
+                             stdout: Data(),
+                             stderr: "Invalid input".data(using: .utf8)!)
+      }
+      let inPipe = Pipe()
+      inPipe.fileHandleForWriting.write(data)
+      inPipe.fileHandleForWriting.closeFile()
+      process.standardInput = inPipe
+    }
 
     var outData = Data()
     if captureStdout {

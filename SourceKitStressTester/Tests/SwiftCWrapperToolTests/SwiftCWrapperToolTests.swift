@@ -10,18 +10,19 @@
 //
 //===----------------------------------------------------------------------===//
 
-import XCTest
-import SwiftCWrapper
 import Common
+import SwiftCWrapper
+import TestHelpers
+import XCTest
 
 class SwiftCWrapperToolTests: XCTestCase {
   var workspace: URL!
 
-  var testStressTesterPath: String!
-  var testSwiftCPath: String!
-  var testSwiftCWrapperPath: String!
-  var testFilePath: String!
-  var testInvocationPath: String!
+  var testStressTesterFile: URL!
+  var testSwiftCFile: URL!
+  var testSwiftCWrapperFile: URL!
+  var testFile: URL!
+  var testInvocationFile: URL!
   var errorJson: String!
 
   func testStatus() throws {
@@ -33,13 +34,16 @@ class SwiftCWrapperToolTests: XCTestCase {
       (compilerExit: 0, stressTesterExit: 6, expectedExit: 1)
     ]
 
-    let environment: [String: String] = ["SK_STRESS_SWIFTC": testSwiftCPath]
+    let environment: [String: String] = ["SK_STRESS_SWIFTC": testSwiftCFile.path]
     try specs.forEach { spec in
       let stdout = spec.stressTesterExit != 0 ? errorJson : nil
-      makeScript(atPath: testStressTesterPath, exitCode: spec.stressTesterExit, stdout: stdout)
-      makeScript(atPath: testSwiftCPath, exitCode: spec.compilerExit)
 
-      let singleFileArgs: [String] = [testSwiftCWrapperPath, testFilePath]
+      ExecutableScript(at: testStressTesterFile,
+                       exitCode: spec.stressTesterExit, stdout: stdout)
+      ExecutableScript(at: testSwiftCFile,
+                       exitCode: spec.compilerExit)
+
+      let singleFileArgs: [String] = [testSwiftCWrapperFile.path, testFile.path]
       let wrapper = SwiftCWrapperTool(arguments: singleFileArgs, environment: environment)
       XCTAssertNoThrow(XCTAssertEqual(try wrapper.run(), spec.expectedExit))
     }
@@ -56,13 +60,15 @@ class SwiftCWrapperToolTests: XCTestCase {
       (compilerExit: 0, stressTesterExit: 0, expectedExit: 0, silent: false)
     ]
 
-    let environment: [String: String] = ["SK_STRESS_SWIFTC": testSwiftCPath]
+    let environment: [String: String] = ["SK_STRESS_SWIFTC": testSwiftCFile.path]
     try specs.forEach { spec in
       let stdout = spec.stressTesterExit != 0 ? errorJson : nil
-      makeScript(atPath: testStressTesterPath, exitCode: spec.stressTesterExit, stdout: stdout)
-      makeScript(atPath: testSwiftCPath, exitCode: spec.compilerExit)
 
-      let singleFileArgs: [String] = [testSwiftCWrapperPath, testFilePath]
+      ExecutableScript(at: testStressTesterFile,
+                       exitCode: spec.stressTesterExit, stdout: stdout)
+      ExecutableScript(at: testSwiftCFile, exitCode: spec.compilerExit)
+
+      let singleFileArgs: [String] = [testSwiftCWrapperFile.path, testFile.path]
       let environment = environment.merging(["SK_STRESS_SILENT": String(spec.silent)]) { _, new in new }
       let wrapper = SwiftCWrapperTool(arguments: singleFileArgs, environment: environment)
       XCTAssertNoThrow(XCTAssertEqual(try wrapper.run(), spec.expectedExit))
@@ -118,32 +124,33 @@ class SwiftCWrapperToolTests: XCTestCase {
     try! FileManager.default.createDirectory(atPath: blacklistedDir, withIntermediateDirectories: true, attributes: nil)
     guard FileManager.default.createFile(atPath: blacklistedFile, contents: nil) else { fatalError() }
 
-    XCTAssertEqual(getSwiftFiles(from: [testFilePath,
+    XCTAssertEqual(getSwiftFiles(from: [testFile.path,
                                         "/made-up.swift",
                                         "unrelated/path",
                                         blacklistedFile,
                                         dirPath]),
-                   [testFilePath])
+                   [testFile.path])
   }
 
   func testEnvParsing() {
-    makeScript(atPath: testSwiftCPath, exitCode: 0)
-    makeScript(atPath: testStressTesterPath, exitCode: 0, recordInvocationIn: testInvocationPath)
+    ExecutableScript(at: testSwiftCFile, exitCode: 0)
+    let tester = ExecutableScript(at: testStressTesterFile, exitCode: 0,
+                                  recordInvocationIn: testInvocationFile)
 
     let defaultEnvironment: [String: String] = [
-      "SK_STRESS_SWIFTC": testSwiftCPath,
-      "SK_STRESS_TEST": testStressTesterPath,
+      "SK_STRESS_SWIFTC": testSwiftCFile.path,
+      "SK_STRESS_TEST": testStressTesterFile.path,
     ]
 
     // check the produced invocations with default settings
-    let singleFileArgs: [String] = [testSwiftCWrapperPath, testFilePath]
+    let singleFileArgs: [String] = [testSwiftCWrapperFile.path, testFile.path]
     XCTAssertNoThrow(XCTAssertEqual(try SwiftCWrapperTool(arguments: singleFileArgs, environment: defaultEnvironment).run(), 0))
 
-    let defaultInvocations = try! String(contentsOf: URL(fileURLWithPath: testInvocationPath)).split(separator: "\n")
+    let defaultInvocations = tester.retrieveInvocations()
     let defaultExpected = [
-      "--format json --page 1/1 --rewrite-mode none --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) -- \(testFilePath!)",
-      "--format json --page 1/1 --rewrite-mode concurrent --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) -- \(testFilePath!)",
-      "--format json --page 1/1 --rewrite-mode insideOut --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType \(testFilePath!) -- \(testFilePath!)"
+      "--format json --page 1/1 --rewrite-mode none --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType --swiftc \(testSwiftCFile.path) \(testFile.path) -- \(testFile.path)",
+      "--format json --page 1/1 --rewrite-mode concurrent --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType --swiftc \(testSwiftCFile.path) \(testFile.path) -- \(testFile.path)",
+      "--format json --page 1/1 --rewrite-mode insideOut --request Format --request CursorInfo --request RangeInfo --request CodeComplete --request CollectExpressionType --swiftc \(testSwiftCFile.path) \(testFile.path) -- \(testFile.path)"
     ]
 
     XCTAssertEqual(defaultExpected.count, defaultInvocations.count)
@@ -152,7 +159,7 @@ class SwiftCWrapperToolTests: XCTestCase {
     }
 
     // check custom request kinds and rewrite modes are propagated through correctly
-    try! FileManager.default.removeItem(atPath: testInvocationPath)
+    try! FileManager.default.removeItem(at: testInvocationFile)
     let customEnvironment = defaultEnvironment.merging([
       "SK_STRESS_REQUESTS": "CursorInfo RangeInfo CodeComplete TypeContextInfo ConformingMethodList CollectExpressionType all",
       "SK_STRESS_REWRITE_MODES": "basic insideOut",
@@ -160,10 +167,10 @@ class SwiftCWrapperToolTests: XCTestCase {
     ], uniquingKeysWith: { _, new in new })
     XCTAssertNoThrow(XCTAssertEqual(try SwiftCWrapperTool(arguments: singleFileArgs, environment: customEnvironment).run(), 0))
 
-    let customInvocations = try! String(contentsOf: URL(fileURLWithPath: testInvocationPath)).split(separator: "\n")
+    let customInvocations = tester.retrieveInvocations()
     let customExpected = [
-      "--format json --page 1/1 --rewrite-mode basic --request CursorInfo --request RangeInfo --request CodeComplete --request TypeContextInfo --request ConformingMethodList --request CollectExpressionType --request All --type-list-item s:SomeUSR --type-list-item s:OtherUSR --type-list-item s:ThirdUSR \(testFilePath!) -- \(testFilePath!)",
-      "--format json --page 1/1 --rewrite-mode insideOut --request CursorInfo --request RangeInfo --request CodeComplete --request TypeContextInfo --request ConformingMethodList --request CollectExpressionType --request All --type-list-item s:SomeUSR --type-list-item s:OtherUSR --type-list-item s:ThirdUSR \(testFilePath!) -- \(testFilePath!)"
+      "--format json --page 1/1 --rewrite-mode basic --request CursorInfo --request RangeInfo --request CodeComplete --request TypeContextInfo --request ConformingMethodList --request CollectExpressionType --request All --type-list-item s:SomeUSR --type-list-item s:OtherUSR --type-list-item s:ThirdUSR --swiftc \(testSwiftCFile.path) \(testFile.path) -- \(testFile.path)",
+      "--format json --page 1/1 --rewrite-mode insideOut --request CursorInfo --request RangeInfo --request CodeComplete --request TypeContextInfo --request ConformingMethodList --request CollectExpressionType --request All --type-list-item s:SomeUSR --type-list-item s:OtherUSR --type-list-item s:ThirdUSR --swiftc \(testSwiftCFile.path) \(testFile.path) -- \(testFile.path)"
     ]
     XCTAssertEqual(customExpected.count, customInvocations.count)
     for invocation in customInvocations {
@@ -186,19 +193,19 @@ class SwiftCWrapperToolTests: XCTestCase {
     let document1 = DocumentInfo(path: "/baz/foo/bar.swift", modification: nil)
     let request1 = RequestInfo.editorReplaceText(document: document1, offset: 42, length: 0, text: ".")
     let error1 = SourceKitError.crashed(request: request1)
-    let issue1 = StressTesterIssue.failed(error1)
+    let issue1 = StressTesterIssue.failed(sourceKitError: error1, arguments: "")
 
     let request2 = RequestInfo.editorReplaceText(document: document1, offset: 42, length: 2, text: "hello")
     let error2 = SourceKitError.crashed(request: request2)
-    let issue2 = StressTesterIssue.failed(error2)
+    let issue2 = StressTesterIssue.failed(sourceKitError: error2, arguments: "")
 
     let document2 = DocumentInfo(path: "/baz/bar.swift", modification: nil)
     let request3 = RequestInfo.editorReplaceText(document: document2, offset: 42, length: 0, text: ".")
     let error3 = SourceKitError.crashed(request: request3)
-    let issue3 = StressTesterIssue.failed(error3)
+    let issue3 = StressTesterIssue.failed(sourceKitError: error3, arguments: "")
 
     let error4 = SourceKitError.failed(.errorResponse, request: request1, response: "foo")
-    let issue4 = StressTesterIssue.failed(error4)
+    let issue4 = StressTesterIssue.failed(sourceKitError: error4, arguments: "")
 
     let issue5 = StressTesterIssue.errored(status: 2, file: "/bob/foo/bar.swift",
                                           arguments: "--rewrite-mode concurrent /bob/foo/bar.swift -- /bob/foo/bar.swift")
@@ -223,34 +230,29 @@ class SwiftCWrapperToolTests: XCTestCase {
     try? FileManager.default.removeItem(at: workspace)
     try! FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: false)
 
-    testSwiftCWrapperPath = workspace
+    testSwiftCWrapperFile = workspace
       .appendingPathComponent("sk-swiftc-wrapper", isDirectory: false)
-      .path
-    testSwiftCPath = workspace
+    testSwiftCFile = workspace
       .appendingPathComponent("swiftc", isDirectory: false)
-      .path
-    testStressTesterPath = workspace
+    testStressTesterFile = workspace
       .appendingPathComponent("sk-stress-test", isDirectory: false)
-      .path
-    testFilePath = workspace
+    testFile = workspace
       .appendingPathComponent("test.swift", isDirectory: false)
-      .path
-    testInvocationPath = workspace
+    testInvocationFile = workspace
       .appendingPathComponent("invocations.txt", isDirectory: false)
-      .path
     errorJson = """
       {"message": "detected", "error": {\
         "error": "timedOut",\
         "request": {\
-          "document": {"path":"\(testFilePath!)"},\
+          "document": {"path":"\(testFile.path)"},\
           "offset": 5,\
-          "args": ["\(testFilePath!)"],\
+          "args": ["\(testFile.path)"],\
           "request": "cursorInfo"\
         }\
       }}
       """
 
-    FileManager.default.createFile(atPath: testFilePath, contents: """
+    FileManager.default.createFile(atPath: testFile.path, contents: """
       func square(_ x: Int) -> Int {
         return x * x
       }
@@ -258,20 +260,8 @@ class SwiftCWrapperToolTests: XCTestCase {
       """.data(using: .utf8))
   }
 
-  func makeScript(atPath path: String, exitCode: Int32, stdout: String? = nil, stderr: String? = nil, recordInvocationIn invocationPath: String? = nil) {
-    var lines = ["#!/usr/bin/env bash"]
-    if let stdout = stdout {
-      lines.append("echo '\(stdout)'")
-    }
-    if let stderr = stderr {
-      lines.append("echo '\(stderr)' >&2")
-    }
-    if let invocationPath = invocationPath {
-      lines.append("echo $@ >> \(invocationPath)")
-    }
-    lines.append("exit \(exitCode)")
-    let content = lines.joined(separator: "\n").data(using: .utf8)
-
-    FileManager.default.createFile(atPath: path, contents: content, attributes: [FileAttributeKey.posixPermissions: 0o0755])
+  override func tearDown() {
+    super.tearDown()
+    try? FileManager.default.removeItem(at: workspace)
   }
 }

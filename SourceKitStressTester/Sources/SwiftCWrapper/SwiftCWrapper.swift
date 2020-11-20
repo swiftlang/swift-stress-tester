@@ -83,7 +83,15 @@ public struct SwiftCWrapper {
       let partCount = max(Int(sizeInBytes / 1000), 1)
       return rewriteModes.flatMap { mode in
         (1...partCount).map { part in
-          StressTestOperation(file: file, rewriteMode: mode, requests: requestKinds, conformingMethodTypes: conformingMethodTypes, limit: astBuildLimit, part: (part, of: partCount), reportResponses: dumpResponsesPath != nil, compilerArgs: arguments, executable: stressTesterPath)
+          StressTestOperation(file: file, rewriteMode: mode,
+                              requests: requestKinds,
+                              conformingMethodTypes: conformingMethodTypes,
+                              limit: astBuildLimit,
+                              part: (part, of: partCount),
+                              reportResponses: dumpResponsesPath != nil,
+                              compilerArgs: arguments,
+                              executable: stressTesterPath,
+                              swiftc: swiftcPath)
         }
       }
     }
@@ -138,9 +146,11 @@ public struct SwiftCWrapper {
       case .unexecuted:
         fatalError("unterminated operation")
       case .errored(let status):
-        detectedIssue = .errored(status: status, file: operation.file, arguments: arguments.joined(separator: " "))
+        detectedIssue = .errored(status: status, file: operation.file,
+                                 arguments: operation.args.joined(separator: " "))
       case .failed(let sourceKitError):
-        detectedIssue = .failed(sourceKitError)
+        detectedIssue = .failed(sourceKitError: sourceKitError,
+                                arguments: operation.args.joined(separator: " "))
         fallthrough
       case .passed:
         processedFiles.insert(operation.file)
@@ -242,6 +252,7 @@ public enum RequestKind: String, CaseIterable {
   case conformingMethodList = "ConformingMethodList"
   case collectExpressionType = "CollectExpressionType"
   case format = "Format"
+  case testModule = "TestModule"
   case all = "All"
 }
 
@@ -258,12 +269,12 @@ fileprivate extension TimeInterval {
 }
 
 public enum StressTesterIssue: CustomStringConvertible {
-  case failed(SourceKitError)
+  case failed(sourceKitError: SourceKitError, arguments: String)
   case errored(status: Int32, file: String, arguments: String)
 
   public var description: String {
     switch self {
-    case .failed(let error):
+    case .failed(let error, _):
       return String(describing: error)
     case .errored(let status, let file, let arguments):
       return """

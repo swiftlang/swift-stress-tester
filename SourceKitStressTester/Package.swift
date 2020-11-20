@@ -61,15 +61,18 @@ let package = Package(
       dependencies: ["SwiftCWrapper"]
     ),
 
+    .target(
+      name: "TestHelpers"
+    ),
     .testTarget(
       name: "StressTesterToolTests",
-      dependencies: ["StressTester"],
+      dependencies: ["StressTester", "TestHelpers"],
       swiftSettings: [.unsafeFlags(["-Fsystem", sourcekitSearchPath])],
       linkerSettings: [.unsafeFlags(["-Xlinker", "-F", "-Xlinker", sourcekitSearchPath])]
     ),
     .testTarget(
       name: "SwiftCWrapperToolTests",
-      dependencies: ["SwiftCWrapper"]
+      dependencies: ["SwiftCWrapper", "TestHelpers"]
     )
   ]
 )

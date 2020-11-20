@@ -35,7 +35,7 @@ public struct ExpectedIssue: Equatable, Codable {
   /// - returns: true if the issue matches
   public func matches(_ issue: StressTesterIssue) -> Bool {
     switch issue {
-    case .failed(let sourceKitError):
+    case .failed(let sourceKitError, _):
       return matches(sourceKitError.request)
     case .errored(let status, let file, let arguments):
       guard case .stressTesterCrash(let xStatus, let xArguments) = issueDetail else { return false }
@@ -46,63 +46,63 @@ public struct ExpectedIssue: Equatable, Codable {
   }
 
   private func matches(_ info: RequestInfo) -> Bool {
+    func matchDocument(_ doc: DocumentInfo) -> Bool {
+      return match(doc.path, against: path) &&
+        match(doc.modification?.summaryCode, against: modification)
+    }
+
     switch info {
     case .editorOpen(let document):
       guard case .editorOpen = issueDetail else { return false }
-      return match(document.path, against: path) &&
-        match(document.modification?.summaryCode, against: modification)
+      return matchDocument(document)
     case .editorClose(let document):
       guard case .editorClose = issueDetail else { return false }
-      return match(document.path, against: path) &&
-        match(document.modification?.summaryCode, against: modification)
+      return matchDocument(document)
     case .editorReplaceText(let document, let offset, let length, let text):
       guard case .editorReplaceText(let specOffset, let specLength, let specText) = issueDetail else { return false }
-      return match(document.path, against: path) &&
-        match(document.modification?.summaryCode, against: modification) &&
+      return matchDocument(document) &&
         match(offset, against: specOffset) &&
         match(length, against: specLength) &&
         match(text, against: specText)
     case .format(let document, let offset):
       guard case .format(let specOffset) = issueDetail else { return false }
-      return match(document.path, against: path) &&
-        match(document.modification?.summaryCode, against: modification) &&
+      return matchDocument(document) &&
         match(offset, against: specOffset)
     case .cursorInfo(let document, let offset, _):
       guard case .cursorInfo(let specOffset) = issueDetail else { return false }
-      return match(document.path, against: path) &&
-        match(document.modification?.summaryCode, against: modification) &&
+      return matchDocument(document) &&
         match(offset, against: specOffset)
     case .codeComplete(let document, let offset, _):
       guard case .codeComplete(let specOffset) = issueDetail else { return false }
-      return match(document.path, against: path) &&
-        match(document.modification?.summaryCode, against: modification) &&
+      return matchDocument(document) &&
         match(offset, against: specOffset)
     case .rangeInfo(let document, let offset, let length, _):
       guard case .rangeInfo(let specOffset, let specLength) = issueDetail else { return false }
-      return match(document.path, against: path) &&
-        match(document.modification?.summaryCode, against: modification) &&
+      return matchDocument(document) &&
         match(offset, against: specOffset) &&
         match(length, against: specLength)
     case .semanticRefactoring(let document, let offset, let refactoring, _):
       guard case .semanticRefactoring(let specOffset, let specRefactoring) = issueDetail else { return false }
-      return match(document.path, against: path) &&
-        match(document.modification?.summaryCode, against: modification) &&
+      return matchDocument(document) &&
         match(offset, against: specOffset) &&
         match(refactoring, against: specRefactoring)
     case .typeContextInfo(let document, let offset, _):
       guard case .typeContextInfo(let specOffset) = issueDetail else { return false }
-      return match(document.path, against: path) &&
-        match(document.modification?.summaryCode, against: modification) &&
+      return matchDocument(document) &&
         match(offset, against: specOffset)
     case .conformingMethodList(let document, let offset, _, _):
       guard case .conformingMethodList(let specOffset) = issueDetail else { return false }
-      return match(document.path, against: path) &&
-        match (document.modification?.summaryCode, against: modification) &&
+      return matchDocument(document) &&
         match (offset, against: specOffset)
     case .collectExpressionType(let document, _):
       guard case .collectExpressionType = issueDetail else { return false }
-      return match(document.path, against: path) &&
-        match (document.modification?.summaryCode, against: modification)
+      return matchDocument(document)
+    case .writeModule(let document, _):
+      guard case .writeModule = issueDetail else { return false }
+      return matchDocument(document)
+    case .interfaceGen(let document, _, _):
+      guard case .interfaceGen = issueDetail else { return false }
+      return matchDocument(document)
     }
   }
 
@@ -157,7 +157,7 @@ public extension ExpectedIssue {
       path = file
       modification = nil
       issueDetail = .stressTesterCrash(status: status, arguments: arguments)
-    case .failed(let failure):
+    case .failed(let failure, _):
       switch failure.request {
       case .editorOpen(let document):
         path = document.path
@@ -203,6 +203,14 @@ public extension ExpectedIssue {
         path = document.path
         modification = document.modification?.summaryCode
         issueDetail = .collectExpressionType
+      case .writeModule(let document, _):
+        path = document.path
+        modification = document.modification?.summaryCode
+        issueDetail = .writeModule
+      case .interfaceGen(let document, _, _):
+        path = document.path
+        modification = document.modification?.summaryCode
+        issueDetail = .interfaceGen
       }
     }
   }
@@ -218,6 +226,8 @@ public extension ExpectedIssue {
     case typeContextInfo(offset: Int?)
     case conformingMethodList(offset: Int?)
     case collectExpressionType
+    case writeModule
+    case interfaceGen
     case semanticRefactoring(offset: Int?, refactoring: String?)
     case stressTesterCrash(status: Int32?, arguments: String?)
 
@@ -270,6 +280,10 @@ public extension ExpectedIssue {
         )
       case .collectExpressionType:
         self = .collectExpressionType
+      case .writeModule:
+        self = .writeModule
+      case .interfaceGen:
+        self = .interfaceGen
       }
     }
 
@@ -314,6 +328,10 @@ public extension ExpectedIssue {
         try container.encode(offset, forKey: .offset)
       case .collectExpressionType:
         try container.encode(RequestBase.collectExpressionType, forKey: .kind)
+      case .writeModule:
+        try container.encode(RequestBase.writeModule, forKey: .kind)
+      case .interfaceGen:
+        try container.encode(RequestBase.interfaceGen, forKey: .kind)
       }
     }
 
@@ -323,7 +341,7 @@ public extension ExpectedIssue {
 
     private enum RequestBase: String, Codable {
       case editorOpen, editorClose, editorReplaceText
-      case cursorInfo, codeComplete, rangeInfo, semanticRefactoring, typeContextInfo, conformingMethodList, collectExpressionType, format
+      case cursorInfo, codeComplete, rangeInfo, semanticRefactoring, typeContextInfo, conformingMethodList, collectExpressionType, format, writeModule, interfaceGen
       case stressTesterCrash
     }
   }

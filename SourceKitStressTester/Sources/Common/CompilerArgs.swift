@@ -23,11 +23,23 @@ public struct CompilerArg: Equatable {
 
   public init(_ argument: String) {
     self.original = argument
-    self.transformed = fileListArgs(arg: argument) ?? [argument]
+    self.transformed = fileListArgs(arg: argument)
+      .map({ args in
+        args.map({ $0.replacingOccurrences(of: "\\ ", with: " ") })
+      }) ?? [argument]
   }
 }
 
 public struct CompilerArgs {
+  private static let SKIP_FLAGS: Set = [
+    "-whole-module-optimization",
+    "-incremental"
+  ]
+  private static let SKIP_OPTIONS: Set = [
+    "-num-threads",
+    "-output-file-map"
+  ]
+
   /// Main file intended to be compiled
   public let forFile: URL
 
@@ -38,7 +50,8 @@ public struct CompilerArgs {
   /// arguments found in those files
   public let sourcekitdArgs: [String]
 
-  /// Original arguments but with references to fileToCompile removed. This
+  /// Original arguments but with flags/options relating to multi-module
+  /// output removed, as well as any references to fileToCompile. This
   /// includes replacing any file list with a new file when they contain the
   /// fileToCompile
   public let processArgs: [String]
@@ -47,20 +60,44 @@ public struct CompilerArgs {
     self.forFile = file
     self.original = args.map { $0.original }
     self.sourcekitdArgs = args.flatMap { $0.transformed }
-    self.processArgs = args.filter { $0.original != file.path }
-      .map { arg in
-        if let listArgs = fileListArgs(arg: arg.original) {
-          let fileRemoved = listArgs.filter { $0 == file.path }
-          if fileRemoved.count != listArgs.count {
-            let newFileList = tempDir.appendingPathComponent(UUID().uuidString)
-              .appendingPathExtension("SwiftFileList")
-            let data = Data(fileRemoved.joined(separator: "\n").utf8)
-            try! data.write(to: newFileList)
-            return newFileList.path
-          }
-        }
-        return arg.original
+
+    var processArgs = [String]()
+    var skip = false
+    for arg in args {
+      if skip {
+        skip = false
+        continue;
       }
+
+      if arg.original == file.path {
+        continue
+      }
+
+      if CompilerArgs.SKIP_FLAGS.contains(arg.original) {
+        continue
+      }
+
+      if CompilerArgs.SKIP_OPTIONS.contains(arg.original) {
+        skip = true
+        continue
+      }
+
+      if let listArgs = fileListArgs(arg: arg.original) {
+        let fileRemoved = listArgs.filter { $0 != file.path }
+        if fileRemoved.count != listArgs.count {
+          let newFileList = tempDir.appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("SwiftFileList")
+          let data = Data(fileRemoved.joined(separator: "\n").utf8)
+          try! data.write(to: newFileList)
+          processArgs.append("@" + newFileList.path)
+        }
+
+        continue
+      }
+
+      processArgs.append(arg.original)
+    }
+    self.processArgs = processArgs
   }
 }
 
@@ -72,8 +109,7 @@ func fileListArgs(arg: String) -> [String]? {
   let url = URL(fileURLWithPath: String(arg.dropFirst()) , isDirectory: false)
   if let content = try? String(contentsOf: url, encoding: .utf8) {
     return content.split(separator: "\n").map {
-      $0.replacingOccurrences(of: "\\ ", with: " ")
-        .trimmingCharacters(in: .whitespacesAndNewlines)
+      $0.trimmingCharacters(in: .whitespacesAndNewlines)
     }
   }
   return nil

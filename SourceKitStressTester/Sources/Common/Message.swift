@@ -54,7 +54,8 @@ public enum SourceKitError: Error {
 }
 
 public enum SourceKitErrorReason: String, Codable {
-  case errorResponse, errorTypeInResponse, errorDeserializingSyntaxTree, sourceAndSyntaxTreeMismatch, missingExpectedResult
+  case errorResponse, errorTypeInResponse, errorDeserializingSyntaxTree,
+       sourceAndSyntaxTreeMismatch, missingExpectedResult, errorWritingModule
 }
 
 public enum RequestInfo {
@@ -69,6 +70,8 @@ public enum RequestInfo {
   case typeContextInfo(document: DocumentInfo, offset: Int, args: [String])
   case conformingMethodList(document: DocumentInfo, offset: Int, typeList: [String], args: [String])
   case collectExpressionType(document: DocumentInfo, args: [String])
+  case writeModule(document: DocumentInfo, args: [String])
+  case interfaceGen(document: DocumentInfo, moduleName: String, args: [String])
 }
 
 public struct DocumentInfo: Codable {
@@ -208,12 +211,13 @@ extension SourceKitError: Codable {
 
 extension RequestInfo: Codable {
   enum CodingKeys: String, CodingKey {
-    case request, kind, document, offset, length, text, args, typeList
+    case request, kind, document, offset, length, text, args, typeList,
+         moduleName
   }
   enum BaseRequest: String, Codable {
     case editorOpen, editorClose, replaceText, format, cursorInfo, codeComplete,
       rangeInfo, semanticRefactoring, typeContextInfo, conformingMethodList,
-      collectExpressionType
+      collectExpressionType, writeModule, interfaceGen
   }
 
   public init(from decoder: Decoder) throws {
@@ -272,6 +276,15 @@ extension RequestInfo: Codable {
       let document = try container.decode(DocumentInfo.self, forKey: .document)
       let args = try container.decode([String].self, forKey: .args)
       self = .collectExpressionType(document: document, args: args)
+    case .writeModule:
+      let document = try container.decode(DocumentInfo.self, forKey: .document)
+      let args = try container.decode([String].self, forKey: .args)
+      self = .writeModule(document: document, args: args)
+    case .interfaceGen:
+      let document = try container.decode(DocumentInfo.self, forKey: .document)
+      let moduleName = try container.decode(String.self, forKey: .moduleName)
+      let args = try container.decode([String].self, forKey: .args)
+      self = .interfaceGen(document: document, moduleName: moduleName, args: args)
     }
   }
 
@@ -331,6 +344,15 @@ extension RequestInfo: Codable {
       try container.encode(BaseRequest.collectExpressionType, forKey: .request)
       try container.encode(document, forKey: .document)
       try container.encode(args, forKey: .args)
+    case .writeModule(let document, let args):
+      try container.encode(BaseRequest.writeModule, forKey: .request)
+      try container.encode(document, forKey: .document)
+      try container.encode(args, forKey: .args)
+    case .interfaceGen(let document, let moduleName, let args):
+      try container.encode(BaseRequest.interfaceGen, forKey: .request)
+      try container.encode(document, forKey: .document)
+      try container.encode(moduleName, forKey: .moduleName)
+      try container.encode(args, forKey: .args)
     }
   }
 }
@@ -360,6 +382,10 @@ extension RequestInfo: CustomStringConvertible {
       return "ConformingMethodList in \(document) at offset \(offset) conforming to \(typeList.joined(separator: ", ")) with args: \(args.joined(separator: " "))"
     case .collectExpressionType(let document, let args):
       return "CollectExpressionType in \(document) with args: \(args.joined(separator: " "))"
+    case .writeModule(let document, let args):
+      return "WriteModule for \(document) with args: \(args.joined(separator: " "))"
+    case .interfaceGen(let document, let modulePath, let args):
+      return "InterfaceGen for \(document) compiled to \(modulePath) with args: \(args.joined(separator: " "))"
     }
   }
 }
@@ -386,6 +412,8 @@ extension SourceKitErrorReason: CustomStringConvertible {
       return "SourceKit returned a syntax tree that doesn't match the expected source"
     case .missingExpectedResult:
       return "SourceKit returned a response that didn't contain the expected result"
+    case .errorWritingModule:
+      return "Error while writing out module"
     }
   }
 }
@@ -492,6 +520,10 @@ extension SourceKitError: CustomStringConvertible {
       let suffix = String(source.utf8.suffix(from: index))!
       return prefix + "<conforming-method-list-offset>" + suffix
     case .collectExpressionType(let document, _):
+      return document.modification?.content
+    case .writeModule(let document, _):
+      return document.modification?.content
+    case .interfaceGen(let document, _, _):
       return document.modification?.content
     }
   }
