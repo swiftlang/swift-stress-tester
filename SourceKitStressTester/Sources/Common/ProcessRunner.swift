@@ -27,29 +27,58 @@ public class ProcessRunner {
     process.environment = environment.merging(ProcessInfo.processInfo.environment) { (current, _) in current }
   }
 
-  public func run(capturingOutput: Bool = true) -> ProcessResult {
-    let out = Pipe()
-    var outData = Data()
+  public func run(captureStdout: Bool = true,
+                  captureStderr: Bool = true) -> ProcessResult {
+    let group = DispatchGroup()
 
-    if capturingOutput {
-      process.standardOutput = out
+    var outData = Data()
+    if captureStdout {
+      let outPipe = Pipe()
+      process.standardOutput = outPipe
+      addHandler(pipe: outPipe, group: group) { outData.append($0) }
     }
+
+    var errData = Data()
+    if captureStderr {
+      let errPipe = Pipe()
+      process.standardError = errPipe
+      addHandler(pipe: errPipe, group: group) { errData.append($0) }
+    }
+
     ProcessRunner.serialQueue.sync {
       process.launch()
       launched = true
     }
-    if capturingOutput {
-      outData = out.fileHandleForReading.readDataToEndOfFile()
-    }
-    process.waitUntilExit()
 
-    return ProcessResult(status: process.terminationStatus, stdout: outData)
+    process.waitUntilExit()
+    if captureStdout || captureStderr {
+      // Make sure we've received all stdout/stderr
+      group.wait()
+    }
+
+    return ProcessResult(status: process.terminationStatus,
+                         stdout: outData, stderr: errData)
   }
 
   public func terminate() {
     ProcessRunner.serialQueue.sync {
       if launched {
         process.terminate()
+      }
+    }
+  }
+
+  private func addHandler(pipe: Pipe, group: DispatchGroup,
+                          addData: @escaping (Data) -> Void) {
+    group.enter()
+    pipe.fileHandleForReading.readabilityHandler = { fileHandle in
+      // Apparently using availableData can cause various issues
+      let newData = fileHandle.readData(ofLength: Int.max)
+      if newData.count == 0 {
+        pipe.fileHandleForReading.readabilityHandler = nil;
+        group.leave()
+      } else {
+        addData(newData)
       }
     }
   }
@@ -60,9 +89,13 @@ public class ProcessRunner {
 public struct ProcessResult {
   public let status: Int32
   public let stdout: Data
+  public let stderr: Data
 
   public var stdoutStr: String? {
     return String(data: stdout, encoding: .utf8)
+  }
+  public var stderrStr: String? {
+    return String(data: stderr, encoding: .utf8)
   }
 }
 
