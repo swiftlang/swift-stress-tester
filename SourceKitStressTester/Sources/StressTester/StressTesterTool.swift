@@ -85,7 +85,7 @@ public struct StressTesterTool: ParsableCommand {
 
   public init() {}
 
-  public mutating func validate() throws {
+  private mutating func customValidate() throws {
     let hasFileCompilerArg = compilerArgs.contains { arg in
       arg.transformed.contains { $0 == file.path }
     }
@@ -122,7 +122,12 @@ public struct StressTesterTool: ParsableCommand {
     }
   }
 
-  public func run() throws {
+  public mutating func run() throws {
+    // FIXME: Remove this and rename `customValidate` to `validate` once swift
+    // is using an argument parser with c17e00a (ie. keeping mutations in
+    // `validate`).
+    try customValidate()
+
     let options = StressTesterOptions(
       requests: request.reduce([]) { result, next in
         result.union(next)
