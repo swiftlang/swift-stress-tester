@@ -365,27 +365,27 @@ extension RequestInfo: CustomStringConvertible {
     case .editorClose(let document):
       return "EditorClose on \(document)"
     case .cursorInfo(let document, let offset, let args):
-      return "CursorInfo in \(document) at offset \(offset) with args: \(args.joined(separator: " "))"
+      return "CursorInfo in \(document) at offset \(offset) with args: \(escapeArgs(args))"
     case .rangeInfo(let document, let offset, let length, let args):
-      return "RangeInfo in \(document) at offset \(offset) for length \(length) with args: \(args.joined(separator: " "))"
+      return "RangeInfo in \(document) at offset \(offset) for length \(length) with args: \(escapeArgs(args))"
     case .codeComplete(let document, let offset, let args):
-      return "CodeComplete in \(document) at offset \(offset) with args: \(args.joined(separator: " "))"
+      return "CodeComplete in \(document) at offset \(offset) with args: \(escapeArgs(args))"
     case .semanticRefactoring(let document, let offset, let kind, let args):
-      return "SemanticRefactoring (\(kind)) in \(document) at offset \(offset) with args: \(args.joined(separator: " "))"
+      return "SemanticRefactoring (\(kind)) in \(document) at offset \(offset) with args: \(escapeArgs(args))"
     case .editorReplaceText(let document, let offset, let length, let text):
       return "ReplaceText in \(document) at offset \(offset) for length \(length) with text: \(text)"
     case .format(let document, let offset):
       return "Format in \(document) at offset \(offset)"
     case .typeContextInfo(let document, let offset, let args):
-      return "TypeContextInfo in \(document) at offset \(offset) with args: \(args.joined(separator: " "))"
+      return "TypeContextInfo in \(document) at offset \(offset) with args: \(escapeArgs(args))"
     case .conformingMethodList(let document, let offset, let typeList, let args):
-      return "ConformingMethodList in \(document) at offset \(offset) conforming to \(typeList.joined(separator: ", ")) with args: \(args.joined(separator: " "))"
+      return "ConformingMethodList in \(document) at offset \(offset) conforming to \(typeList.joined(separator: ", ")) with args: \(escapeArgs(args))"
     case .collectExpressionType(let document, let args):
-      return "CollectExpressionType in \(document) with args: \(args.joined(separator: " "))"
+      return "CollectExpressionType in \(document) with args: \(escapeArgs(args))"
     case .writeModule(let document, let args):
-      return "WriteModule for \(document) with args: \(args.joined(separator: " "))"
-    case .interfaceGen(let document, let modulePath, let args):
-      return "InterfaceGen for \(document) compiled to \(modulePath) with args: \(args.joined(separator: " "))"
+      return "WriteModule for \(document) with args: \(escapeArgs(args))"
+    case .interfaceGen(let document, let moduleName, let args):
+      return "InterfaceGen for \(document) compiled as \(moduleName) with args: \(escapeArgs(args))"
     }
   }
 }
