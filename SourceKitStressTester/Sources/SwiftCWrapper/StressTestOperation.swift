@@ -63,7 +63,7 @@ final class StressTestOperation: Operation {
   private let mode: RewriteMode
   private let process: ProcessRunner
 
-  init(file: String, rewriteMode: RewriteMode, requests: [RequestKind]?,
+  init(file: String, rewriteMode: RewriteMode, requests: Set<RequestKind>,
        conformingMethodTypes: [String]?, limit: Int?, part: (Int, of: Int),
        reportResponses: Bool, compilerArgs: [String], executable: String,
        swiftc: String) {
@@ -71,9 +71,7 @@ final class StressTestOperation: Operation {
     if let limit = limit {
       stressTesterArgs += ["--limit", String(limit)]
     }
-    if let requests = requests {
-      stressTesterArgs += requests.flatMap { ["--request", $0.rawValue] }
-    }
+    stressTesterArgs += requests.flatMap { ["--request", $0.rawValue] }
     if let types = conformingMethodTypes {
       stressTesterArgs += types.flatMap { ["--type-list-item", $0] }
     }

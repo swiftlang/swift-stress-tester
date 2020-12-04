@@ -42,6 +42,8 @@ public struct ExecutableScript {
   }
 
   public func retrieveInvocations() -> [Substring] {
-    return (try? String(contentsOf: invocationFile!).split(separator: "\n")) ?? []
+    let contents = (try? String(contentsOf: invocationFile!).split(separator: "\n")) ?? []
+    try? FileManager.default.removeItem(at: invocationFile!)
+    return contents
   }
 }

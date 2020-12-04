@@ -22,7 +22,7 @@ public struct SwiftCWrapper {
   let stressTesterPath: String
   let astBuildLimit: Int?
   let rewriteModes: [RewriteMode]
-  let requestKinds: [RequestKind]
+  let requestKinds: Set<RequestKind>
   let conformingMethodTypes: [String]?
   let ignoreIssues: Bool
   let issueManager: IssueManager?
@@ -31,7 +31,13 @@ public struct SwiftCWrapper {
   let failFast: Bool
   let suppressOutput: Bool
 
-  public init(swiftcArgs: [String], swiftcPath: String, stressTesterPath: String, astBuildLimit: Int?, rewriteModes: [RewriteMode]?, requestKinds: [RequestKind]?, conformingMethodTypes: [String]?, ignoreIssues: Bool, issueManager: IssueManager?, maxJobs: Int?, dumpResponsesPath: String?, failFast: Bool, suppressOutput: Bool) {
+  public init(swiftcArgs: [String], swiftcPath: String,
+              stressTesterPath: String, astBuildLimit: Int?,
+              rewriteModes: [RewriteMode], requestKinds: Set<RequestKind>,
+              conformingMethodTypes: [String]?, ignoreIssues: Bool,
+              issueManager: IssueManager?, maxJobs: Int?,
+              dumpResponsesPath: String?, failFast: Bool,
+              suppressOutput: Bool) {
     self.arguments = swiftcArgs
     self.swiftcPath = swiftcPath
     self.stressTesterPath = stressTesterPath
@@ -40,8 +46,8 @@ public struct SwiftCWrapper {
     self.issueManager = issueManager
     self.failFast = failFast
     self.suppressOutput = suppressOutput
-    self.rewriteModes = rewriteModes ?? [.none, .concurrent, .insideOut]
-    self.requestKinds = requestKinds ?? [.format, .cursorInfo, .rangeInfo, .codeComplete, .collectExpressionType]
+    self.rewriteModes = rewriteModes
+    self.requestKinds = requestKinds
     self.conformingMethodTypes = conformingMethodTypes
     self.maxJobs = maxJobs
     self.dumpResponsesPath = dumpResponsesPath
@@ -242,18 +248,6 @@ private struct OrderingBuffer<T> {
       nextItemIndex += 1
     }
   }
-}
-
-public enum RequestKind: String, CaseIterable {
-  case cursorInfo = "CursorInfo"
-  case rangeInfo = "RangeInfo"
-  case codeComplete = "CodeComplete"
-  case typeContextInfo = "TypeContextInfo"
-  case conformingMethodList = "ConformingMethodList"
-  case collectExpressionType = "CollectExpressionType"
-  case format = "Format"
-  case testModule = "TestModule"
-  case all = "All"
 }
 
 fileprivate extension TimeInterval {

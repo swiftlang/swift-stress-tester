@@ -62,8 +62,8 @@ public struct SwiftCWrapperTool {
     let ignoreIssues = try ignoreIssuesEnv.get(from: environment) ?? false
     let suppressOutput = try suppressOutputEnv.get(from: environment) ?? false
     let astBuildLimit = try astBuildLimitEnv.get(from: environment)
-    let rewriteModes = try rewriteModesEnv.get(from: environment)
-    let requestKinds = try requestKindsEnv.get(from: environment)
+    let rewriteModes = try rewriteModesEnv.get(from: environment) ?? [.none, .concurrent, .insideOut]
+    let requestKinds = RequestKind.reduce(try requestKindsEnv.get(from: environment) ?? [.ide])
     let conformingMethodTypes = try conformingMethodTypesEnv.get(from: environment)
     let maxJobs = try maxJobsEnv.get(from: environment)
     let dumpResponsesPath = try dumpResponsesPathEnv.get(from: environment)
@@ -75,7 +75,8 @@ public struct SwiftCWrapperTool {
       issueManager = IssueManager(
         activeConfig: activeConfig,
         expectedIssuesFile: URL(fileURLWithPath: expectedFailuresPath, isDirectory: false),
-        resultsFile: URL(fileURLWithPath: outputPath, isDirectory: false)
+        resultsFile: URL(fileURLWithPath: outputPath, isDirectory: false),
+        activeRequests: requestKinds
       )
     }
 
@@ -186,7 +187,7 @@ extension Array: EnvOptionKind where Element: EnvOptionKind {
 
 extension RequestKind: EnvOptionKind {
   init(value: String, fromKey key: String) throws {
-    guard let kind = RequestKind.allCases.first(where: { $0.rawValue.lowercased() == value.lowercased() }) else {
+    guard let kind = RequestKind.byName(value) else {
       throw EnvOptionError.unknownValue(key: key, value: value, validValues: RequestKind.allCases.map { $0.rawValue })
     }
     self = kind

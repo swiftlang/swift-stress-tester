@@ -20,16 +20,19 @@ public struct IssueManager {
   let expectedIssuesFile: URL
   let resultsFile: URL
   let encoder: JSONEncoder
+  let activeRequests: Set<RequestKind>
 
   /// - parameters:
   ///   - expectedFailuresFile: the URL of a JSON file describing the
   ///   expected failures
   ///   - resultsFile: the URL of the file to use to store failures across
   ///   multiple invocations
-  init(activeConfig: String, expectedIssuesFile: URL, resultsFile: URL) {
+  init(activeConfig: String, expectedIssuesFile: URL, resultsFile: URL,
+       activeRequests: Set<RequestKind>) {
     self.activeConfig = activeConfig
     self.expectedIssuesFile = expectedIssuesFile
     self.resultsFile = resultsFile
+    self.activeRequests = activeRequests
     self.encoder = JSONEncoder()
     encoder.outputFormatting = .prettyPrinted
   }
@@ -79,8 +82,9 @@ public struct IssueManager {
     let data = try Data(contentsOf: expectedIssuesFile)
     return try JSONDecoder().decode([ExpectedIssue].self, from: data)
       .filter { spec in
-        spec.applicableConfigs.contains(activeConfig) &&
-          files.contains { spec.isApplicable(toPath: $0) }
+        return spec.applicableConfigs.contains(activeConfig) &&
+          files.contains { spec.isApplicable(toPath: $0) } &&
+          activeRequests.contains(where: { spec.issueDetail.enabledFor(request: $0) })
     }
   }
 

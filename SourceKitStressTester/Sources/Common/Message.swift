@@ -539,3 +539,43 @@ extension StressTesterMessage: CustomStringConvertible {
     }
   }
 }
+
+public enum RequestKind: String, CaseIterable, CustomStringConvertible {
+  case cursorInfo = "CursorInfo"
+  case rangeInfo = "RangeInfo"
+  case codeComplete = "CodeComplete"
+  case typeContextInfo = "TypeContextInfo"
+  case conformingMethodList = "ConformingMethodList"
+  case collectExpressionType = "CollectExpressionType"
+  case format = "Format"
+  case testModule = "TestModule"
+  case ide = "IDE"
+  case all = "All"
+
+  public var description: String { self.rawValue }
+
+  public static let ideRequests: [RequestKind] =
+    [.cursorInfo, .rangeInfo, .codeComplete, .collectExpressionType, .format,
+     .typeContextInfo, .conformingMethodList]
+  public static let allRequests: [RequestKind] = ideRequests +
+    [.testModule]
+
+  public static func byName(_ name: String) -> RequestKind? {
+    let lower = name.lowercased()
+    return RequestKind.allCases
+      .first(where: { $0.rawValue.lowercased() == lower })
+  }
+
+  public static func reduce(_ kinds: [RequestKind]) -> Set<RequestKind> {
+    return Set(kinds.flatMap { kind -> [RequestKind] in
+      switch kind {
+      case .ide:
+        return ideRequests
+      case .all:
+        return allRequests
+      default:
+        return [kind]
+      }
+    })
+  }
+}

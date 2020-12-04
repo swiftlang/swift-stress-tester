@@ -43,11 +43,9 @@ public struct StressTesterTool: ParsableCommand {
     """, valueName: "page/total"))
   public var page: Page = Page()
 
-  @Option(name: .shortAndLong, help: """
-    One of '\(RequestSet.all.valueNames.joined(separator: "\", \""))', \"IDE\",
-    or \"All\"
-    """)
-  public var request: [RequestSet] = [.ide]
+  @Option(name: [.customLong("request"), .customShort("r")],
+          help: "One of '\(RequestKind.allCases.map({ $0.rawValue }).joined(separator: "\", \""))'")
+  public var requests: [RequestKind] = [.ide]
 
   @Flag(name: .shortAndLong, help: """
     Dump the sourcekitd requests the stress tester would perform instead of \
@@ -129,9 +127,7 @@ public struct StressTesterTool: ParsableCommand {
     try customValidate()
 
     let options = StressTesterOptions(
-      requests: request.reduce([]) { result, next in
-        result.union(next)
-      },
+      requests: RequestKind.reduce(requests),
       rewriteMode: rewriteMode,
       conformingMethodsTypeList: conformingMethodsTypeList,
       page: page,
@@ -200,32 +196,12 @@ extension Page: ExpressibleByArgument {
   }
 }
 
-extension RequestSet: ExpressibleByArgument {
+extension RequestKind: ExpressibleByArgument {
   public init?(argument: String) {
-    switch argument.lowercased() {
-    case "format":
-      self = .format
-    case "cursorinfo":
-      self = .cursorInfo
-    case "rangeinfo":
-      self = .rangeInfo
-    case "codecomplete":
-      self = .codeComplete
-    case "typecontextinfo":
-      self = .typeContextInfo
-    case "conformingmethodlist":
-      self = .conformingMethodList
-    case "collectexpressiontype":
-      self = .collectExpressionType
-    case "testmodule":
-      self = .testModule
-    case "ide":
-      self = .ide
-    case "all":
-      self = .all
-    default:
+    guard let kind = RequestKind.byName(argument) else {
       return nil
     }
+    self = kind
   }
 }
 
