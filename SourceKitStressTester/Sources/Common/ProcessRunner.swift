@@ -32,15 +32,8 @@ public class ProcessRunner {
                   captureStderr: Bool = true) -> ProcessResult {
     let group = DispatchGroup()
 
-    if let input = input {
-      guard let data = input.data(using: .utf8) else {
-        return ProcessResult(status: 1,
-                             stdout: Data(),
-                             stderr: "Invalid input".data(using: .utf8)!)
-      }
-      let inPipe = Pipe()
-      inPipe.fileHandleForWriting.write(data)
-      inPipe.fileHandleForWriting.closeFile()
+    let inPipe = Pipe()
+    if input != nil {
       process.standardInput = inPipe
     }
 
@@ -61,6 +54,16 @@ public class ProcessRunner {
     ProcessRunner.serialQueue.sync {
       process.launch()
       launched = true
+    }
+
+    if let input = input {
+      guard let data = input.data(using: .utf8) else {
+        return ProcessResult(status: 1,
+                             stdout: Data(),
+                             stderr: "Invalid input".data(using: .utf8)!)
+      }
+      inPipe.fileHandleForWriting.write(data)
+      inPipe.fileHandleForWriting.closeFile()
     }
 
     process.waitUntilExit()
