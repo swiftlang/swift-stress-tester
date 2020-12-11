@@ -20,7 +20,8 @@ public struct SwiftCWrapper {
   let arguments: [String]
   let swiftcPath: String
   let stressTesterPath: String
-  let astBuildLimit: Int?
+  let requestLimit: Int?
+  let requestLimitSeed: UInt64?
   let rewriteModes: [RewriteMode]
   let requestKinds: Set<RequestKind>
   let conformingMethodTypes: [String]?
@@ -32,7 +33,8 @@ public struct SwiftCWrapper {
   let suppressOutput: Bool
 
   public init(swiftcArgs: [String], swiftcPath: String,
-              stressTesterPath: String, astBuildLimit: Int?,
+              stressTesterPath: String, requestLimit: Int?,
+              requestLimitSeed: UInt64?,
               rewriteModes: [RewriteMode], requestKinds: Set<RequestKind>,
               conformingMethodTypes: [String]?, ignoreIssues: Bool,
               issueManager: IssueManager?, maxJobs: Int?,
@@ -41,7 +43,8 @@ public struct SwiftCWrapper {
     self.arguments = swiftcArgs
     self.swiftcPath = swiftcPath
     self.stressTesterPath = stressTesterPath
-    self.astBuildLimit = astBuildLimit
+    self.requestLimit = requestLimit
+    self.requestLimitSeed = requestLimitSeed
     self.ignoreIssues = ignoreIssues
     self.issueManager = issueManager
     self.failFast = failFast
@@ -92,7 +95,8 @@ public struct SwiftCWrapper {
           StressTestOperation(file: file, rewriteMode: mode,
                               requests: requestKinds,
                               conformingMethodTypes: conformingMethodTypes,
-                              limit: astBuildLimit,
+                              limit: requestLimit,
+                              limitSeed: requestLimitSeed,
                               part: (part, of: partCount),
                               reportResponses: dumpResponsesPath != nil,
                               compilerArgs: arguments,

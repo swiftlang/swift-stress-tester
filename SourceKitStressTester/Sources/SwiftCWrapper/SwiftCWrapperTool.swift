@@ -29,8 +29,10 @@ public struct SwiftCWrapperTool {
     let stressTesterEnv = EnvOption("SK_STRESS_TEST", type: String.self)
     /// Always return the same exit code as the underlying swiftc, even if stress testing uncovers failures
     let ignoreIssuesEnv = EnvOption("SK_STRESS_SILENT", type: Bool.self)
-    /// Limit the number of sourcekit requests made per-file based on the number of AST rebuilds they trigger
-    let astBuildLimitEnv = EnvOption("SK_STRESS_AST_BUILD_LIMIT", type: Int.self)
+    /// Limit the number of sourcekit requests made per-file
+    let requestLimitEnv = EnvOption("SK_STRESS_REQUEST_LIMIT", type: Int.self)
+    /// The seed to randomly distribute requests when there's a limit
+    let requestLimitSeedEnv = EnvOption("SK_STRESS_REQUEST_LIMIT_SEED", type: UInt64.self)
     /// Output only what the wrapped compiler outputs
     let suppressOutputEnv = EnvOption("SK_STRESS_SUPPRESS_OUTPUT", type: Bool.self)
     /// Non-default space-separated list of rewrite modes to use
@@ -61,14 +63,18 @@ public struct SwiftCWrapperTool {
     }
     let ignoreIssues = try ignoreIssuesEnv.get(from: environment) ?? false
     let suppressOutput = try suppressOutputEnv.get(from: environment) ?? false
-    let astBuildLimit = try astBuildLimitEnv.get(from: environment)
+    let requestLimit = try requestLimitEnv.get(from: environment)
+    let requestLimitSeed = try requestLimitSeedEnv.get(from: environment)
     let rewriteModes = try rewriteModesEnv.get(from: environment) ?? [.none, .concurrent, .insideOut]
     let requestKinds = RequestKind.reduce(
       try requestKindsEnv.get(from: environment) ??
         [.cursorInfo, .rangeInfo, .codeComplete, .collectExpressionType,
          .format])
     let conformingMethodTypes = try conformingMethodTypesEnv.get(from: environment)
-    let maxJobs = try maxJobsEnv.get(from: environment)
+    // If the test module request is being run, the compile is likely to spawn
+    // many swift-frontend processes. Set the default maximum jobs to 1 rather
+    // than the logical core count to prevent thrashing.
+    let maxJobs = try maxJobsEnv.get(from: environment) ?? (requestKinds.contains(.testModule) ? 1 : nil)
     let dumpResponsesPath = try dumpResponsesPathEnv.get(from: environment)
 
     var issueManager: IssueManager? = nil
@@ -86,7 +92,8 @@ public struct SwiftCWrapperTool {
     let wrapper = SwiftCWrapper(swiftcArgs: Array(arguments.dropFirst()),
                                 swiftcPath: swiftc,
                                 stressTesterPath: stressTester,
-                                astBuildLimit: astBuildLimit,
+                                requestLimit: requestLimit,
+                                requestLimitSeed: requestLimitSeed,
                                 rewriteModes: rewriteModes,
                                 requestKinds: requestKinds,
                                 conformingMethodTypes: conformingMethodTypes,
@@ -155,6 +162,14 @@ extension Int: EnvOptionKind {
   init(value: String, fromKey key: String) throws {
     guard let converted = Int(value) else {
       throw EnvOptionError.typeMismatch(key: key, value: value, expectedType: Int.self)
+    }
+    self = converted
+  }
+}
+extension UInt64: EnvOptionKind {
+  init(value: String, fromKey key: String) throws {
+    guard let converted = UInt64(value) else {
+      throw EnvOptionError.typeMismatch(key: key, value: value, expectedType: UInt64.self)
     }
     self = converted
   }

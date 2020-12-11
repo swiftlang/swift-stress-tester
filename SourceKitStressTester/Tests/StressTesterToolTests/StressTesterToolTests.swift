@@ -33,11 +33,18 @@ class StressTesterToolTests: XCTestCase {
     // FIXME: Add back in when validate is back to normal
     // XCTAssertThrowsError(try StressTesterTool.parse([testFile.path, "--", "anything"]))
 
+    // Limit seed with no limit
+    XCTAssertThrowsError(try StressTesterTool.parse(["--limit-seed 10"] + valid))
+
+    // Limit and page with no seed
+    XCTAssertThrowsError(try StressTesterTool.parse(["--limit 10 --page 1/4"] + valid))
+
     // Defaults
     StressTesterToolTests.assertParse(valid) { defaults in
       XCTAssertEqual(defaults.rewriteMode, .none)
       XCTAssertEqual(defaults.format, .humanReadable)
       XCTAssertEqual(defaults.limit, nil)
+      XCTAssertEqual(defaults.limitSeed, nil)
       XCTAssertEqual(defaults.page, Page())
       XCTAssertEqual(defaults.requests, [.ide])
       XCTAssertEqual(defaults.dryRun, false)
@@ -53,33 +60,34 @@ class StressTesterToolTests: XCTestCase {
       "--rewrite-mode", "basic",
       "--format", "json",
       "--limit", "1",
+      "--limit-seed", "3",
       "--page", "2/5",
       "--request", "CursorInfo", "--request", "CODECOMPLETE",
       "--dry-run",
       "--report-responses",
       "--type-list-item", "foo", "--type-list-item", "bar",
       "--temp-dir", workspace.path,
-      "--swiftc", swiftcPath,
-      testFile.path, "--", testFile.path
-    ]
+      "--swiftc", swiftcPath
+    ] + valid
     let allShort: [String] = [
       "-m", "basic",
       "-f", "json",
       "-l", "1",
+      "--limit-seed", "3", // no short
       "-p", "2/5",
       "-r", "CursorInfo", "-r", "CODECOMPLETE",
       "-d",
       "--report-responses", // no short
       "-t", "foo", "-t", "bar",
       "--temp-dir", workspace.path, // no short
-      "-s", swiftcPath,
-      testFile.path, "--", testFile.path
-    ]
+      "-s", swiftcPath
+    ] + valid
     let assertValid = { [workspace, swiftcPath, testFile] (args: [String]) in
       StressTesterToolTests.assertParse(args) { tool in
         XCTAssertEqual(tool.rewriteMode, .basic)
         XCTAssertEqual(tool.format, .json)
         XCTAssertEqual(tool.limit, 1)
+        XCTAssertEqual(tool.limitSeed, 3)
         XCTAssertEqual(tool.page, Page(2, of: 5))
         XCTAssertEqual(tool.requests, [.cursorInfo, .codeComplete])
         XCTAssertEqual(tool.dryRun, true)

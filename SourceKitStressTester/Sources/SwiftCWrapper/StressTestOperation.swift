@@ -64,12 +64,16 @@ final class StressTestOperation: Operation {
   private let process: ProcessRunner
 
   init(file: String, rewriteMode: RewriteMode, requests: Set<RequestKind>,
-       conformingMethodTypes: [String]?, limit: Int?, part: (Int, of: Int),
+       conformingMethodTypes: [String]?, limit: Int?, limitSeed: UInt64?,
+       part: (Int, of: Int),
        reportResponses: Bool, compilerArgs: [String], executable: String,
        swiftc: String) {
     var stressTesterArgs = ["--format", "json", "--page", "\(part.0)/\(part.of)", "--rewrite-mode", rewriteMode.rawValue]
     if let limit = limit {
       stressTesterArgs += ["--limit", String(limit)]
+    }
+    if let limitSeed = limitSeed {
+      stressTesterArgs += ["--limit-seed", String(limitSeed)]
     }
     stressTesterArgs += requests.flatMap { ["--request", $0.rawValue] }
     if let types = conformingMethodTypes {

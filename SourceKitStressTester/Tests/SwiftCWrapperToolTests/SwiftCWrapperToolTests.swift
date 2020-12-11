@@ -111,7 +111,8 @@ class SwiftCWrapperToolTests: XCTestCase {
     func getSwiftFiles(from list: [String]) -> [String] {
       let wrapper: SwiftCWrapper = SwiftCWrapper(
         swiftcArgs: list, swiftcPath: "", stressTesterPath: "",
-        astBuildLimit: nil, rewriteModes: [], requestKinds: Set(),
+        requestLimit: nil, requestLimitSeed: nil,
+        rewriteModes: [], requestKinds: Set(),
         conformingMethodTypes: nil, ignoreIssues: false, issueManager: nil,
         maxJobs: nil, dumpResponsesPath: nil, failFast: false,
         suppressOutput: false)
@@ -158,7 +159,9 @@ class SwiftCWrapperToolTests: XCTestCase {
         .map({ "\($0.rawValue)" }).joined(separator: " "),
       "SK_STRESS_REWRITE_MODES": [RewriteMode.basic, RewriteMode.insideOut]
         .map({ "\($0.rawValue)" }).joined(separator: " "),
-      "SK_STRESS_CONFORMING_METHOD_TYPES": "s:SomeUSR s:OtherUSR s:ThirdUSR"
+      "SK_STRESS_CONFORMING_METHOD_TYPES": "s:SomeUSR s:OtherUSR s:ThirdUSR",
+      "SK_STRESS_REQUEST_LIMIT": "2210463828851415204",
+      "SK_STRESS_REQUEST_LIMIT_SEED": "50"
     ], uniquingKeysWith: { _, new in new })
     XCTAssertNoThrow(XCTAssertEqual(try SwiftCWrapperTool(arguments: singleFileArgs, environment: customEnvironment).run(), 0))
 
@@ -259,12 +262,22 @@ class SwiftCWrapperToolTests: XCTestCase {
   private func assertInvocationsMatch(
     invocations: [Substring], rewriteModes: [RewriteMode],
     requestKinds: [RequestKind] = [.cursorInfo, .rangeInfo, .codeComplete,
-                                   .collectExpressionType, .format]) {
+                                   .collectExpressionType, .format],
+    requestLimit: Int? = nil, requestLimitSeed: UInt64? = nil) {
     for invocation in invocations {
       XCTAssertTrue(invocation.contains("--format json"),
                     "Missing json format in '\(invocation)'")
       XCTAssertTrue(invocation.contains("--page 1/1"),
                     "Missing page in '\(invocation)'")
+
+      if let requestLimit = requestLimit {
+        XCTAssertTrue(invocation.contains("--limit \(requestLimit)"),
+                      "Missing request limit in '\(invocation)'")
+      }
+      if let requestLimitSeed = requestLimitSeed {
+        XCTAssertTrue(invocation.contains("--limit-seed \(requestLimitSeed)"),
+                      "Missing request limit seed in '\(invocation)'")
+      }
 
       var foundModes = [RewriteMode]()
       for rewriteMode in RewriteMode.allCases {

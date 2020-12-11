@@ -346,6 +346,7 @@ struct SourceKitDocument {
     return (info, response)
   }
 
+  @discardableResult
   mutating func replaceText(offset: Int, length: Int, text: String) throws -> (SourceFileSyntax, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_EditorReplaceText)
     request.addParameter(.key_Name, value: args.forFile.path)

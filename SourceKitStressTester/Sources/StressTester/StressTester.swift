@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import GameplayKit
 import SwiftSourceKit
 import SwiftSyntax
 import Common
@@ -18,10 +19,21 @@ import Common
 public struct StressTester {
   let options: StressTesterOptions
   let connection: SourceKitdService
+  let seed: UInt64?
 
   public init(options: StressTesterOptions) {
     self.options = options
     self.connection = SourceKitdService()
+
+    if #available(macOS 10.11, *) {
+      if let optSeed = options.requestLimitSeed {
+        self.seed = optSeed
+      } else {
+        self.seed = SeededRNG().seed
+      }
+    } else {
+      self.seed = nil
+    }
   }
 
   var generator: ActionGenerator {
@@ -73,7 +85,7 @@ public struct StressTester {
       case .rangeInfo(let offset, let length):
         try report(document.rangeInfo(offset: offset, length: length))
       case .replaceText(let offset, let length, let text):
-        _ = try document.replaceText(offset: offset, length: length, text: text)
+        try document.replaceText(offset: offset, length: length, text: text)
       case .format(let offset):
         try report(document.format(offset: offset))
       case .typeContextInfo(let offset):
@@ -91,46 +103,26 @@ public struct StressTester {
   }
 
   private func computeActions(from tree: SourceFileSyntax) -> (page: [Action], priorActions: [Action]) {
-    let limit = options.astBuildLimit ?? Int.max
-    var astRebuilds = 0
-    var locationsInvalidated = false
+    let limit = options.requestLimit ?? Int.max
 
-    let pages = generator
-      .generate(for: tree)
-      .filter { action in
-        guard !locationsInvalidated else { return false }
-        switch action {
-        case .cursorInfo:
-          return options.requests.contains(.cursorInfo)
-        case .rangeInfo:
-          return options.requests.contains(.rangeInfo)
-        case .format:
-          return options.requests.contains(.format)
-        case .codeComplete:
-          guard options.requests.contains(.codeComplete), astRebuilds <= limit else { return false }
-          astRebuilds += 1
-          return true
-        case .typeContextInfo:
-          guard options.requests.contains(.typeContextInfo), astRebuilds <= limit else { return false}
-          astRebuilds += 1
-          return true
-        case .conformingMethodList:
-          guard options.requests.contains(.conformingMethodList), astRebuilds <= limit else { return false }
-          astRebuilds += 1
-          return true
-        case .collectExpressionType:
-          return options.requests.contains(.collectExpressionType)
-        case .replaceText:
-          guard astRebuilds <= limit else {
-            locationsInvalidated = true
-            return false
-          }
-          astRebuilds += 1
-          return true
-        case .testModule:
-          return options.requests.contains(.testModule)
-        }
+    let actions = generator.generate(for: tree)
+    let filtered = actions.filter { action in
+      if case .replaceText = action {
+        return true
       }
+      if let requestKind = action.matchingRequestKind() {
+        return options.requests.contains(requestKind)
+      }
+      return false
+    }
+
+    let pages = randomDistribution(filtered, limit: limit, using: seed,
+                                   alwaysInclude: { action in
+                                    if case .replaceText = action {
+                                      return true
+                                    }
+                                    return false
+                                   })
       .divide(into: options.page.count)
 
     return (
@@ -150,7 +142,8 @@ public struct StressTester {
       let results = getCompletionResults(from: response.value.getArray(.key_Results))
       try handler(SourceKitResponseData(results, for: request))
     default:
-      try handler(SourceKitResponseData([response.value.description], for: request))
+      try handler(SourceKitResponseData([response.value.description],
+                                        for: request))
     }
   }
 
@@ -178,6 +171,31 @@ public struct StressTester {
   }
 }
 
+private extension Action {
+  func matchingRequestKind() -> RequestKind? {
+    switch self {
+    case .cursorInfo:
+      return .cursorInfo
+    case .rangeInfo:
+      return.rangeInfo
+    case .format:
+      return .format
+    case .codeComplete:
+      return .codeComplete
+    case .typeContextInfo:
+      return .typeContextInfo
+    case .conformingMethodList:
+      return .conformingMethodList
+    case .collectExpressionType:
+      return .collectExpressionType
+    case .testModule:
+      return .testModule
+    case .replaceText:
+      return nil
+    }
+  }
+}
+
 private extension SourceKitdUID {
   static let kind_CompletionContextOtherModule = SourceKitdUID(string: "source.codecompletion.context.othermodule")
   static let kind_CompletionContextThisModule = SourceKitdUID(string: "source.codecompletion.context.thismodule")
@@ -189,13 +207,15 @@ public struct StressTesterOptions {
   public var conformingMethodsTypeList: [String]
   public var page: Page
   public var tempDir: URL
-  public var astBuildLimit: Int?
+  public var requestLimit: Int?
+  public var requestLimitSeed: UInt64?
   public var responseHandler: ((SourceKitResponseData) throws -> Void)?
   public var dryRun: (([Action]) throws -> Void)?
 
   public init(requests: Set<RequestKind>, rewriteMode: RewriteMode,
               conformingMethodsTypeList: [String], page: Page,
-              tempDir: URL, astBuildLimit: Int? = nil,
+              tempDir: URL, requestLimit: Int? = nil,
+              requestLimitSeed: UInt64? = nil,
               responseHandler: ((SourceKitResponseData) throws -> Void)? = nil,
               dryRun: (([Action]) throws -> Void)? = nil) {
     self.requests = requests
@@ -203,8 +223,74 @@ public struct StressTesterOptions {
     self.conformingMethodsTypeList = conformingMethodsTypeList
     self.page = page
     self.tempDir = tempDir
-    self.astBuildLimit = astBuildLimit
+    self.requestLimit = requestLimit
+    self.requestLimitSeed = requestLimitSeed
     self.responseHandler = responseHandler
     self.dryRun = dryRun
   }
+}
+
+@available(macOS 10.11, *)
+private struct SeededRNG : RandomNumberGenerator {
+  private let random: GKMersenneTwisterRandomSource
+
+  public var seed: UInt64 { return random.seed }
+
+  init(seed: UInt64? = nil) {
+    if let seed = seed {
+      self.random = GKMersenneTwisterRandomSource(seed: seed)
+    } else {
+      self.random = GKMersenneTwisterRandomSource()
+    }
+  }
+
+  mutating func next() -> UInt64 {
+    let part1 = UInt64(bitPattern: Int64(random.nextInt()))
+    let part2 = UInt64(bitPattern: Int64(random.nextInt()))
+    return part1 ^ (part2 << 32)
+  }
+}
+
+/// Return a random distribution of elements up to limit. Include all
+/// elements matching alwaysInclude, which aren't included in the limit
+/// calculation.
+private func randomDistribution<T>(_ elements: [T], limit: Int,
+                                   using seed: UInt64?,
+                                   alwaysInclude: ((T) -> Bool)? = nil) -> [T] {
+  if limit >= elements.count {
+    return elements
+  }
+
+  var indices: [Int] = elements.enumerated().compactMap({ (i, e) in
+    if let alwaysInclude = alwaysInclude, alwaysInclude(e) {
+      return nil
+    }
+    return i
+  })
+
+  if limit >= indices.count {
+    return elements
+  }
+
+  var rng: RandomNumberGenerator
+  if #available(macOS 10.11, *), let seed = seed {
+    rng = SeededRNG(seed: seed)
+  } else {
+    rng = SystemRandomNumberGenerator()
+  }
+
+  for i in stride(from: indices.count - 1, to: indices.count - limit, by: -1) {
+    indices.swapAt(i, Int(rng.next(upperBound: UInt(i) + 1)))
+  }
+
+  let selection = Set(indices.suffix(limit))
+  return elements.enumerated().compactMap({ (i, e) in
+    if let alwaysInclude = alwaysInclude, alwaysInclude(e) {
+      return e
+    }
+    if selection.contains(i) {
+      return e
+    }
+    return nil
+  })
 }

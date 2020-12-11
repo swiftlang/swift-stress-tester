@@ -31,15 +31,21 @@ public struct StressTesterTool: ParsableCommand {
   public var format: OutputFormat = .humanReadable
 
   @Option(name: .shortAndLong, help: ArgumentHelp("""
-    The maximum number of AST builds (triggered by CodeComplete, \
-    TypeContextInfo, ConformingMethodList and file modifications) to \
-    allow per file
+    The maximum number of requests to allow per file. A random selection of
+    requests distributed across all possible requests are chosen if this
+    option is set
     """, valueName: "n"))
   public var limit: Int?
 
+  @Option(name: .long, help: """
+    The seed to use for randomly distributing requests when there's a limit
+    """)
+  public var limitSeed: UInt64?
+
   @Option(name: .shortAndLong, help: ArgumentHelp("""
     Divides the work for each file into <total> equal parts \
-    and only performs the <page>th group.
+    and only performs the <page>th group. Note that a seed *must* be set if
+    both a limit and page have been set
     """, valueName: "page/total"))
   public var page: Page = Page()
 
@@ -84,6 +90,20 @@ public struct StressTesterTool: ParsableCommand {
   public init() {}
 
   private mutating func customValidate() throws {
+    #if macos
+    if limitSeed != nil {
+      throw ValidationError("Unable to set seed on MacOS < 10.11")
+    }
+    #endif
+
+    if limit == nil && limitSeed != nil {
+      throw ValidationError("--limit-seed does nothing if no limit has been set")
+    }
+
+    if limit != nil && page.count > 1 && limitSeed == nil {
+      throw ValidationError("--limit and --page set without --limit-seed")
+    }
+
     let hasFileCompilerArg = compilerArgs.contains { arg in
       arg.transformed.contains { $0 == file.path }
     }
@@ -132,7 +152,8 @@ public struct StressTesterTool: ParsableCommand {
       conformingMethodsTypeList: conformingMethodsTypeList,
       page: page,
       tempDir: tempDir!,
-      astBuildLimit: limit,
+      requestLimit: limit,
+      requestLimitSeed: limitSeed,
       responseHandler: !reportResponses ? nil :
         { [format] responseData in
           try StressTesterTool.report(
