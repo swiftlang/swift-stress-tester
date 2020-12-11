@@ -256,9 +256,10 @@ class SwiftCWrapperToolTests: XCTestCase {
     try? FileManager.default.removeItem(at: workspace)
   }
 
-  private func assertInvocationsMatch(invocations: [Substring],
-                                      rewriteModes: [RewriteMode],
-                                      requestKinds: [RequestKind] = RequestKind.ideRequests) {
+  private func assertInvocationsMatch(
+    invocations: [Substring], rewriteModes: [RewriteMode],
+    requestKinds: [RequestKind] = [.cursorInfo, .rangeInfo, .codeComplete,
+                                   .collectExpressionType, .format]) {
     for invocation in invocations {
       XCTAssertTrue(invocation.contains("--format json"),
                     "Missing json format in '\(invocation)'")

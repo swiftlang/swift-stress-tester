@@ -63,7 +63,10 @@ public struct SwiftCWrapperTool {
     let suppressOutput = try suppressOutputEnv.get(from: environment) ?? false
     let astBuildLimit = try astBuildLimitEnv.get(from: environment)
     let rewriteModes = try rewriteModesEnv.get(from: environment) ?? [.none, .concurrent, .insideOut]
-    let requestKinds = RequestKind.reduce(try requestKindsEnv.get(from: environment) ?? [.ide])
+    let requestKinds = RequestKind.reduce(
+      try requestKindsEnv.get(from: environment) ??
+        [.cursorInfo, .rangeInfo, .codeComplete, .collectExpressionType,
+         .format])
     let conformingMethodTypes = try conformingMethodTypesEnv.get(from: environment)
     let maxJobs = try maxJobsEnv.get(from: environment)
     let dumpResponsesPath = try dumpResponsesPathEnv.get(from: environment)
