@@ -421,16 +421,29 @@ struct SourceKitDocument {
     }
   }
 
-  private func throwIfInvalid(_ response: SourceKitdResponse, request: RequestInfo) throws {
-    // FIXME: We don't supply a valid new name for initializer calls for local
-    // rename requests. Ignore these errors for now.
-    if response.isError && !response.description.contains("does not match the arity of the old name") {
-      throw SourceKitError.failed(.errorResponse, request: request,
-                                  response: response.description.trimmingCharacters(in: .newlines))
+  private func isErrorAllowed(_ errorDescription: String, request: RequestInfo) -> Bool {
+    let asyncErrorsToBlock: [String] = [
+      "cannot refactor as callback closure argument missing",
+      "cannot refactor as callback arguments do not match declaration"
+    ]
+
+    // The "Convert Call to Async Alternative" refactoring produces some error
+    // responses that are expected and intended to be communicated to users
+    // even though CursorInfo reports the refactoring as being applicable. These
+    // aren't considered errors in the implementation so ignore them.
+    if case .semanticRefactoring(_, _, "Convert Call to Async Alternative", _) = request {
+      return !asyncErrorsToBlock.contains { errorDescription.contains($0) }
     }
 
-    if response.isConnectionInterruptionError || response.isCompilerCrash {
-      throw SourceKitError.crashed(request: request)
+    // FIXME: We don't supply a valid new name for initializer calls for local
+    // rename requests. Ignore these errors for now.
+    return errorDescription.contains("does not match the arity of the old name")
+  }
+
+  private func throwIfInvalid(_ response: SourceKitdResponse, request: RequestInfo) throws {
+    if response.isError && !isErrorAllowed(response.description, request: request) {
+      throw SourceKitError.failed(.errorResponse, request: request,
+                                  response: response.description.trimmingCharacters(in: .newlines))
     }
 
     if response.isConnectionInterruptionError || response.isCompilerCrash {
