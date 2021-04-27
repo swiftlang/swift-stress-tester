@@ -621,7 +621,35 @@ private class ActionTokenCollector: SyntaxAnyVisitor {
   }
 
   private func shouldIncreaseDepth(_ node: Syntax) -> Bool {
-    return true
+    /// Always introduce the constant part of string literals (i.e those that
+    /// don't contain interpolation) together with the surrounding quotes in
+    /// the inside-out rewrite action by not considering them nested (done by
+    /// not increasing the depth). There's two reasons for that:
+    /// 1. There is no point writing the contents of a string literal and
+    ///    performing stress testing operations on them without surrounding
+    ///    quotes (e.g. there's no point completing on `test` if we have an
+    ///    expression `let x = "test"`)
+    /// 2. The contents of a string literal (or a succession of string literals
+    ///    at the same nesting level may take a long time to typecheck, leading
+    ///    us into a timeout without giving much value. For example
+    ///    ```
+    ///    switch self {
+    ///    case .a:
+    ///      return "a/"
+    ///    case .b:
+    ///      return "b/
+    ///      ...
+    ///    }
+    ///    ```
+    ///    would at some point be rewritten inside-out to `a/b/c/d/...` which
+    ///    can take up to several minutes to typecheck if none of `a`, `b` etc.
+    ///    are defined.
+    switch node.as(SyntaxEnum.self) {
+    case .stringLiteralExpr, .stringLiteralSegments, .stringSegment:
+      return false
+    default:
+      return true
+    }
   }
 
   func collect<S: SyntaxProtocol>(from tree: S) -> [ActionToken] {
