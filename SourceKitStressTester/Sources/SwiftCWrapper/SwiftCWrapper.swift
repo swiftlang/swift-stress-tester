@@ -21,6 +21,7 @@ public struct SwiftCWrapper {
   let swiftcPath: String
   let stressTesterPath: String
   let astBuildLimit: Int?
+  let requestDurationsOutputFile: URL?
   let rewriteModes: [RewriteMode]
   let requestKinds: Set<RequestKind>
   let conformingMethodTypes: [String]?
@@ -33,6 +34,7 @@ public struct SwiftCWrapper {
 
   public init(swiftcArgs: [String], swiftcPath: String,
               stressTesterPath: String, astBuildLimit: Int?,
+              requestDurationsOutputFile: URL?,
               rewriteModes: [RewriteMode], requestKinds: Set<RequestKind>,
               conformingMethodTypes: [String]?, ignoreIssues: Bool,
               issueManager: IssueManager?, maxJobs: Int?,
@@ -46,6 +48,7 @@ public struct SwiftCWrapper {
     self.issueManager = issueManager
     self.failFast = failFast
     self.suppressOutput = suppressOutput
+    self.requestDurationsOutputFile = requestDurationsOutputFile
     self.rewriteModes = rewriteModes
     self.requestKinds = requestKinds
     self.conformingMethodTypes = conformingMethodTypes
@@ -100,7 +103,8 @@ public struct SwiftCWrapper {
                               reportResponses: dumpResponsesPath != nil,
                               compilerArgs: arguments,
                               executable: stressTesterPath,
-                              swiftc: swiftcPath)
+                              swiftc: swiftcPath,
+                              requestDurationsOutputFile: requestDurationsOutputFile)
         }
       }
     }

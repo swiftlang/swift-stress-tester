@@ -368,6 +368,7 @@ extension SourceKitdUID {
   public static let kind_Unknown = SourceKitdUID(string: "source.syntacticrename.unknown")
   public static let kind_StatNumRequests = SourceKitdUID(string: "source.statistic.num-requests")
   public static let kind_StatNumSemaRequests = SourceKitdUID(string: "source.statistic.num-semantic-requests")
+  public static let kind_StatInstructionCount = SourceKitdUID(string: "source.statistic.instruction-count")
   public static let kind_SyntaxTreeOff = SourceKitdUID(string: "source.syntaxtree.transfer.off")
   public static let kind_SyntaxTreeIncremental = SourceKitdUID(string: "source.syntaxtree.transfer.incremental")
   public static let kind_SyntaxTreeFull = SourceKitdUID(string: "source.syntaxtree.transfer.full")

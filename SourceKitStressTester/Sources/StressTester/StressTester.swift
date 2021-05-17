@@ -15,9 +15,11 @@ import SwiftSourceKit
 import SwiftSyntax
 import Common
 
-public struct StressTester {
+public class StressTester {
   let options: StressTesterOptions
   let connection: SourceKitdService
+  /// For each code completion request issued by the stress tester, the number of instructions `sourcekitd` took to execute it.
+  var codeCompletionDurations: [(request: RequestInfo, instructionCount: Int)] = []
 
   public init(options: StressTesterOptions) {
     self.options = options
@@ -45,6 +47,16 @@ public struct StressTester {
                                      tempDir: options.tempDir,
                                      connection: connection,
                                      containsErrors: true)
+    defer {
+      // Save the request durations in a 'defer' block to make sure we're also
+      // saving them if a request fails
+      if let timingsFile = options.requestDurationsOutputFile {
+        // We are only keeping track of code completion durations for now.
+        // This could easily be expanded to other request types.
+        let timing = AggregatedRequestDurations(instructionCounts: codeCompletionDurations.map({ $0.instructionCount }))
+        try? RequestDurationManager(jsonFile: timingsFile).add(aggregatedDurations: timing, for: compilerArgs.forFile.path, requestKind: .codeComplete)
+      }
+    }
 
     // compute the actions for the entire tree
     let (tree, _) = try document.open(rewriteMode: options.rewriteMode)
@@ -64,6 +76,10 @@ public struct StressTester {
       }
     }
 
+    // IMPORTANT: We must not execute multiple requests at once because we are
+    // counting the number of instructions executed by each request using the
+    // statistics request. If we executed two requests at once, we couldn't
+    // assign the executed instructions to a specific request.
     for action in actions {
       switch action {
       case .cursorInfo(let offset):
@@ -139,6 +155,17 @@ public struct StressTester {
     )
   }
 
+  private func report(_ result: (request: RequestInfo, response: SourceKitdResponse, instructions: Int)) throws {
+    // TODO: Once we measure instructions for other requests, codeCompletionDurations
+    // should be a more generic data structure and we shouldn't need the `if case`
+    // anymore.
+    if case .codeComplete = result.request {
+      codeCompletionDurations.append((result.request, result.instructions))
+    }
+
+    try report((result.request, result.response))
+  }
+
   private func report(_ result: (RequestInfo, SourceKitdResponse)) throws {
     guard let handler = options.responseHandler else { return }
 
@@ -190,12 +217,14 @@ public struct StressTesterOptions {
   public var page: Page
   public var tempDir: URL
   public var astBuildLimit: Int?
+  public var requestDurationsOutputFile: URL?
   public var responseHandler: ((SourceKitResponseData) throws -> Void)?
   public var dryRun: (([Action]) throws -> Void)?
 
   public init(requests: Set<RequestKind>, rewriteMode: RewriteMode,
               conformingMethodsTypeList: [String], page: Page,
               tempDir: URL, astBuildLimit: Int? = nil,
+              requestDurationsOutputFile: URL? = nil,
               responseHandler: ((SourceKitResponseData) throws -> Void)? = nil,
               dryRun: (([Action]) throws -> Void)? = nil) {
     self.requests = requests
@@ -204,6 +233,7 @@ public struct StressTesterOptions {
     self.page = page
     self.tempDir = tempDir
     self.astBuildLimit = astBuildLimit
+    self.requestDurationsOutputFile = requestDurationsOutputFile
     self.responseHandler = responseHandler
     self.dryRun = dryRun
   }

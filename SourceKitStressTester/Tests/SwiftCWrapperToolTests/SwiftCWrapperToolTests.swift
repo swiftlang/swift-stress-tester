@@ -111,7 +111,8 @@ class SwiftCWrapperToolTests: XCTestCase {
     func getSwiftFiles(from list: [String]) -> [String] {
       let wrapper: SwiftCWrapper = SwiftCWrapper(
         swiftcArgs: list, swiftcPath: "", stressTesterPath: "",
-        astBuildLimit: nil, rewriteModes: [], requestKinds: Set(),
+        astBuildLimit: nil, requestDurationsOutputFile: nil,
+        rewriteModes: [], requestKinds: Set(),
         conformingMethodTypes: nil, ignoreIssues: false, issueManager: nil,
         maxJobs: nil, dumpResponsesPath: nil, failFast: false,
         suppressOutput: false)

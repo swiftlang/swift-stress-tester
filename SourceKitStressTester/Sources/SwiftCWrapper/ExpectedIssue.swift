@@ -103,6 +103,8 @@ public struct ExpectedIssue: Equatable, Codable {
     case .interfaceGen(let document, _, _):
       guard case .interfaceGen = issueDetail else { return false }
       return matchDocument(document)
+    case .statistics:
+      return false
     }
   }
 
@@ -211,6 +213,10 @@ public extension ExpectedIssue {
         path = document.path
         modification = document.modification?.summaryCode
         issueDetail = .interfaceGen
+      case .statistics:
+        path = "<statistics>"
+        modification = nil
+        issueDetail = .statistics
       }
     }
   }
@@ -230,6 +236,7 @@ public extension ExpectedIssue {
     case interfaceGen
     case semanticRefactoring(offset: Int?, refactoring: String?)
     case stressTesterCrash(status: Int32?, arguments: String?)
+    case statistics
 
     public init(from decoder: Decoder) throws {
       let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -284,6 +291,8 @@ public extension ExpectedIssue {
         self = .writeModule
       case .interfaceGen:
         self = .interfaceGen
+      case .statistics:
+        self = .statistics
       }
     }
 
@@ -332,6 +341,8 @@ public extension ExpectedIssue {
         try container.encode(RequestBase.writeModule, forKey: .kind)
       case .interfaceGen:
         try container.encode(RequestBase.interfaceGen, forKey: .kind)
+      case .statistics:
+        try container.encode(RequestBase.statistics, forKey: .kind)
       }
     }
 
@@ -342,6 +353,7 @@ public extension ExpectedIssue {
     private enum RequestBase: String, Codable {
       case editorOpen, editorClose, editorReplaceText
       case cursorInfo, codeComplete, rangeInfo, semanticRefactoring, typeContextInfo, conformingMethodList, collectExpressionType, format, writeModule, interfaceGen
+      case statistics
       case stressTesterCrash
     }
 
@@ -374,6 +386,8 @@ public extension ExpectedIssue {
       case .semanticRefactoring:
         return request == .cursorInfo || request == .rangeInfo
       case .stressTesterCrash:
+        return true
+      case .statistics:
         return true
       }
     }

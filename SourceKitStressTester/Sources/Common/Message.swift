@@ -72,6 +72,7 @@ public enum RequestInfo {
   case collectExpressionType(document: DocumentInfo, args: [String])
   case writeModule(document: DocumentInfo, args: [String])
   case interfaceGen(document: DocumentInfo, moduleName: String, args: [String])
+  case statistics
 }
 
 public struct DocumentInfo: Codable {
@@ -217,7 +218,7 @@ extension RequestInfo: Codable {
   enum BaseRequest: String, Codable {
     case editorOpen, editorClose, replaceText, format, cursorInfo, codeComplete,
       rangeInfo, semanticRefactoring, typeContextInfo, conformingMethodList,
-      collectExpressionType, writeModule, interfaceGen
+      collectExpressionType, writeModule, interfaceGen, statistics
   }
 
   public init(from decoder: Decoder) throws {
@@ -285,6 +286,8 @@ extension RequestInfo: Codable {
       let moduleName = try container.decode(String.self, forKey: .moduleName)
       let args = try container.decode([String].self, forKey: .args)
       self = .interfaceGen(document: document, moduleName: moduleName, args: args)
+    case .statistics:
+      self = .statistics
     }
   }
 
@@ -353,6 +356,8 @@ extension RequestInfo: Codable {
       try container.encode(document, forKey: .document)
       try container.encode(moduleName, forKey: .moduleName)
       try container.encode(args, forKey: .args)
+    case .statistics:
+      try container.encode(BaseRequest.statistics, forKey: .request)
     }
   }
 }
@@ -386,6 +391,8 @@ extension RequestInfo: CustomStringConvertible {
       return "WriteModule for \(document) with args: \(escapeArgs(args))"
     case .interfaceGen(let document, let moduleName, let args):
       return "InterfaceGen for \(document) compiled as \(moduleName) with args: \(escapeArgs(args))"
+    case .statistics:
+      return "SourceKit statistics"
     }
   }
 }
@@ -525,6 +532,8 @@ extension SourceKitError: CustomStringConvertible {
       return document.modification?.content
     case .interfaceGen(let document, _, _):
       return document.modification?.content
+    case .statistics:
+      return nil
     }
   }
 }
@@ -540,7 +549,7 @@ extension StressTesterMessage: CustomStringConvertible {
   }
 }
 
-public enum RequestKind: String, CaseIterable, CustomStringConvertible {
+public enum RequestKind: String, CaseIterable, CustomStringConvertible, Codable {
   case cursorInfo = "CursorInfo"
   case rangeInfo = "RangeInfo"
   case codeComplete = "CodeComplete"
