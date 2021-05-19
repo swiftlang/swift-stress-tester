@@ -12,6 +12,7 @@
 
 import Common
 import Foundation
+import TSCBasic
 
 /// Keeps track of the detected failures and their status (expected/unexpected)
 /// across multiple wrapper invocations
@@ -45,37 +46,39 @@ public struct IssueManager {
   ///   - for: the set of files processed
   ///   - issue: the detected issue, if any
   func update(for files: Set<String>, issue: StressTesterIssue?) throws -> ExpectedIssue? {
-    let failureSpecs = try getIssueSpecifications(applicableTo: files)
-    var state = try getCurrentState()
+    return try localFileSystem.withLock(on: AbsolutePath(resultsFile.path), type: .exclusive) {
+      let failureSpecs = try getIssueSpecifications(applicableTo: files)
+      var state = try getCurrentState()
 
-    var matchingSpec: ExpectedIssue? = nil
-    let added = files.subtracting(state.processedFiles)
-    state.unmatchedExpectedIssues.append(contentsOf: failureSpecs.filter { spec in
-      added.contains {spec.isApplicable(toPath: $0)}
-    })
-    state.processedFiles.formUnion(files)
-    if let issue = issue {
-      if let match = failureSpecs.first(where: {$0.matches(issue)}) {
-        state.expectedIssues[match.issueUrl, default: []].append(issue)
-        state.expectedIssueMessages[match.issueUrl, default: []].append(String(describing: issue))
-        state.unmatchedExpectedIssues.removeAll(where: {$0 == match})
-        matchingSpec = match
-      } else {
-        let xfail = ExpectedIssue(matching: issue, issueUrl: "<issue url>",
-                                  config: activeConfig)
-        let json = try encoder.encode(xfail)
-        state.issues.append(issue)
-        state.issueMessages.append("""
-          \(String(describing: issue))
-          Add the following entry to the expected failures JSON file to mark it as expected:
-          \(String(data: json, encoding: .utf8)!)"
-          """)
+      var matchingSpec: ExpectedIssue? = nil
+      let added = files.subtracting(state.processedFiles)
+      state.unmatchedExpectedIssues.append(contentsOf: failureSpecs.filter { spec in
+        added.contains {spec.isApplicable(toPath: $0)}
+      })
+      state.processedFiles.formUnion(files)
+      if let issue = issue {
+        if let match = failureSpecs.first(where: {$0.matches(issue)}) {
+          state.expectedIssues[match.issueUrl, default: []].append(issue)
+          state.expectedIssueMessages[match.issueUrl, default: []].append(String(describing: issue))
+          state.unmatchedExpectedIssues.removeAll(where: {$0 == match})
+          matchingSpec = match
+        } else {
+          let xfail = ExpectedIssue(matching: issue, issueUrl: "<issue url>",
+                                    config: activeConfig)
+          let json = try encoder.encode(xfail)
+          state.issues.append(issue)
+          state.issueMessages.append("""
+            \(String(describing: issue))
+            Add the following entry to the expected failures JSON file to mark it as expected:
+            \(String(data: json, encoding: .utf8)!)"
+            """)
+        }
       }
-    }
 
-    let data = try encoder.encode(state)
-    FileManager.default.createFile(atPath: resultsFile.path, contents: data)
-    return matchingSpec
+      let data = try encoder.encode(state)
+      FileManager.default.createFile(atPath: resultsFile.path, contents: data)
+      return matchingSpec
+    }
   }
 
   private func getIssueSpecifications(applicableTo files: Set<String>) throws -> [ExpectedIssue] {
