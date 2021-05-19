@@ -41,7 +41,7 @@ let package = Package(
     ),
     .target(
       name: "StressTester",
-      dependencies: ["Common", "ArgumentParser", "SwiftSyntax", "SwiftSourceKit"],
+      dependencies: ["Common", "ArgumentParser", "SwiftSyntax", "SwiftSourceKit", "SwiftToolsSupport-auto"],
       swiftSettings: [.unsafeFlags(["-Fsystem", sourcekitSearchPath])],
       linkerSettings: [.unsafeFlags(["-Xlinker", "-F", "-Xlinker", sourcekitSearchPath])]
     ),

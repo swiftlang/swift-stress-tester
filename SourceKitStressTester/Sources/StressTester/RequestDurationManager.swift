@@ -12,6 +12,7 @@
 
 import Common
 import Foundation
+import TSCBasic
 
 fileprivate extension Array where Element == Int {
   /// Creates a logarithmic histogram. For each `key`, the `value` contains the
@@ -77,10 +78,10 @@ fileprivate struct RequestDurations: Codable {
 /// Collects the durations that requests executed by the stress tester took and
 /// writes them to `jsonFile` where the durations are collected together with
 /// all other stress tester runs.
-/// We are aggregating the results early (just keeping track of the average for
-/// each request type and a logarithmic histogram because keeping track of all
-/// request durations would result in a JSON file that is too large to handle
-/// easily.
+/// We are aggregating the results early (just keeping track of total
+/// instructions executed for each request type and a logarithmic histogram
+/// because keeping track of all request durations would result in a JSON file
+/// that is too large to handle easily.
 class RequestDurationManager {
   /// The file that stores the request durations and that gets updated as new
   /// aggregated information is added
@@ -99,10 +100,11 @@ class RequestDurationManager {
   }
 
   func add(aggregatedDurations: AggregatedRequestDurations, for file: String, requestKind: RequestKind) throws {
-    // FIXME: We are racing for the timings file here if two stress tester invocations try to update it simultaneously
-    var currentTimings = try getRequestDurations()
-    currentTimings.files[file, default: [:]][requestKind.rawValue, default: .empty].merge(other: aggregatedDurations)
-    let data = try JSONEncoder().encode(currentTimings)
-    try data.write(to: jsonFile, options: [.atomicWrite])
+    try localFileSystem.withLock(on: AbsolutePath(jsonFile.path), type: .exclusive) {
+      var currentTimings = try getRequestDurations()
+      currentTimings.files[file, default: [:]][requestKind.rawValue, default: .empty].merge(other: aggregatedDurations)
+      let data = try JSONEncoder().encode(currentTimings)
+      try data.write(to: jsonFile)
+    }
   }
 }
