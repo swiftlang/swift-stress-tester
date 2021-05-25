@@ -223,7 +223,23 @@ struct SourceKitDocument {
     return (info, response)
   }
 
-  func codeComplete(offset: Int, expectedResult: ExpectedResult?) throws -> (RequestInfo, SourceKitdResponse) {
+  /// Retrieves the number of instructions the SourceKit process has executed
+  /// since it was launched. Returns 0 if the number of executed instructions
+  /// could not be determined.
+  private func getSourceKitInstructionCount() throws -> Int {
+    let request = SourceKitdRequest(uid: .request_Statistics)
+    let response = try sendWithTimeout(request, info: .statistics)
+    let results = response.value.getArray(.key_Results)
+    for i in 0..<results.count {
+      let stat = results.getDictionary(i)
+      if stat.getUID(.key_Kind) == .kind_StatInstructionCount {
+        return stat.getInt(.key_Value)
+      }
+    }
+    return 0
+  }
+
+  func codeComplete(offset: Int, expectedResult: ExpectedResult?) throws -> (request: RequestInfo, response: SourceKitdResponse, instructions: Int) {
     let request = SourceKitdRequest(uid: .request_CodeComplete)
 
     request.addParameter(.key_SourceFile, value: args.forFile.path)
@@ -235,14 +251,14 @@ struct SourceKitDocument {
 
     let info = RequestInfo.codeComplete(document: documentInfo, offset: offset,
                                         args: args.sourcekitdArgs)
-    let response = try sendWithTimeout(request, info: info)
+    let (response, instructions) = try sendWithTimeoutMeasuringInstructions(request, info: info)
     try throwIfInvalid(response, request: info)
 
     if let expectedResult = expectedResult {
       try checkExpectedCompletionResult(expectedResult, in: response, info: info)
     }
 
-    return (info, response)
+    return (info, response, instructions)
   }
 
   func typeContextInfo(offset: Int) throws -> (RequestInfo, SourceKitdResponse) {
@@ -405,6 +421,16 @@ struct SourceKitDocument {
     default:
       return false
     }
+  }
+
+  /// Send the `request` synchronously, timing out after 5 minutes. Also report
+  /// the number of instructions executed by SourceKit to fulfill the request.
+  private func sendWithTimeoutMeasuringInstructions(_ request: SourceKitdRequest, info: RequestInfo) throws -> (response: SourceKitdResponse, instructions: Int) {
+    let startInstructions = try getSourceKitInstructionCount()
+    let response = try sendWithTimeout(request, info: info)
+    let endInstructions = try getSourceKitInstructionCount()
+    assert(endInstructions >= startInstructions, "Overflow?")
+    return (response, endInstructions - startInstructions)
   }
 
   private func sendWithTimeout(_ request: SourceKitdRequest, info: RequestInfo) throws -> SourceKitdResponse {

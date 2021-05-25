@@ -31,6 +31,8 @@ public struct SwiftCWrapperTool {
     let ignoreIssuesEnv = EnvOption("SK_STRESS_SILENT", type: Bool.self)
     /// Limit the number of sourcekit requests made per-file based on the number of AST rebuilds they trigger
     let astBuildLimitEnv = EnvOption("SK_STRESS_AST_BUILD_LIMIT", type: Int.self)
+    /// A file in which measurements how long the SourceKit requests issued by the stress tester took, should be aggregated
+    let requestDurationsOutputFileEnv = EnvOption("SK_STRESS_REQUEST_DURATIONS_FILE", type: String.self)
     /// Output only what the wrapped compiler outputs
     let suppressOutputEnv = EnvOption("SK_STRESS_SUPPRESS_OUTPUT", type: Bool.self)
     /// Non-default space-separated list of rewrite modes to use
@@ -62,6 +64,7 @@ public struct SwiftCWrapperTool {
     let ignoreIssues = try ignoreIssuesEnv.get(from: environment) ?? false
     let suppressOutput = try suppressOutputEnv.get(from: environment) ?? false
     let astBuildLimit = try astBuildLimitEnv.get(from: environment)
+    let requestDurationsOutputFile = try requestDurationsOutputFileEnv.get(from: environment).map(URL.init(fileURLWithPath:))
     let rewriteModes = try rewriteModesEnv.get(from: environment) ?? [.none, .concurrent, .insideOut]
     let requestKinds = RequestKind.reduce(try requestKindsEnv.get(from: environment) ?? [.ide])
     let conformingMethodTypes = try conformingMethodTypesEnv.get(from: environment)
@@ -84,6 +87,7 @@ public struct SwiftCWrapperTool {
                                 swiftcPath: swiftc,
                                 stressTesterPath: stressTester,
                                 astBuildLimit: astBuildLimit,
+                                requestDurationsOutputFile: requestDurationsOutputFile,
                                 rewriteModes: rewriteModes,
                                 requestKinds: requestKinds,
                                 conformingMethodTypes: conformingMethodTypes,

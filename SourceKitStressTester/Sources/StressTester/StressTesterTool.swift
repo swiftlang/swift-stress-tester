@@ -65,6 +65,11 @@ public struct StressTesterTool: ParsableCommand {
   public var conformingMethodsTypeList: [String] = ["s:SQ", "s:SH"] // Equatable and Hashable
 
   @Option(name: .long,
+          help: "File to store aggregated measurements how long the SourceKit requests issued by the stress tester took",
+          transform: URL.init(fileURLWithPath:))
+  public var requestDurationsOutputFile: URL?
+
+  @Option(name: .long,
           help: "Path to a temporary directory to store intermediate modules",
           transform: URL.init(fileURLWithPath:))
   public var tempDir: URL?
@@ -133,6 +138,7 @@ public struct StressTesterTool: ParsableCommand {
       page: page,
       tempDir: tempDir!,
       astBuildLimit: limit,
+      requestDurationsOutputFile: requestDurationsOutputFile,
       responseHandler: !reportResponses ? nil :
         { [format] responseData in
           try StressTesterTool.report(
