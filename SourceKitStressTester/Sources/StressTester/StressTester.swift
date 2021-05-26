@@ -81,6 +81,9 @@ public class StressTester {
     // statistics request. If we executed two requests at once, we couldn't
     // assign the executed instructions to a specific request.
     for action in actions {
+      if options.printActions {
+        print(action)
+      }
       switch action {
       case .cursorInfo(let offset):
         try report(document.cursorInfo(offset: offset))
@@ -217,6 +220,7 @@ public struct StressTesterOptions {
   public var page: Page
   public var tempDir: URL
   public var astBuildLimit: Int?
+  public var printActions: Bool
   public var requestDurationsOutputFile: URL?
   public var responseHandler: ((SourceKitResponseData) throws -> Void)?
   public var dryRun: (([Action]) throws -> Void)?
@@ -224,6 +228,7 @@ public struct StressTesterOptions {
   public init(requests: Set<RequestKind>, rewriteMode: RewriteMode,
               conformingMethodsTypeList: [String], page: Page,
               tempDir: URL, astBuildLimit: Int? = nil,
+              printActions: Bool = false,
               requestDurationsOutputFile: URL? = nil,
               responseHandler: ((SourceKitResponseData) throws -> Void)? = nil,
               dryRun: (([Action]) throws -> Void)? = nil) {
@@ -233,6 +238,7 @@ public struct StressTesterOptions {
     self.page = page
     self.tempDir = tempDir
     self.astBuildLimit = astBuildLimit
+    self.printActions = printActions
     self.requestDurationsOutputFile = requestDurationsOutputFile
     self.responseHandler = responseHandler
     self.dryRun = dryRun
