@@ -38,7 +38,7 @@ fileprivate extension Array where Element == Int {
 /// Captures aggregated information about executing a certain request kind on a
 /// certain file.
 struct AggregatedRequestDurations: Codable {
-  static let empty = AggregatedRequestDurations(instructionCounts: [])
+  static let empty = AggregatedRequestDurations(instructionCounts: [], astReuses: 0)
 
   /// The log histogram created by the extension on `Array` above
   var logHistogram: [Int: Int]
@@ -51,10 +51,14 @@ struct AggregatedRequestDurations: Codable {
   /// The total number of requests of a given kind executed for a given file
   var requestsExecuted: Int
 
-  init(instructionCounts: [Int]) {
+  /// The number of times the AST was reused
+  var astReuses: Int
+
+  init(instructionCounts: [Int], astReuses: Int) {
     logHistogram = instructionCounts.logHistogram
     totalInstructions = instructionCounts.reduce(0, { $0 + $1 })
     requestsExecuted = instructionCounts.count
+    self.astReuses = astReuses
   }
 
   mutating func merge(other: AggregatedRequestDurations) {
@@ -63,6 +67,7 @@ struct AggregatedRequestDurations: Codable {
     })
     self.totalInstructions += other.totalInstructions
     self.requestsExecuted += other.requestsExecuted
+    self.astReuses += other.astReuses
   }
 }
 

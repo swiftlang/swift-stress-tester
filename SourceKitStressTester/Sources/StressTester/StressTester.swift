@@ -19,7 +19,7 @@ public class StressTester {
   let options: StressTesterOptions
   let connection: SourceKitdService
   /// For each code completion request issued by the stress tester, the number of instructions `sourcekitd` took to execute it.
-  var codeCompletionDurations: [(request: RequestInfo, instructionCount: Int)] = []
+  var codeCompletionMeasurements: [(request: RequestInfo, instructionCount: Int, astReused: Bool)] = []
 
   public init(options: StressTesterOptions) {
     self.options = options
@@ -53,7 +53,10 @@ public class StressTester {
       if let timingsFile = options.requestDurationsOutputFile {
         // We are only keeping track of code completion durations for now.
         // This could easily be expanded to other request types.
-        let timing = AggregatedRequestDurations(instructionCounts: codeCompletionDurations.map({ $0.instructionCount }))
+        let timing = AggregatedRequestDurations(
+          instructionCounts: codeCompletionMeasurements.map({ $0.instructionCount }),
+          astReuses: codeCompletionMeasurements.filter({ $0.astReused }).count
+        )
         try? RequestDurationManager(jsonFile: timingsFile).add(aggregatedDurations: timing, for: compilerArgs.forFile.path, requestKind: .codeComplete)
       }
     }
@@ -163,7 +166,8 @@ public class StressTester {
     // should be a more generic data structure and we shouldn't need the `if case`
     // anymore.
     if case .codeComplete = result.request {
-      codeCompletionDurations.append((result.request, result.instructions))
+      let astReused = result.response.value.getOptional(.key_ReusingASTContext)?.getBool() ?? false
+      codeCompletionMeasurements.append((result.request, result.instructions, astReused))
     }
 
     try report((result.request, result.response))
