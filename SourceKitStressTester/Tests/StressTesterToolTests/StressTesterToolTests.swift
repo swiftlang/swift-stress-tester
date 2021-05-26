@@ -137,11 +137,9 @@ class StressTesterToolTests: XCTestCase {
       exitCode: 0,recordInvocationIn:
         workspace.appendingPathComponent("invocation.txt", isDirectory: false))
 
-    // All these args should be removed
-    let args = ["-incremental", "-whole-module-optimization",
-                "-num-threads", "2",
-                "-output-file-map", "/none/here",
-                testFile.path].map({ CompilerArg($0) })
+    // -emit-object and -c must be removed since they would cause skipping
+    // function bodies to fail
+    let args = ["-emit-object", testFile.path].map({ CompilerArg($0) })
     let options = StressTesterOptions(requests: [.testModule],
                                       rewriteMode: .none,
                                       conformingMethodsTypeList: [],
@@ -157,7 +155,13 @@ class StressTesterToolTests: XCTestCase {
                                           tempDir: workspace)))
 
     let invocations = swiftc.retrieveInvocations()
-    let expectedInvocation = "-Xfrontend -experimental-allow-module-with-compiler-errors -emit-module -module-name Test -emit-module-path \(workspace.appendingPathComponent("Test.swiftmodule").path) -"
+    let expectedInvocation = """
+      -whole-module-optimization \
+      -Xfrontend -experimental-allow-module-with-compiler-errors \
+      -Xfrontend -experimental-skip-all-function-bodies \
+      -emit-module -module-name TestModForStressTester -emit-module-path \
+      \(workspace.appendingPathComponent("TestModForStressTester.swiftmodule").path) -
+      """
     XCTAssertEqual(1, invocations.count)
     XCTAssertEqual(expectedInvocation, String(invocations[0]),
                   "incorrect args sent to swiftc")

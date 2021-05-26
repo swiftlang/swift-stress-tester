@@ -32,12 +32,15 @@ public struct CompilerArg: Equatable {
 
 public struct CompilerArgs {
   private static let SKIP_FLAGS: Set = [
-    "-whole-module-optimization",
-    "-incremental"
+    "-incremental",
+    "-enable-batch-mode",
+    "-emit-object", "-c"
   ]
   private static let SKIP_OPTIONS: Set = [
     "-num-threads",
-    "-output-file-map"
+    "-output-file-map",
+    "-module-name",
+    "-emit-module-path", "-o"
   ]
 
   /// Main file intended to be compiled
@@ -50,10 +53,10 @@ public struct CompilerArgs {
   /// arguments found in those files
   public let sourcekitdArgs: [String]
 
-  /// Original arguments but with flags/options relating to multi-module
-  /// output removed, as well as any references to fileToCompile. This
-  /// includes replacing any file list with a new file when they contain the
-  /// fileToCompile
+  /// Original arguments but with references to `forFile` removed. This
+  /// includes replacing any file list with a new file when it contains
+  /// `forFile`. Arguments relating to incremental compilation or the output
+  /// of the module are also removed.
   public let processArgs: [String]
 
   public init(for file: URL, args: [CompilerArg], tempDir: URL) {
