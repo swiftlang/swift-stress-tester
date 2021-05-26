@@ -239,7 +239,12 @@ struct SourceKitDocument {
     return 0
   }
 
-  func codeComplete(offset: Int, expectedResult: ExpectedResult?) throws -> (request: RequestInfo, response: SourceKitdResponse, instructions: Int) {
+  func codeComplete(offset: Int, expectedResult: ExpectedResult?) throws -> (request: RequestInfo, response: SourceKitdResponse) {
+    let result = try codeCompleteCountingInstructions(offset: offset, expectedResult: expectedResult)
+    return (result.request, result.response)
+  }
+
+  func codeCompleteCountingInstructions(offset: Int, expectedResult: ExpectedResult?) throws -> (request: RequestInfo, response: SourceKitdResponse, instructions: Int) {
     let request = SourceKitdRequest(uid: .request_CodeComplete)
 
     request.addParameter(.key_SourceFile, value: args.forFile.path)
