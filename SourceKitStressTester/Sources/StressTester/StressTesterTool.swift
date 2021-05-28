@@ -37,6 +37,11 @@ public struct StressTesterTool: ParsableCommand {
     """, valueName: "n"))
   public var limit: Int?
 
+  @Flag(name: .long, help: """
+    Print the stress tester actions as they are being executed to stdout.
+    """)
+  public var printActions: Bool = false
+
   @Option(name: .shortAndLong, help: ArgumentHelp("""
     Divides the work for each file into <total> equal parts \
     and only performs the <page>th group.
@@ -138,6 +143,7 @@ public struct StressTesterTool: ParsableCommand {
       page: page,
       tempDir: tempDir!,
       astBuildLimit: limit,
+      printActions: printActions,
       requestDurationsOutputFile: requestDurationsOutputFile,
       responseHandler: !reportResponses ? nil :
         { [format] responseData in
