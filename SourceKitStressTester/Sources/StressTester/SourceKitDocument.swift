@@ -28,7 +28,7 @@ struct SourceKitDocument {
   private var converter: SourceLocationConverter? = nil
 
   private var tempModulePath: URL {
-    tempDir.appendingPathComponent("Test.swiftmodule")
+    tempDir.appendingPathComponent("TestModForStressTester.swiftmodule")
   }
 
   private var documentInfo: DocumentInfo {
@@ -323,7 +323,11 @@ struct SourceKitDocument {
 
     let moduleName = tempModulePath.deletingPathExtension().lastPathComponent
     let compilerArgs = self.args.processArgs + [
+      // Merge modules ends up about the same speed as WMO when skipping
+      // function bodies
+      "-whole-module-optimization",
       "-Xfrontend", "-experimental-allow-module-with-compiler-errors",
+      "-Xfrontend", "-experimental-skip-all-function-bodies",
       "-emit-module", "-module-name", moduleName, "-emit-module-path",
       tempModulePath.path,
       "-"
@@ -346,8 +350,10 @@ struct SourceKitDocument {
     let moduleDir = tempModulePath.deletingLastPathComponent()
     let moduleName = tempModulePath.deletingPathExtension().lastPathComponent
     let interfaceFile = moduleDir.appendingPathComponent("<interface-gen>")
-    let compilerArgs = self.args.sourcekitdArgs +
-      ["-I\(moduleDir.path)"]
+    let compilerArgs = self.args.sourcekitdArgs + [
+      "-I\(moduleDir.path)",
+       "-Xfrontend", "-experimental-allow-module-with-compiler-errors"
+    ]
 
     let request = SourceKitdRequest(uid: .request_EditorOpenInterface)
     request.addParameter(.key_SourceFile, value: args.forFile.path)
