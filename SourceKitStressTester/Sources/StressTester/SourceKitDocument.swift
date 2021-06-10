@@ -406,7 +406,7 @@ class SourceKitDocument {
 
   private func shouldIgnoreArgs(of expected: ExpectedResult, for result: SourceKitdResponse.Dictionary) -> Bool {
     switch result.getUID(.key_Kind) {
-    case .kind_DeclStruct, .kind_DeclClass, .kind_DeclEnum, .kind_DeclTypeAlias:
+    case .kind_DeclStruct, .kind_DeclClass, .kind_DeclEnum, .kind_DeclTypeAlias, .kind_DeclGenericTypeParam:
       // Initializer calls look like function calls syntactically, but the
       // completion results only include the type name. Allow for that by
       // matching on the base name only.
