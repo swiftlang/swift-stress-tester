@@ -226,7 +226,7 @@ public struct SwiftCWrapper {
                                     config: issueManager.activeConfig)
         let json = try issueManager.encoder.encode(xfail)
         stderrStream <<< "Add the following entry to the expected failures JSON file to mark it as expected:\n"
-        stderrStream <<< json <<< "\n\n"
+        stderrStream <<< String(data: json, encoding: .utf8)! <<< "\n\n"
       }
     }
   }
