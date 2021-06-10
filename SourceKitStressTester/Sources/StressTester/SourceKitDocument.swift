@@ -15,7 +15,7 @@ import SwiftSyntax
 import Common
 import Foundation
 
-struct SourceKitDocument {
+class SourceKitDocument {
   let swiftc: String
   let args: CompilerArgs
   let tempDir: URL
@@ -58,13 +58,13 @@ struct SourceKitDocument {
     self.diagEngine.addConsumer(EmptyDiagConsumer())
   }
 
-  mutating func open(rewriteMode: RewriteMode) throws -> (SourceFileSyntax, SourceKitdResponse) {
+  func open(rewriteMode: RewriteMode) throws -> (SourceFileSyntax, SourceKitdResponse) {
     let source = try! String(contentsOf: args.forFile, encoding: .utf8)
     sourceState = SourceState(rewriteMode: rewriteMode, content: source)
     return try openOrUpdate(path: args.forFile.path)
   }
 
-  mutating func update(updateSource: (inout SourceState) -> Void) throws -> (SourceFileSyntax, SourceKitdResponse) {
+  func update(updateSource: (inout SourceState) -> Void) throws -> (SourceFileSyntax, SourceKitdResponse) {
     var sourceState = self.sourceState!
     try close()
     updateSource(&sourceState)
@@ -72,7 +72,7 @@ struct SourceKitDocument {
     return try openOrUpdate(source: sourceState.source)
   }
 
-  private mutating func openOrUpdate(path: String? = nil, source: String? = nil)
+  private func openOrUpdate(path: String? = nil, source: String? = nil)
   throws -> (SourceFileSyntax, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_EditorOpen)
     if let path = path {
@@ -96,7 +96,7 @@ struct SourceKitDocument {
   }
 
   @discardableResult
-  mutating func close() throws -> SourceKitdResponse {
+  func close() throws -> SourceKitdResponse {
     sourceState = nil
 
     let request = SourceKitdRequest(uid: .request_EditorClose)
@@ -363,7 +363,7 @@ struct SourceKitDocument {
     return (info, response)
   }
 
-  mutating func replaceText(offset: Int, length: Int, text: String) throws -> (SourceFileSyntax, SourceKitdResponse) {
+  func replaceText(offset: Int, length: Int, text: String) throws -> (SourceFileSyntax, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_EditorReplaceText)
     request.addParameter(.key_Name, value: args.forFile.path)
     request.addParameter(.key_Offset, value: offset)
@@ -500,7 +500,7 @@ struct SourceKitDocument {
   }
 
   @discardableResult
-  private mutating func updateSyntaxTree(request: RequestInfo) throws -> SourceFileSyntax {
+  private func updateSyntaxTree(request: RequestInfo) throws -> SourceFileSyntax {
     let tree: SourceFileSyntax
     do {
       tree = try parseSyntax(request: request)
