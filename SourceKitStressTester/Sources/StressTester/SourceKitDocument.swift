@@ -15,7 +15,7 @@ import SwiftSyntax
 import Common
 import Foundation
 
-struct SourceKitDocument {
+class SourceKitDocument {
   let swiftc: String
   let args: CompilerArgs
   let tempDir: URL
@@ -58,13 +58,13 @@ struct SourceKitDocument {
     self.diagEngine.addConsumer(EmptyDiagConsumer())
   }
 
-  mutating func open(rewriteMode: RewriteMode) throws -> (SourceFileSyntax, SourceKitdResponse) {
+  func open(rewriteMode: RewriteMode) throws -> (SourceFileSyntax, SourceKitdResponse) {
     let source = try! String(contentsOf: args.forFile, encoding: .utf8)
     sourceState = SourceState(rewriteMode: rewriteMode, content: source)
     return try openOrUpdate(path: args.forFile.path)
   }
 
-  mutating func update(updateSource: (inout SourceState) -> Void) throws -> (SourceFileSyntax, SourceKitdResponse) {
+  func update(updateSource: (inout SourceState) -> Void) throws -> (SourceFileSyntax, SourceKitdResponse) {
     var sourceState = self.sourceState!
     try close()
     updateSource(&sourceState)
@@ -72,7 +72,7 @@ struct SourceKitDocument {
     return try openOrUpdate(source: sourceState.source)
   }
 
-  private mutating func openOrUpdate(path: String? = nil, source: String? = nil)
+  private func openOrUpdate(path: String? = nil, source: String? = nil)
   throws -> (SourceFileSyntax, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_EditorOpen)
     if let path = path {
@@ -96,7 +96,7 @@ struct SourceKitDocument {
   }
 
   @discardableResult
-  mutating func close() throws -> SourceKitdResponse {
+  func close() throws -> SourceKitdResponse {
     sourceState = nil
 
     let request = SourceKitdRequest(uid: .request_EditorClose)
@@ -369,7 +369,7 @@ struct SourceKitDocument {
     return (info, response)
   }
 
-  mutating func replaceText(offset: Int, length: Int, text: String) throws -> (SourceFileSyntax, SourceKitdResponse) {
+  func replaceText(offset: Int, length: Int, text: String) throws -> (SourceFileSyntax, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_EditorReplaceText)
     request.addParameter(.key_Name, value: args.forFile.path)
     request.addParameter(.key_Offset, value: offset)
@@ -412,7 +412,7 @@ struct SourceKitDocument {
 
   private func shouldIgnoreArgs(of expected: ExpectedResult, for result: SourceKitdResponse.Dictionary) -> Bool {
     switch result.getUID(.key_Kind) {
-    case .kind_DeclStruct, .kind_DeclClass, .kind_DeclEnum, .kind_DeclTypeAlias:
+    case .kind_DeclStruct, .kind_DeclClass, .kind_DeclEnum, .kind_DeclTypeAlias, .kind_DeclGenericTypeParam:
       // Initializer calls look like function calls syntactically, but the
       // completion results only include the type name. Allow for that by
       // matching on the base name only.
@@ -431,15 +431,21 @@ struct SourceKitDocument {
 
   /// Send the `request` synchronously, timing out after 5 minutes. Also report
   /// the number of instructions executed by SourceKit to fulfill the request.
+  /// The number of instructions is 0 if SourceKit crashed during the request.
   private func sendWithTimeoutMeasuringInstructions(_ request: SourceKitdRequest, info: RequestInfo) throws -> (response: SourceKitdResponse, instructions: Int) {
     let startInstructions = try getSourceKitInstructionCount()
     let response = try sendWithTimeout(request, info: info)
     let endInstructions = try getSourceKitInstructionCount()
-    assert(endInstructions >= startInstructions, "Overflow?")
-    return (response, endInstructions - startInstructions)
+    if endInstructions < startInstructions {
+      // sourcekitd crashed and was restarted for the request, which resets its instruction counter.
+      // Report 0 to indicate that we were unable to measure the instructions.
+      return (response, 0)
+    } else {
+      return (response, endInstructions - startInstructions)
+    }
   }
 
-  private func sendWithTimeout(_ request: SourceKitdRequest, info: RequestInfo) throws -> SourceKitdResponse {
+  private func sendWithTimeout(_ request: SourceKitdRequest, info: RequestInfo, reopenDocumentIfNeeded: Bool = true) throws -> SourceKitdResponse {
     var response: SourceKitdResponse? = nil
     let completed = DispatchSemaphore(value: 0)
     connection.send(request: request) {
@@ -448,8 +454,19 @@ struct SourceKitDocument {
     }
     switch completed.wait(timeout: .now() + DispatchTimeInterval.seconds(300)) {
     case .success:
-      return response!
+      if response!.isError, response!.description.contains("No associated Editor Document"), reopenDocumentIfNeeded {
+        _ = try self.openOrUpdate(source: sourceState?.source)
+        return try sendWithTimeout(request, info: info, reopenDocumentIfNeeded: false)
+      } else {
+        return response!
+      }
     case .timedOut:
+      /// We timed out waiting for the response. Any following requests would
+      /// not be executed by SourceKit until this one finishes. To avoid this,
+      /// and since we don't have cancellation support in SourceKit, crash the
+      /// current SourceKitService so we get a new instance that isn't
+      /// processing any requests.
+      connection.crash()
       throw SourceKitError.timedOut(request: info)
     }
   }
@@ -506,7 +523,7 @@ struct SourceKitDocument {
   }
 
   @discardableResult
-  private mutating func updateSyntaxTree(request: RequestInfo) throws -> SourceFileSyntax {
+  private func updateSyntaxTree(request: RequestInfo) throws -> SourceFileSyntax {
     let tree: SourceFileSyntax
     do {
       tree = try parseSyntax(request: request)

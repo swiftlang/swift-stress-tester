@@ -14,6 +14,7 @@ import ArgumentParser
 import Foundation
 import Common
 import SwiftSyntax
+import Dispatch
 
 public struct StressTesterTool: ParsableCommand {
   public static var configuration = CommandConfiguration(
@@ -159,20 +160,39 @@ public struct StressTesterTool: ParsableCommand {
         }
     )
 
-    do {
-      let processedArgs = CompilerArgs(for: file,
-                                       args: compilerArgs,
-                                       tempDir: tempDir!)
-      let tester = StressTester(options: options)
-      try tester.run(swiftc: swiftc!, compilerArgs: processedArgs)
-    } catch let error as SourceKitError {
-      let message = StressTesterMessage.detected(error)
-      try StressTesterTool.report(message, as: format)
-      throw ExitCode.failure
-    }
+    let processedArgs = CompilerArgs(for: file, args: compilerArgs, tempDir: tempDir!)
+    let tester = StressTester(options: options)
 
-    // Leave for debugging purposes if there was an error
-    try FileManager.default.removeItem(at: tempDir!)
+    // Run the main stress tester loop on a background thread to leave the main
+    // thread free for callbacks from SourceKit. Use a thread and not a dispatch
+    // queue because dispatch queues have a reduced stack size that is
+    // insufficient for SwiftSyntax parsing
+    let thread = Thread { [self] in
+      do {
+        let errors = tester.run(swiftc: swiftc!, compilerArgs: processedArgs)
+
+        if !errors.isEmpty {
+          for error in errors {
+            if let error = error as? SourceKitError {
+              let message = StressTesterMessage.detected(error)
+              try StressTesterTool.report(message, as: format)
+            } else {
+              throw error
+            }
+          }
+          throw ExitCode.failure
+        }
+
+        // Leave for debugging purposes if there was an error
+        try FileManager.default.removeItem(at: tempDir!)
+      } catch {
+        StressTesterTool.exit(withError: error)
+      }
+      // The stress tester finished running. Exit the program.
+      StressTesterTool.exit(withError: nil)
+    }
+    thread.stackSize = 8 << 20 // 8 MB.
+    thread.start()
   }
 
   private static func report<T>(_ message: T, as format: OutputFormat) throws

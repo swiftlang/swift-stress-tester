@@ -11,5 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 import StressTester
+import Dispatch
 
-StressTesterTool.main()
+DispatchQueue.main.async {
+  StressTesterTool.main()
+}
+dispatchMain()

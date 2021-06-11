@@ -75,7 +75,7 @@ class SwiftCWrapperToolTests: XCTestCase {
     }
   }
 
-  func testFailFastOperationQueue() throws {
+  func testStressTesterOperationQueue() throws {
     class TestOperation: Operation {
       var waitCount: Int
 
@@ -96,13 +96,13 @@ class SwiftCWrapperToolTests: XCTestCase {
     let third = TestOperation(waitCount: 20)
     let fourth = TestOperation(waitCount: 30)
 
-    FailFastOperationQueue(operations: [first, second, third, fourth], maxWorkers: 2, completionHandler: { _, finishedOp, _, _ in
+    StressTesterOperationQueue(operations: [first, second, third, fourth], maxWorkers: 2, completionHandler: { _, finishedOp, _, _ in
       // cancel later operations when the second operation completes
       return finishedOp !== second
     }).waitUntilFinished()
 
-    XCTAssertTrue(!first.isCancelled, "first was cancelled")
-    XCTAssertTrue(!second.isCancelled, "second was cancelled")
+    XCTAssertFalse(first.isCancelled, "first was cancelled")
+    XCTAssertFalse(second.isCancelled, "second was cancelled")
     XCTAssertTrue(third.isCancelled, "third wasn't cancelled")
     XCTAssertTrue(fourth.isCancelled, "fourth wasn't cancelled")
   }

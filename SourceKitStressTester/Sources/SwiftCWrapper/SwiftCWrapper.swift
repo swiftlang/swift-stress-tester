@@ -129,12 +129,16 @@ public struct SwiftCWrapper {
       }
     }
 
-    let queue = FailFastOperationQueue(operations: operations, maxWorkers: maxJobs) { index, operation, completed, total -> Bool in
+    let queue = StressTesterOperationQueue(operations: operations, maxWorkers: maxJobs) { index, operation, completed, total -> Bool in
       let message = "\(operation.file) (\(operation.summary)): \(operation.status.name)"
       progress?.update(step: completed, total: total, text: message)
       orderingHandler?.complete(operation.responses, at: index, setLast: !operation.status.isPassed)
       operation.responses.removeAll()
-      return operation.status.isPassed
+      // We can control whether to stop scheduling new operations here. As long
+      // as we return `true`, the stress tester continues to schedule new
+      // test operations. To stop at the first failure, return
+      // `operation.status.isPassed`.
+      return true
     }
     queue.waitUntilFinished()
 
@@ -151,32 +155,41 @@ public struct SwiftCWrapper {
 
     // Determine the set of processed files and the first failure (if any)
     var processedFiles = Set<String>()
-    var detectedIssue: StressTesterIssue? = nil
-    for operation in operations where detectedIssue == nil {
+    var detectedIssues: [StressTesterIssue] = []
+    for operation in operations {
       switch operation.status {
       case .cancelled:
         fatalError("cancelled operation before failed operation")
       case .unexecuted:
         fatalError("unterminated operation")
       case .errored(let status):
-        detectedIssue = .errored(status: status, file: operation.file,
-                                 arguments: escapeArgs(operation.args))
-      case .failed(let sourceKitError):
-        detectedIssue = .failed(sourceKitError: sourceKitError,
-                                arguments: escapeArgs(operation.args))
+        detectedIssues.append(.errored(status: status, file: operation.file,
+                                 arguments: escapeArgs(operation.args)))
+      case .failed(let sourceKitErrors):
+        for sourceKitError in sourceKitErrors {
+          detectedIssues.append(.failed(sourceKitError: sourceKitError,
+                                  arguments: escapeArgs(operation.args)))
+        }
         fallthrough
       case .passed:
         processedFiles.insert(operation.file)
       }
     }
 
-    let matchingSpec = try issueManager?.update(for: processedFiles, issue: detectedIssue)
-    try report(detectedIssue, matching: matchingSpec)
+    var hasUnexpectedIssue = false
+    for detectedIssue in detectedIssues {
+      let matchingSpec = try issueManager?.update(for: processedFiles, issue: detectedIssue)
+      if issueManager == nil || matchingSpec != nil {
+        hasUnexpectedIssue = true
+      }
+      try report(detectedIssue, matching: matchingSpec)
+    }
 
-    if detectedIssue == nil || matchingSpec != nil {
+    if hasUnexpectedIssue {
+      return ignoreIssues ? swiftcResult.status : EXIT_FAILURE
+    } else {
       return EXIT_SUCCESS
     }
-    return ignoreIssues ? swiftcResult.status : EXIT_FAILURE
   }
 
   private func writeResponseData(_ responses: [SourceKitResponseData], to path: String, seenResponses: inout Set<UInt64>) {
@@ -226,7 +239,7 @@ public struct SwiftCWrapper {
                                     config: issueManager.activeConfig)
         let json = try issueManager.encoder.encode(xfail)
         stderrStream <<< "Add the following entry to the expected failures JSON file to mark it as expected:\n"
-        stderrStream <<< json <<< "\n\n"
+        stderrStream <<< String(data: json, encoding: .utf8)! <<< "\n\n"
       }
     }
   }

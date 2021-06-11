@@ -376,5 +376,9 @@ extension SourceKitdUID {
   public static let kind_SyntaxTreeSerializationByteTree = SourceKitdUID(string: "source.syntaxtree.serialization.format.bytetree")
 
   public static let compilerCrashedNotification = SourceKitdUID(string: "notification.toolchain-compiler-crashed")
+  public static let semaDisabledNotification = SourceKitdUID(string:
+      "source.notification.sema_disabled")
+  public static let semaEnabledNotification = SourceKitdUID(string:
+      "source.notification.sema_enabled")
   public static let source_notification_editor_documentupdate = SourceKitdUID(string: "source.notification.editor.documentupdate")
 }

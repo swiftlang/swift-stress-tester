@@ -213,6 +213,10 @@ public class SourceKitdResponse: CustomStringConvertible {
 
   private let resp: sourcekitd_response_t
 
+  public var isNull: Bool {
+    return sourcekitd_variant_get_type(sourcekitd_response_get_value(resp)).rawValue == SOURCEKITD_VARIANT_TYPE_NULL.rawValue
+  }
+
   public var value: Dictionary {
     return Dictionary(dict: sourcekitd_response_get_value(resp), context: self)
   }
@@ -232,6 +236,18 @@ public class SourceKitdResponse: CustomStringConvertible {
   /// Whether or not this response represents a notification.
   public var isNotification: Bool {
     return value.getOptional(.key_Notification) != nil
+  }
+
+  /// If this is a notification return the type of the notification, otherwise
+  /// `nil`.
+  public var notificationType: SourceKitdUID? {
+    if isNull {
+      return nil
+    }
+    guard let notification = value.getOptional(.key_Notification)?.getUID() else {
+      return nil
+    }
+    return notification
   }
 
   /// Whether or not this response represents a connection interruption error.

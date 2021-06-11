@@ -14,7 +14,7 @@ import Foundation
 import Common
 
 struct ParsedMessages {
-  fileprivate(set) var sourceKitError: SourceKitError? = nil
+  fileprivate(set) var sourceKitErrors: [SourceKitError] = []
   fileprivate(set) var sourceKitResponses: [SourceKitResponseData] = []
 }
 
@@ -27,7 +27,7 @@ final class StressTestOperation: Operation {
     /// Indicates the operation was executed and no issues were found
     case passed
     /// Indicates the operation was executed and issues were found
-    case failed(sourceKitError: SourceKitError)
+    case failed(sourceKitError: [SourceKitError])
     /// Indicates the operation was executed, but the stress tester itself failed
     case errored(status: Int32)
 
@@ -111,8 +111,8 @@ final class StressTestOperation: Operation {
       if result.status == EXIT_SUCCESS {
         status = .passed
         self.responses = parsed.sourceKitResponses
-      } else if let error = parsed.sourceKitError {
-        status = .failed(sourceKitError: error)
+      } else if !parsed.sourceKitErrors.isEmpty {
+        status = .failed(sourceKitError: parsed.sourceKitErrors)
         self.responses = parsed.sourceKitResponses
       } else {
         // A non-successful exit code with no error produced-> stress tester failure
@@ -135,8 +135,7 @@ final class StressTestOperation: Operation {
       guard let message = StressTesterMessage(from: data) else { return nil }
       switch message {
       case .detected(let error):
-        guard parsed.sourceKitError == nil else { return nil }
-        parsed.sourceKitError = error
+        parsed.sourceKitErrors.append(error)
       case .produced(let responseData):
         parsed.sourceKitResponses.append(responseData)
       }

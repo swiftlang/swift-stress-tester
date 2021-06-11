@@ -12,11 +12,13 @@
 
 import Foundation
 
-public final class FailFastOperationQueue<Item: Operation> {
-  private let serialQueue = DispatchQueue(label: "\(FailFastOperationQueue.self)")
+/// An operation queue that stops scheduling new operations as soon as the the
+/// completion handler returns `false`.
+public final class StressTesterOperationQueue<Item: Operation> {
+  private let serialQueue = DispatchQueue(label: "\(StressTesterOperationQueue.self)")
   private let queue = OperationQueue()
   private let operations: [Item]
-  private let completionHandler: (Int, Item, Int, Int) -> Bool
+  private let completionHandler: (_ index: Int, _ operation: Item, _ operationsCompleted: Int, _ totalOperationCount: Int) -> Bool
 
   public init(operations: [Item], maxWorkers: Int? = nil,
        completionHandler: @escaping (Int, Item, Int, Int) -> Bool) {
