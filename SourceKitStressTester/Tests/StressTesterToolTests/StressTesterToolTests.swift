@@ -114,15 +114,15 @@ class StressTesterToolTests: XCTestCase {
                                       tempDir: workspace,
                                       responseHandler: { responseData in
                                         responses.append(responseData)
-                                      })
+    })
 
     let tester = StressTester(options: options)
-    XCTAssertNoThrow(try tester.run(swiftc: swiftcPath,
-                                    compilerArgs: CompilerArgs(
-                                      for: testFile,
-                                      args: [CompilerArg(testFile.path)],
-                                      tempDir: workspace)),
-                     "no sourcekitd crashes in test program")
+    let errors = tester.run(swiftc: swiftcPath,
+                            compilerArgs: CompilerArgs(
+                              for: testFile,
+                                 args: [CompilerArg(testFile.path)],
+                                 tempDir: workspace))
+    XCTAssert(errors.isEmpty, "no sourcekitd crashes in test program")
     XCTAssertFalse(responses.isEmpty, "produces responses")
     XCTAssertTrue(responses.allSatisfy { response in
       if case .codeComplete = response.request { return true }
@@ -150,11 +150,12 @@ class StressTesterToolTests: XCTestCase {
 
     let tester = StressTester(options: options)
     // Expect interface request to fail since no module will be generated
-    XCTAssertThrowsError(try tester.run(swiftc: swiftc.file.path,
-                                        compilerArgs: CompilerArgs(
-                                          for: testFile,
-                                          args: args,
-                                          tempDir: workspace)))
+    let errors = tester.run(swiftc: swiftc.file.path,
+                            compilerArgs: CompilerArgs(
+                              for: testFile,
+                                 args: args,
+                                 tempDir: workspace))
+    XCTAssert(errors.count == 1)
 
     let invocations = swiftc.retrieveInvocations()
     let expectedInvocation = "-Xfrontend -experimental-allow-module-with-compiler-errors -emit-module -module-name Test -emit-module-path \(workspace.appendingPathComponent("Test.swiftmodule").path) -"

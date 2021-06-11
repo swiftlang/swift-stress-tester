@@ -129,7 +129,7 @@ public struct SwiftCWrapper {
       }
     }
 
-    let queue = FailFastOperationQueue(operations: operations, maxWorkers: maxJobs) { index, operation, completed, total -> Bool in
+    let queue = StressTesterOperationQueue(operations: operations, maxWorkers: maxJobs) { index, operation, completed, total -> Bool in
       let message = "\(operation.file) (\(operation.summary)): \(operation.status.name)"
       progress?.update(step: completed, total: total, text: message)
       orderingHandler?.complete(operation.responses, at: index, setLast: !operation.status.isPassed)
@@ -179,7 +179,7 @@ public struct SwiftCWrapper {
     var hasUnexpectedIssue = false
     for detectedIssue in detectedIssues {
       let matchingSpec = try issueManager?.update(for: processedFiles, issue: detectedIssue)
-      if matchingSpec != nil {
+      if issueManager == nil || matchingSpec != nil {
         hasUnexpectedIssue = true
       }
       try report(detectedIssue, matching: matchingSpec)
