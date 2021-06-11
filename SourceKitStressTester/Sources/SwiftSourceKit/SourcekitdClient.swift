@@ -83,19 +83,15 @@ public class SourceKitdService {
     sourcekitd_shutdown()
   }
 
-  /// Restarts the service. This is a workaround to set up a new service in case
+  /// Crash the service. This is a workaround to set up a new service in case
   /// we time out waiting for a request response and we want to handle it.
   /// Replace by proper cancellation once we have cancellation support in
   /// SourceKit.
-  public func restart() {
-    sourcekitd_shutdown()
-    // We need to wait for the old service to fully shut down before we can
-    // create a new one but we don't receive a notification when the old service
-    // did shut down. Waiting for a second seems to give it enough time.
-    sleep(1)
-    initializeService()
+  public func crash() {
+    let request = SourceKitdRequest(uid: .request_CrashWithExit)
+    _ = sourcekitd_send_request_sync(request.rawRequest)
     stateQueue.sync {
-      self.state = .running
+      self.state = .interrupted
     }
   }
 

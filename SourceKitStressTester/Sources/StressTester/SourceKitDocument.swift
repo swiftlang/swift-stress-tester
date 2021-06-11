@@ -457,9 +457,10 @@ class SourceKitDocument {
     case .timedOut:
       /// We timed out waiting for the response. Any following requests would
       /// not be executed by SourceKit until this one finishes. To avoid this,
-      /// and since we don't have cancellation support in SourceKit, set up a
-      /// new connection that is free to execute requests.
-      connection.restart()
+      /// and since we don't have cancellation support in SourceKit, crash the
+      /// current SourceKitService so we get a new instance that isn't
+      /// processing any requests.
+      connection.crash()
       throw SourceKitError.timedOut(request: info)
     }
   }
