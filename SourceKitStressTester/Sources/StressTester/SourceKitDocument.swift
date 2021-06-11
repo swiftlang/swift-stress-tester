@@ -425,15 +425,21 @@ class SourceKitDocument {
 
   /// Send the `request` synchronously, timing out after 5 minutes. Also report
   /// the number of instructions executed by SourceKit to fulfill the request.
+  /// The number of instructions is 0 if SourceKit crashed during the request.
   private func sendWithTimeoutMeasuringInstructions(_ request: SourceKitdRequest, info: RequestInfo) throws -> (response: SourceKitdResponse, instructions: Int) {
     let startInstructions = try getSourceKitInstructionCount()
     let response = try sendWithTimeout(request, info: info)
     let endInstructions = try getSourceKitInstructionCount()
-    assert(endInstructions >= startInstructions, "Overflow?")
-    return (response, endInstructions - startInstructions)
+    if endInstructions < startInstructions {
+      // sourcekitd crashed and was restarted for the request, which resets its instruction counter.
+      // Report 0 to indicate that we were unable to measure the instructions.
+      return (response, 0)
+    } else {
+      return (response, endInstructions - startInstructions)
+    }
   }
 
-  private func sendWithTimeout(_ request: SourceKitdRequest, info: RequestInfo) throws -> SourceKitdResponse {
+  private func sendWithTimeout(_ request: SourceKitdRequest, info: RequestInfo, reopenDocumentIfNeeded: Bool = true) throws -> SourceKitdResponse {
     var response: SourceKitdResponse? = nil
     let completed = DispatchSemaphore(value: 0)
     connection.send(request: request) {
@@ -442,8 +448,18 @@ class SourceKitDocument {
     }
     switch completed.wait(timeout: .now() + DispatchTimeInterval.seconds(300)) {
     case .success:
-      return response!
+      if response!.isError, response!.description.contains("No associated Editor Document"), reopenDocumentIfNeeded {
+        _ = try self.openOrUpdate(source: sourceState?.source)
+        return try sendWithTimeout(request, info: info, reopenDocumentIfNeeded: false)
+      } else {
+        return response!
+      }
     case .timedOut:
+      /// We timed out waiting for the response. Any following requests would
+      /// not be executed by SourceKit until this one finishes. To avoid this,
+      /// and since we don't have cancellation support in SourceKit, set up a
+      /// new connection that is free to execute requests.
+      connection.restart()
       throw SourceKitError.timedOut(request: info)
     }
   }

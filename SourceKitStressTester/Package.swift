@@ -21,6 +21,7 @@ if let sourcekitSearchPathPointer = getenv("SWIFT_STRESS_TESTER_SOURCEKIT_SEARCH
 
 let package = Package(
   name: "SourceKitStressTester",
+  platforms: [.macOS(.v10_12)],
   products: [
     .executable(name: "sk-stress-test", targets: ["sk-stress-test"]),
     .executable(name: "sk-swiftc-wrapper", targets: ["sk-swiftc-wrapper"]),

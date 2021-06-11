@@ -41,8 +41,8 @@ public class StressTester {
     }
   }
 
-  public func run(swiftc: String, compilerArgs: CompilerArgs) throws {
-    var document = SourceKitDocument(swiftc: swiftc,
+  public func run(swiftc: String, compilerArgs: CompilerArgs) -> [Error] {
+    let document = SourceKitDocument(swiftc: swiftc,
                                      args: compilerArgs,
                                      tempDir: options.tempDir,
                                      connection: connection,
@@ -59,22 +59,38 @@ public class StressTester {
     }
 
     // compute the actions for the entire tree
-    let (tree, _) = try document.open(rewriteMode: options.rewriteMode)
+    let tree: SourceFileSyntax
+    do {
+      tree = try document.open(rewriteMode: options.rewriteMode).0
+    } catch {
+      return [error]
+    }
     let (actions, priorActions) = computeActions(from: tree)
 
+
     if let dryRunAction = options.dryRun {
-      try dryRunAction(actions)
-      return
+      do {
+        try dryRunAction(actions)
+      } catch {
+        return [error]
+      }
+      return []
     }
 
     if !priorActions.isEmpty {
-      // Update initial state
-      _ = try document.update() { sourceState in
-        for case .replaceText(let offset, let length, let text) in priorActions {
-          sourceState.replace(offset: offset, length: length, with: text)
+      do {
+        // Update initial state
+        _ = try document.update() { sourceState in
+          for case .replaceText(let offset, let length, let text) in priorActions {
+            sourceState.replace(offset: offset, length: length, with: text)
+          }
         }
+      } catch {
+        return [error]
       }
     }
+
+    var errors: [Error] = []
 
     // IMPORTANT: We must not execute multiple requests at once because we are
     // counting the number of instructions executed by each request using the
@@ -84,29 +100,38 @@ public class StressTester {
       if options.printActions {
         print(action)
       }
-      switch action {
-      case .cursorInfo(let offset):
-        try report(document.cursorInfo(offset: offset))
-      case .codeComplete(let offset, let expectedResult):
-        try report(document.codeComplete(offset: offset, expectedResult: expectedResult))
-      case .rangeInfo(let offset, let length):
-        try report(document.rangeInfo(offset: offset, length: length))
-      case .replaceText(let offset, let length, let text):
-        _ = try document.replaceText(offset: offset, length: length, text: text)
-      case .format(let offset):
-        try report(document.format(offset: offset))
-      case .typeContextInfo(let offset):
-        try report(document.typeContextInfo(offset: offset))
-      case .conformingMethodList(let offset):
-        try report(document.conformingMethodList(offset: offset, typeList: options.conformingMethodsTypeList))
-      case .collectExpressionType:
-        try report(document.collectExpressionType())
-      case .testModule:
-        try report(document.moduleInterfaceGen())
+      do {
+        switch action {
+        case .cursorInfo(let offset):
+          try report(document.cursorInfo(offset: offset))
+        case .codeComplete(let offset, let expectedResult):
+          try report(document.codeComplete(offset: offset, expectedResult: expectedResult))
+        case .rangeInfo(let offset, let length):
+          try report(document.rangeInfo(offset: offset, length: length))
+        case .replaceText(let offset, let length, let text):
+          _ = try document.replaceText(offset: offset, length: length, text: text)
+        case .format(let offset):
+          try report(document.format(offset: offset))
+        case .typeContextInfo(let offset):
+          try report(document.typeContextInfo(offset: offset))
+        case .conformingMethodList(let offset):
+          try report(document.conformingMethodList(offset: offset, typeList: options.conformingMethodsTypeList))
+        case .collectExpressionType:
+          try report(document.collectExpressionType())
+        case .testModule:
+          try report(document.moduleInterfaceGen())
+        }
+      } catch {
+        errors.append(error)
       }
     }
 
-    try document.close()
+    do {
+      try document.close()
+    } catch {
+      errors.append(error)
+    }
+    return errors
   }
 
   private func computeActions(from tree: SourceFileSyntax) -> (page: [Action], priorActions: [Action]) {

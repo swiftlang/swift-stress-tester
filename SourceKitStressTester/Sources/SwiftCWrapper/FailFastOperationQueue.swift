@@ -12,6 +12,8 @@
 
 import Foundation
 
+/// An operation queue that stops scheduling new operations as soon as the the
+/// completion handler returns `false`.
 public final class FailFastOperationQueue<Item: Operation> {
   private let serialQueue = DispatchQueue(label: "\(FailFastOperationQueue.self)")
   private let queue = OperationQueue()
