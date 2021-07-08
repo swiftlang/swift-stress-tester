@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-public enum Action: Equatable {
+public enum Action: Hashable {
   case cursorInfo(offset: Int)
 
   /// If expectedResult is non-nil, the results should contain expectedResult, otherwise the results should
@@ -131,7 +131,7 @@ extension Action: Codable {
   }
 }
 
-public struct ExpectedResult: Codable, Equatable {
+public struct ExpectedResult: Codable, Hashable {
   public enum Kind: String, Codable { case reference, call, pattern }
   public let name: SwiftName
   public let kind: Kind
@@ -142,7 +142,7 @@ public struct ExpectedResult: Codable, Equatable {
   }
 }
 
-public struct SwiftName: Codable, Equatable {
+public struct SwiftName: Codable, Hashable {
   public let base: String
   public let argLabels: [String]
   public var name: String {
