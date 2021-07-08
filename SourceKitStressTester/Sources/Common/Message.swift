@@ -78,6 +78,12 @@ public enum RequestInfo {
 public struct DocumentInfo: Codable {
   public let path: String
   public let modification: DocumentModification?
+  /// A String with enough information to unique identify the state of a
+  /// document in comparison to other modifications produced by the stress
+  /// tester.
+  public var modificationSummaryCode: String {
+    return modification?.summaryCode ?? "unmodified"
+  }
 
   public init(path: String, modification: DocumentModification? = nil) {
     self.path = path
@@ -92,6 +98,13 @@ public struct DocumentModification: Codable {
   public init(mode: RewriteMode, content: String) {
     self.mode = mode
     self.content = content
+  }
+
+  /// A String with enough information to unique identify the modified state of
+  /// a document in comparison to other modifications produced by the stress
+  /// tester.
+  public var summaryCode: String {
+    return "\(mode)-\(content.count)"
   }
 }
 
