@@ -88,8 +88,10 @@ public struct SwiftCWrapper {
 
     // Determine the list of stress testing operations to perform
     let operations = swiftFiles.flatMap { (file, sizeInBytes) -> [StressTestOperation] in
-      if let fileFilter = ProcessInfo.processInfo.environment["SK_STRESS_FILE_FILTER"], !file.contains(fileFilter) {
-        return []
+      if let fileFilter = ProcessInfo.processInfo.environment["SK_STRESS_FILE_FILTER"] {
+        if !fileFilter.split(separator: ",").contains(where: { file.contains($0) }) {
+          return []
+        }
       }
       // Split large files into multiple parts to improve load balancing
       let partCount = max(Int(sizeInBytes / 1000), 1)
