@@ -139,7 +139,7 @@ public class StressTester {
     var astRebuilds = 0
     var locationsInvalidated = false
 
-    let pages = generator
+    var actions = generator
       .generate(for: tree)
       .filter { action in
         guard !locationsInvalidated else { return false }
@@ -175,7 +175,23 @@ public class StressTester {
           return options.requests.contains(.testModule)
         }
       }
-      .divide(into: options.page.count)
+    
+    // There are certain situations where we would issue the same request twice
+    // e.g. once for the end of a token and then for the start of the next 
+    // token. That's a waste of time. Filter them out.
+
+    // A set of actions that have already been scheduled for the current soure 
+    // file contents. Whenever an edit action is encountered, this gets reset.
+    var existingActions: Set<Action> = []
+    
+    actions = actions.filter({ action in
+      if case .replaceText = action {
+        existingActions = []
+        return true
+      }
+      return existingActions.insert(action).inserted
+    })
+    let pages = actions.divide(into: options.page.count)
 
     return (
       page: Array(pages[options.page.index]),
