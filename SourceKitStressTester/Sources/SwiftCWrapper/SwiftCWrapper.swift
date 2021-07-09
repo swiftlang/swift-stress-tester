@@ -300,4 +300,14 @@ public enum StressTesterIssue: CustomStringConvertible {
         """
     }
   }
+
+  /// Returns `true`if this issue represents a soft `SourceKitError`.
+  public var isSoftError: Bool {
+    switch self {
+    case .failed(sourceKitError: let sourceKitError, arguments: _):
+      return sourceKitError.isSoft
+    case .errored:
+      return false
+    }
+  }
 }

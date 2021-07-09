@@ -62,7 +62,7 @@ public struct IssueManager {
           state.expectedIssueMessages[match.issueUrl, default: []].append(String(describing: issue))
           state.unmatchedExpectedIssues.removeAll(where: {$0 == match})
           matchingSpec = match
-        } else {
+        } else if !issue.isSoftError {
           let xfail = ExpectedIssue(matching: issue, issueUrl: "<issue url>",
                                     config: activeConfig)
           let json = try encoder.encode(xfail)
