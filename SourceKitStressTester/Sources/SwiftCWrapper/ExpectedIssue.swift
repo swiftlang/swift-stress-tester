@@ -48,7 +48,7 @@ public struct ExpectedIssue: Equatable, Codable {
   private func matches(_ info: RequestInfo) -> Bool {
     func matchDocument(_ doc: DocumentInfo) -> Bool {
       return match(doc.path, against: path) &&
-        match(doc.modification?.summaryCode, against: modification)
+        match(doc.modificationSummaryCode, against: modification)
     }
 
     switch info {
@@ -163,55 +163,55 @@ public extension ExpectedIssue {
       switch failure.request {
       case .editorOpen(let document):
         path = document.path
-        modification = document.modification?.summaryCode
+        modification = document.modificationSummaryCode
         issueDetail = .editorOpen
       case .editorClose(let document):
         path = document.path
-        modification = document.modification?.summaryCode
+        modification = document.modificationSummaryCode
         issueDetail = .editorClose
       case .editorReplaceText(let document, let offset, let length, let text):
         path = document.path
-        modification = document.modification?.summaryCode
+        modification = document.modificationSummaryCode
         issueDetail = .editorReplaceText(offset: offset, length: length, text: text)
       case .cursorInfo(let document, let offset, _):
         path = document.path
-        modification = document.modification?.summaryCode
+        modification = document.modificationSummaryCode
         issueDetail = .cursorInfo(offset: offset)
       case .format(let document, let offset):
         path = document.path
-        modification = document.modification?.summaryCode
+        modification = document.modificationSummaryCode
         issueDetail = .format(offset: offset)
       case .codeComplete(let document, let offset, _):
         path = document.path
-        modification = document.modification?.summaryCode
+        modification = document.modificationSummaryCode
         issueDetail = .codeComplete(offset: offset)
       case .rangeInfo(let document, let offset, let length, _):
         path = document.path
-        modification = document.modification?.summaryCode
+        modification = document.modificationSummaryCode
         issueDetail = .rangeInfo(offset: offset, length: length)
       case .semanticRefactoring(let document, let offset, let refactoring, _):
         path = document.path
-        modification = document.modification?.summaryCode
+        modification = document.modificationSummaryCode
         issueDetail = .semanticRefactoring(offset: offset, refactoring: refactoring)
       case .typeContextInfo(let document, let offset, _):
         path = document.path
-        modification = document.modification?.summaryCode
+        modification = document.modificationSummaryCode
         issueDetail = .typeContextInfo(offset: offset)
       case .conformingMethodList(let document, let offset, _, _):
         path = document.path
-        modification = document.modification?.summaryCode
+        modification = document.modificationSummaryCode
         issueDetail = .conformingMethodList(offset: offset)
       case .collectExpressionType(let document, _):
         path = document.path
-        modification = document.modification?.summaryCode
+        modification = document.modificationSummaryCode
         issueDetail = .collectExpressionType
       case .writeModule(let document, _):
         path = document.path
-        modification = document.modification?.summaryCode
+        modification = document.modificationSummaryCode
         issueDetail = .writeModule
       case .interfaceGen(let document, _, _):
         path = document.path
-        modification = document.modification?.summaryCode
+        modification = document.modificationSummaryCode
         issueDetail = .interfaceGen
       case .statistics:
         path = "<statistics>"

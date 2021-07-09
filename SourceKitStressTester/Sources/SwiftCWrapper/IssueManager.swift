@@ -112,15 +112,6 @@ fileprivate struct IssueManagerState: Codable {
   var unmatchedExpectedIssues = [ExpectedIssue]()
 }
 
-extension DocumentModification {
-  /// A String with enough information to unique identify the modified state of
-  /// a document in comparison to other modifications produced by the stress
-  /// tester.
-  var summaryCode: String {
-    return "\(mode)-\(content.count)"
-  }
-}
-
 extension StressTesterIssue: Codable {
   private enum CodingKeys: String, CodingKey {
     case kind, sourceKitError, status, file, arguments
