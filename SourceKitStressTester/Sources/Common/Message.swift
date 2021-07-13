@@ -39,6 +39,7 @@ public struct SourceKitResponseData: Codable {
 public enum SourceKitError: Error {
   case crashed(request: RequestInfo)
   case timedOut(request: RequestInfo)
+  case softTimeout(request: RequestInfo, duration: TimeInterval)
   case failed(_ reason: SourceKitErrorReason, request: RequestInfo, response: String)
 
   public var request: RequestInfo {
@@ -47,8 +48,26 @@ public enum SourceKitError: Error {
       return request
     case .timedOut(let request):
       return request
+    case .softTimeout(let request, _):
+      return request
     case .failed(_, let request, _):
       return request
+    }
+  }
+
+  /// Soft errors are allowed to match XFails, but don't fail the stress tester
+  /// on their own.
+  /// The current use case for soft errors are soft timeouts, where the request
+  /// took more than half of the allowed time. If the issue is XFailed, we don't
+  /// want to mark it as unexpectedly passed because the faster execution time
+  /// might be due to noise. But we haven't surpassed the limit either, so it
+  /// shouldn't be a hard error either.
+  public var isSoft: Bool {
+    switch self {
+    case .crashed, .timedOut, .failed:
+      return false
+    case .softTimeout:
+      return true
     }
   }
 }
@@ -182,10 +201,10 @@ extension StressTesterMessage: Codable {
 
 extension SourceKitError: Codable {
   enum CodingKeys: String, CodingKey {
-    case error, kind, request, response
+    case error, kind, request, response, duration
   }
   enum BaseError: String, Codable {
-    case crashed, failed, timedOut
+    case crashed, failed, timedOut, softTimeout
   }
 
   public init(from decoder: Decoder) throws {
@@ -197,6 +216,10 @@ extension SourceKitError: Codable {
     case .timedOut:
       let request = try container.decode(RequestInfo.self, forKey: .request)
       self = .timedOut(request: request)
+    case .softTimeout:
+      let request = try container.decode(RequestInfo.self, forKey: .request)
+      let duration = try container.decode(Double.self, forKey: .duration)
+      self = .softTimeout(request: request, duration: duration)
     case .failed:
       let reason = try container.decode(SourceKitErrorReason.self, forKey: .kind)
       let request = try container.decode(RequestInfo.self, forKey: .request)
@@ -214,6 +237,10 @@ extension SourceKitError: Codable {
     case .timedOut(let request):
       try container.encode(BaseError.timedOut, forKey: .error)
       try container.encode(request, forKey: .request)
+    case .softTimeout(let request, let duration):
+      try container.encode(BaseError.softTimeout, forKey: .error)
+      try container.encode(request, forKey: .request)
+      try container.encode(duration, forKey: .duration)
     case .failed(let kind, let request, let response):
       try container.encode(BaseError.failed, forKey: .error)
       try container.encode(kind, forKey: .kind)
@@ -464,6 +491,14 @@ extension SourceKitError: CustomStringConvertible {
     case .timedOut(let request):
       return """
         Timed out waiting for SourceKit response
+          request: \(request)
+        -- begin file content --------
+        \(markSourceLocation(of: request) ?? "<unmodified>")
+        -- end file content ----------
+        """
+    case .softTimeout(let request, let duration):
+      return """
+        Request took \(duration) seconds to execute. This is more than half of the allowed time. This error will match XFails but won't count as an error by itself.
           request: \(request)
         -- begin file content --------
         \(markSourceLocation(of: request) ?? "<unmodified>")

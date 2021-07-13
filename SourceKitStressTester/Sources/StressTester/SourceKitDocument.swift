@@ -15,6 +15,8 @@ import SwiftSyntax
 import Common
 import Foundation
 
+let SOURCEKIT_REQUEST_TIMEOUT = 300 // seconds
+
 class SourceKitDocument {
   let swiftc: String
   let args: CompilerArgs
@@ -88,7 +90,6 @@ class SourceKitDocument {
 
     let info = RequestInfo.editorOpen(document: documentInfo)
     let response = try sendWithTimeout(request, info: info)
-    try throwIfInvalid(response, request: info)
 
     try updateSyntaxTree(request: info)
 
@@ -105,7 +106,6 @@ class SourceKitDocument {
 
     let info = RequestInfo.editorClose(document: documentInfo)
     let response = try sendWithTimeout(request, info: info)
-    try throwIfInvalid(response, request: info)
     return response
   }
 
@@ -121,7 +121,6 @@ class SourceKitDocument {
     let info = RequestInfo.rangeInfo(document: documentInfo, offset: offset,
                                      length: length, args: args.sourcekitdArgs)
     let response = try sendWithTimeout(request, info: info)
-    try throwIfInvalid(response, request: info)
 
     if let actions = response.value.getOptional(.key_RefactorActions)?.getArray() {
       for i in 0 ..< actions.count {
@@ -148,12 +147,11 @@ class SourceKitDocument {
 
     let info = RequestInfo.cursorInfo(document: documentInfo, offset: offset,
                                       args: args.sourcekitdArgs)
-    let response = try sendWithTimeout(request, info: info)
-    try throwIfInvalid(response, request: info)
-
-    if !containsErrors {
-      if let typeName = response.value.getOptional(.key_TypeName)?.getString(), typeName.contains("<<error type>>") {
-        throw SourceKitError.failed(.errorTypeInResponse, request: info, response: response.value.description)
+    let response = try sendWithTimeout(request, info: info) { response in
+      if !containsErrors {
+        if let typeName = response.value.getOptional(.key_TypeName)?.getString(), typeName.contains("<<error type>>") {
+          throw SourceKitError.failed(.errorTypeInResponse, request: info, response: response.value.description)
+        }
       }
     }
 
@@ -193,7 +191,6 @@ class SourceKitDocument {
 
     let info = RequestInfo.format(document: documentInfo, offset: offset)
     let response = try sendWithTimeout(request, info: info)
-    try throwIfInvalid(response, request: info)
 
     return (info, response)
   }
@@ -218,7 +215,6 @@ class SourceKitDocument {
                                                kind: actionName,
                                                args: args.sourcekitdArgs)
     let response = try sendWithTimeout(request, info: info)
-    try throwIfInvalid(response, request: info)
 
     return (info, response)
   }
@@ -251,11 +247,10 @@ class SourceKitDocument {
 
     let info = RequestInfo.codeComplete(document: documentInfo, offset: offset,
                                         args: args.sourcekitdArgs)
-    let (response, instructions) = try sendWithTimeoutMeasuringInstructions(request, info: info)
-    try throwIfInvalid(response, request: info)
-
-    if let expectedResult = expectedResult {
-      try checkExpectedCompletionResult(expectedResult, in: response, info: info)
+    let (response, instructions) = try sendWithTimeoutMeasuringInstructions(request, info: info) { response in
+      if let expectedResult = expectedResult {
+        try checkExpectedCompletionResult(expectedResult, in: response, info: info)
+      }
     }
 
     return (info, response, instructions)
@@ -275,7 +270,6 @@ class SourceKitDocument {
                                            offset: offset,
                                            args: args.sourcekitdArgs)
     let response = try sendWithTimeout(request, info: info)
-    try throwIfInvalid(response, request: info)
 
     return (info, response)
   }
@@ -299,7 +293,6 @@ class SourceKitDocument {
                                                 typeList: typeList,
                                                 args: args.sourcekitdArgs)
     let response = try sendWithTimeout(request, info: info)
-    try throwIfInvalid(response, request: info)
 
     return (info, response)
   }
@@ -313,7 +306,6 @@ class SourceKitDocument {
     let info = RequestInfo.collectExpressionType(document: documentInfo,
                                                  args: args.sourcekitdArgs)
     let response = try sendWithTimeout(request, info: info)
-    try throwIfInvalid(response, request: info)
 
     return (info, response)
   }
@@ -365,7 +357,6 @@ class SourceKitDocument {
                                         moduleName: moduleName,
                                         args: compilerArgs)
     let response = try sendWithTimeout(request, info: info)
-    try throwIfInvalid(response, request: info)
     return (info, response)
   }
 
@@ -382,7 +373,6 @@ class SourceKitDocument {
 
     let info = RequestInfo.editorReplaceText(document: documentInfo, offset: offset, length: length, text: text)
     let response = try sendWithTimeout(request, info: info)
-    try throwIfInvalid(response, request: info)
 
     // update expected source content and syntax tree
     sourceState?.replace(offset: offset, length: length, with: text)
@@ -429,12 +419,12 @@ class SourceKitDocument {
     }
   }
 
-  /// Send the `request` synchronously, timing out after 5 minutes. Also report
-  /// the number of instructions executed by SourceKit to fulfill the request.
+  /// Same as `sendWithTimeout` but also report the number of instructions
+  /// executed by SourceKit to fulfill the request.
   /// The number of instructions is 0 if SourceKit crashed during the request.
-  private func sendWithTimeoutMeasuringInstructions(_ request: SourceKitdRequest, info: RequestInfo) throws -> (response: SourceKitdResponse, instructions: Int) {
+  private func sendWithTimeoutMeasuringInstructions(_ request: SourceKitdRequest, info: RequestInfo, validateResponse: (SourceKitdResponse) throws -> Void = { _ in }) throws -> (response: SourceKitdResponse, instructions: Int) {
     let startInstructions = try getSourceKitInstructionCount()
-    let response = try sendWithTimeout(request, info: info)
+    let response = try sendWithTimeout(request, info: info, validateResponse: validateResponse)
     let endInstructions = try getSourceKitInstructionCount()
     if endInstructions < startInstructions {
       // sourcekitd crashed and was restarted for the request, which resets its instruction counter.
@@ -445,20 +435,41 @@ class SourceKitDocument {
     }
   }
 
-  private func sendWithTimeout(_ request: SourceKitdRequest, info: RequestInfo, reopenDocumentIfNeeded: Bool = true) throws -> SourceKitdResponse {
+  /// Send the `request` synchronously, timing out after
+  /// `SOURCEKIT_REQUEST_TIMEOUT`.
+  /// An error is thrown if either the response is invalid (see `throwIfInvalid`)
+  /// or `validateResponse` throws. If the request took longer than half the
+  /// time allowed but no other error is thrown, a `SourceKitError.softTimeout`
+  /// will be thrown.
+  private func sendWithTimeout(_ request: SourceKitdRequest, info: RequestInfo, validateResponse: (SourceKitdResponse) throws -> Void = { _ in }, reopenDocumentIfNeeded: Bool = true) throws -> SourceKitdResponse {
     var response: SourceKitdResponse? = nil
     let completed = DispatchSemaphore(value: 0)
+    let startDate = Date()
     connection.send(request: request) {
       response = $0
       completed.signal()
     }
-    switch completed.wait(timeout: .now() + DispatchTimeInterval.seconds(300)) {
+    switch completed.wait(timeout: .now() + DispatchTimeInterval.seconds(SOURCEKIT_REQUEST_TIMEOUT)) {
     case .success:
-      if response!.isError, response!.description.contains("No associated Editor Document"), reopenDocumentIfNeeded {
+      guard let response = response else {
+        fatalError("nil response without timout being hit?")
+      }
+      let requestDuration = Date().timeIntervalSince(startDate)
+      if response.isError, response.description.contains("No associated Editor Document"), reopenDocumentIfNeeded {
         _ = try self.openOrUpdate(source: sourceState?.source)
-        return try sendWithTimeout(request, info: info, reopenDocumentIfNeeded: false)
+        return try sendWithTimeout(request, info: info, validateResponse: validateResponse, reopenDocumentIfNeeded: false)
       } else {
-        return response!
+        // Check if there was an error in the response
+        try throwIfInvalid(response, request: info)
+        try validateResponse(response)
+
+        if requestDuration > TimeInterval(SOURCEKIT_REQUEST_TIMEOUT) / 2 {
+          // There was no error in the response, but the request took too long
+          // throw a soft timeout.
+          throw SourceKitError.softTimeout(request: info, duration: requestDuration)
+        } else {
+          return response
+        }
       }
     case .timedOut:
       /// We timed out waiting for the response. Any following requests would

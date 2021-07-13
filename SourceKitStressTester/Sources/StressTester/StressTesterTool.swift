@@ -172,15 +172,19 @@ public struct StressTesterTool: ParsableCommand {
         let errors = tester.run(swiftc: swiftc!, compilerArgs: processedArgs)
 
         if !errors.isEmpty {
+          var hasOnlySoftErrors = true
           for error in errors {
             if let error = error as? SourceKitError {
+              hasOnlySoftErrors = hasOnlySoftErrors && error.isSoft
               let message = StressTesterMessage.detected(error)
               try StressTesterTool.report(message, as: format)
             } else {
               throw error
             }
           }
-          throw ExitCode.failure
+          if !hasOnlySoftErrors {
+            throw ExitCode.failure
+          }
         }
 
         // Leave for debugging purposes if there was an error
