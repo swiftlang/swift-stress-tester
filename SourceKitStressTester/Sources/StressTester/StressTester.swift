@@ -53,7 +53,13 @@ public class StressTester {
       if let timingsFile = options.requestDurationsOutputFile {
         // We are only keeping track of code completion durations for now.
         // This could easily be expanded to other request types.
-        let timing = AggregatedRequestDurations(instructionCounts: codeCompletionDurations.map({ $0.instructionCount }))
+        let timings: [Timing] = codeCompletionDurations.compactMap({ (request, instructionCount) in
+          guard case .codeComplete(document: let document, offset: let offset, args: _) = request else {
+            return nil
+          }
+          return Timing(modification: document.modificationSummaryCode, offset: offset, instructions: instructionCount)
+        })
+        let timing = AggregatedRequestDurations(timings: timings)
         try? RequestDurationManager(jsonFile: timingsFile).add(aggregatedDurations: timing, for: compilerArgs.forFile.path, requestKind: .codeComplete)
       }
     }

@@ -35,12 +35,28 @@ fileprivate extension Array where Element == Int {
   }
 }
 
-/// Captures aggregated information about executing a certain request kind on a
-/// certain file.
-struct AggregatedRequestDurations: Codable {
-  static let empty = AggregatedRequestDurations(instructionCounts: [])
+/// The time measurement of a single request. The request type and file are 
+/// implicitly defined by the structure that this struct is contained in
+struct Timing: Codable {
+  /// The modification summary describing the state of the source file when the 
+  /// request was made.
+  var modification: String
 
-  /// The log histogram created by the extension on `Array` above
+  /// The offset in the file at which the request was made.
+  var offset: Int
+
+  /// The number of instructions sourcekitd took to exeucte the request.
+  var instructions: Int
+}
+
+/// Captures aggregated information about executing a certain request kind on a
+/// certain file. 
+/// Everything except `values` is a legacy data structure used by an analysis
+/// script in the source compatibility suite repo and will be removed.
+struct AggregatedRequestDurations: Codable {
+  static let empty = AggregatedRequestDurations(timings: [])
+
+  /// The log histogram created by the extension on `Array` above.
   var logHistogram: [Int: Int]
 
   /// The total number of instructions executed by the requests of this type
@@ -50,8 +66,12 @@ struct AggregatedRequestDurations: Codable {
 
   /// The total number of requests of a given kind executed for a given file
   var requestsExecuted: Int
+  
+  var values: [Timing]
 
-  init(instructionCounts: [Int]) {
+  init(timings: [Timing]) {
+    values = timings
+    let instructionCounts = timings.map { $0.instructions }
     logHistogram = instructionCounts.logHistogram
     totalInstructions = instructionCounts.reduce(0, { $0 + $1 })
     requestsExecuted = instructionCounts.count
@@ -63,6 +83,7 @@ struct AggregatedRequestDurations: Codable {
     })
     self.totalInstructions += other.totalInstructions
     self.requestsExecuted += other.requestsExecuted
+    self.values += other.values
   }
 }
 
