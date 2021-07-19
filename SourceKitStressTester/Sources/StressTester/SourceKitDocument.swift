@@ -424,14 +424,25 @@ class SourceKitDocument {
   /// The number of instructions is 0 if SourceKit crashed during the request.
   private func sendWithTimeoutMeasuringInstructions(_ request: SourceKitdRequest, info: RequestInfo, validateResponse: (SourceKitdResponse) throws -> Void = { _ in }) throws -> (response: SourceKitdResponse, instructions: Int) {
     let startInstructions = try getSourceKitInstructionCount()
-    let response = try sendWithTimeout(request, info: info, validateResponse: validateResponse)
-    let endInstructions = try getSourceKitInstructionCount()
-    if endInstructions < startInstructions {
-      // sourcekitd crashed and was restarted for the request, which resets its instruction counter.
-      // Report 0 to indicate that we were unable to measure the instructions.
-      return (response, 0)
-    } else {
-      return (response, endInstructions - startInstructions)
+
+    func getInstructionCount() throws -> Int {
+      let endInstructions = try getSourceKitInstructionCount()
+      if endInstructions < startInstructions {
+        // sourcekitd crashed and was restarted for the request, which resets its instruction counter.
+        // Report 0 to indicate that we were unable to measure the instructions.
+        return 0
+      } else {
+        return endInstructions - startInstructions
+      }
+    }
+
+    do {
+      let response = try sendWithTimeout(request, info: info, validateResponse: validateResponse)
+      return (response, try getInstructionCount())
+    } catch SourceKitError.softTimeout(request: let request, duration: let duration, instructions: _) {
+      throw SourceKitError.softTimeout(request: request, duration: duration, instructions: try getInstructionCount())
+    } catch {
+      throw error
     }
   }
 
@@ -466,7 +477,7 @@ class SourceKitDocument {
         if requestDuration > TimeInterval(SOURCEKIT_REQUEST_TIMEOUT) / 2 {
           // There was no error in the response, but the request took too long
           // throw a soft timeout.
-          throw SourceKitError.softTimeout(request: info, duration: requestDuration)
+          throw SourceKitError.softTimeout(request: info, duration: requestDuration, instructions: nil)
         } else {
           return response
         }

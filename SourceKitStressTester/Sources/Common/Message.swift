@@ -39,7 +39,11 @@ public struct SourceKitResponseData: Codable {
 public enum SourceKitError: Error {
   case crashed(request: RequestInfo)
   case timedOut(request: RequestInfo)
-  case softTimeout(request: RequestInfo, duration: TimeInterval)
+  /// Thrown if a request was close to the time out that triggers a timedOut
+  /// error.
+  /// If it was counted how many instructions SourceKit took to fulfill the
+  /// request, `instructions` contains that number. Otherwise it's `nil`.
+  case softTimeout(request: RequestInfo, duration: TimeInterval, instructions: Int?)
   case failed(_ reason: SourceKitErrorReason, request: RequestInfo, response: String)
 
   public var request: RequestInfo {
@@ -48,7 +52,7 @@ public enum SourceKitError: Error {
       return request
     case .timedOut(let request):
       return request
-    case .softTimeout(let request, _):
+    case .softTimeout(let request, _, _):
       return request
     case .failed(_, let request, _):
       return request
@@ -201,7 +205,7 @@ extension StressTesterMessage: Codable {
 
 extension SourceKitError: Codable {
   enum CodingKeys: String, CodingKey {
-    case error, kind, request, response, duration
+    case error, kind, request, response, duration, instructions
   }
   enum BaseError: String, Codable {
     case crashed, failed, timedOut, softTimeout
@@ -219,7 +223,8 @@ extension SourceKitError: Codable {
     case .softTimeout:
       let request = try container.decode(RequestInfo.self, forKey: .request)
       let duration = try container.decode(Double.self, forKey: .duration)
-      self = .softTimeout(request: request, duration: duration)
+      let instructions = try container.decodeIfPresent(Int.self, forKey: .instructions)
+      self = .softTimeout(request: request, duration: duration, instructions: instructions)
     case .failed:
       let reason = try container.decode(SourceKitErrorReason.self, forKey: .kind)
       let request = try container.decode(RequestInfo.self, forKey: .request)
@@ -237,10 +242,11 @@ extension SourceKitError: Codable {
     case .timedOut(let request):
       try container.encode(BaseError.timedOut, forKey: .error)
       try container.encode(request, forKey: .request)
-    case .softTimeout(let request, let duration):
+    case .softTimeout(let request, let duration, let instructions):
       try container.encode(BaseError.softTimeout, forKey: .error)
       try container.encode(request, forKey: .request)
       try container.encode(duration, forKey: .duration)
+      try container.encodeIfPresent(instructions, forKey: .instructions)
     case .failed(let kind, let request, let response):
       try container.encode(BaseError.failed, forKey: .error)
       try container.encode(kind, forKey: .kind)
@@ -496,9 +502,9 @@ extension SourceKitError: CustomStringConvertible {
         \(markSourceLocation(of: request) ?? "<unmodified>")
         -- end file content ----------
         """
-    case .softTimeout(let request, let duration):
+    case .softTimeout(let request, let duration, let instructions):
       return """
-        Request took \(duration) seconds to execute. This is more than half of the allowed time. This error will match XFails but won't count as an error by itself.
+        Request took \(duration) seconds (\(instructions.map(String.init) ?? "<unknown>") instructions) to execute. This is more than half of the allowed time. This error will match XFails but won't count as an error by itself.
           request: \(request)
         -- begin file content --------
         \(markSourceLocation(of: request) ?? "<unmodified>")
