@@ -128,6 +128,9 @@ public class StressTester {
           try report(document.moduleInterfaceGen())
         }
       } catch {
+        if case SourceKitError.softTimeout(request: let request, duration: _, instructions: let .some(instructions)) = error {
+          reportPerformanceMeasurement(request: request, instructions: instructions)
+        }
         errors.append(error)
       }
     }
@@ -205,14 +208,17 @@ public class StressTester {
     )
   }
 
-  private func report(_ result: (request: RequestInfo, response: SourceKitdResponse, instructions: Int)) throws {
+  private func reportPerformanceMeasurement(request: RequestInfo, instructions: Int) {
     // TODO: Once we measure instructions for other requests, codeCompletionDurations
     // should be a more generic data structure and we shouldn't need the `if case`
     // anymore.
-    if case .codeComplete = result.request {
-      codeCompletionDurations.append((result.request, result.instructions))
+    if case .codeComplete = request {
+      codeCompletionDurations.append((request, instructions))
     }
+  }
 
+  private func report(_ result: (request: RequestInfo, response: SourceKitdResponse, instructions: Int)) throws {
+    reportPerformanceMeasurement(request: result.request, instructions: result.instructions)
     try report((result.request, result.response))
   }
 
