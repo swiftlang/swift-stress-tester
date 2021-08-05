@@ -15,7 +15,7 @@ import SwiftSyntax
 import Common
 import Foundation
 
-let SOURCEKIT_REQUEST_TIMEOUT = 300 // seconds
+let SOURCEKIT_REQUEST_TIMEOUT = 60 // seconds
 
 class SourceKitDocument {
   let swiftc: String
