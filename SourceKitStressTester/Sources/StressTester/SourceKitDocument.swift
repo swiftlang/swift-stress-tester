@@ -12,6 +12,7 @@
 
 import SwiftSourceKit
 import SwiftSyntax
+import SwiftSyntaxParser
 import Common
 import Foundation
 

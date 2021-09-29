@@ -12,6 +12,7 @@
 
 import Foundation
 import SwiftSyntax
+import SwiftSyntaxParser
 
 public protocol ActionGenerator {
   func generate(for tree: SourceFileSyntax) -> [Action]

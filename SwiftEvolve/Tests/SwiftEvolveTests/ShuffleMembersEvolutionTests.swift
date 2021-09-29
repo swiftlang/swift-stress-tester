@@ -1,5 +1,6 @@
 import XCTest
 import SwiftSyntax
+import SwiftSyntaxParser
 import SwiftEvolve
 
 class ShuffleMembersEvolutionTests: XCTestCase {
