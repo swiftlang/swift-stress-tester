@@ -394,7 +394,7 @@ public final class InsideOutRewriteActionGenerator: ActionGenerator {
   }
 
   private func getPlacedStart(of token: TokenSyntax, in groups: [ActionTokenGroup]) -> AbsolutePosition? {
-    guard let groupIndex = groups.firstIndex(where: { $0.actionTokens.contains { $0.token == token } }) else {
+    guard let groupIndex = groups.firstIndex(where: { $0.actionTokens.contains(where: { $0.token == token }) }) else {
       preconditionFailure("token is contained in provided groups")
     }
     let group = groups[groupIndex]
