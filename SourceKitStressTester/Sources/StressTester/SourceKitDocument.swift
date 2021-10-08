@@ -25,7 +25,6 @@ class SourceKitDocument {
   let connection: SourceKitdService
   let containsErrors: Bool
 
-  private let diagEngine = DiagnosticEngine()
   private var sourceState: SourceState? = nil
   private var tree: SourceFileSyntax? = nil
   private var converter: SourceLocationConverter? = nil
@@ -42,14 +41,6 @@ class SourceKitDocument {
     return DocumentInfo(path: args.forFile.path, modification: modification)
   }
 
-  // An empty diagnostic consumer to practice the diagnostic APIs associated
-  // with SwiftSyntax parser.
-  class EmptyDiagConsumer: DiagnosticConsumer {
-    func handle(_ diagnostic: Diagnostic) {}
-    func finalize() {}
-    let needsLineColumn: Bool = true
-  }
-
   init(swiftc: String, args: CompilerArgs,
        tempDir: URL, connection: SourceKitdService,
        containsErrors: Bool = false) {
@@ -58,7 +49,6 @@ class SourceKitDocument {
     self.tempDir = tempDir
     self.connection = connection
     self.containsErrors = containsErrors
-    self.diagEngine.addConsumer(EmptyDiagConsumer())
   }
 
   func open(rewriteMode: RewriteMode) throws -> (SourceFileSyntax, SourceKitdResponse) {
@@ -534,13 +524,18 @@ class SourceKitDocument {
       reparseTransition = nil
     }
 
+    let diagHandler = { (diag: Diagnostic) in
+      // An empty diagnostic handler to practice the diagnostic APIs associated
+      // with SwiftSyntax parser.
+    }
+
     let tree: SourceFileSyntax
     if let state = sourceState {
       tree = try SyntaxParser.parse(source: state.source,
                                     parseTransition: reparseTransition,
-                                    diagnosticEngine: diagEngine)
+                                    diagnosticHandler: diagHandler)
     } else {
-      tree = try SyntaxParser.parse(args.forFile, diagnosticEngine: diagEngine)
+      tree = try SyntaxParser.parse(args.forFile, diagnosticHandler: diagHandler)
     }
     return tree
   }
