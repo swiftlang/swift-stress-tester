@@ -19,7 +19,7 @@ public class StressTester {
   let options: StressTesterOptions
   let connection: SourceKitdService
   /// For each code completion request issued by the stress tester, the number of instructions `sourcekitd` took to execute it.
-  var codeCompletionDurations: [(request: RequestInfo, instructionCount: Int)] = []
+  var codeCompletionDurations: [(request: RequestInfo, instructionCount: Int, reusingASTContext: Bool?)] = []
 
   public init(options: StressTesterOptions) {
     self.options = options
@@ -53,11 +53,11 @@ public class StressTester {
       if let timingsFile = options.requestDurationsOutputFile {
         // We are only keeping track of code completion durations for now.
         // This could easily be expanded to other request types.
-        let timings: [Timing] = codeCompletionDurations.compactMap({ (request, instructionCount) in
+        let timings: [Timing] = codeCompletionDurations.compactMap({ (request, instructionCount, reusingASTContext) in
           guard case .codeComplete(document: let document, offset: let offset, args: _) = request else {
             return nil
           }
-          return Timing(modification: document.modificationSummaryCode, offset: offset, instructions: instructionCount)
+          return Timing(modification: document.modificationSummaryCode, offset: offset, instructions: instructionCount, reusingASTContext: reusingASTContext)
         })
         let timing = AggregatedRequestDurations(timings: timings)
         try? RequestDurationManager(jsonFile: timingsFile).add(aggregatedDurations: timing, for: compilerArgs.forFile.path, requestKind: .codeComplete)
@@ -129,7 +129,7 @@ public class StressTester {
         }
       } catch {
         if case SourceKitError.softTimeout(request: let request, duration: _, instructions: let .some(instructions)) = error {
-          reportPerformanceMeasurement(request: request, instructions: instructions)
+          reportPerformanceMeasurement(request: request, instructions: instructions, reusingASTContext: nil)
         }
         errors.append(error)
       }
@@ -208,17 +208,17 @@ public class StressTester {
     )
   }
 
-  private func reportPerformanceMeasurement(request: RequestInfo, instructions: Int) {
+  private func reportPerformanceMeasurement(request: RequestInfo, instructions: Int, reusingASTContext: Bool?) {
     // TODO: Once we measure instructions for other requests, codeCompletionDurations
     // should be a more generic data structure and we shouldn't need the `if case`
     // anymore.
     if case .codeComplete = request {
-      codeCompletionDurations.append((request, instructions))
+      codeCompletionDurations.append((request, instructions, reusingASTContext))
     }
   }
 
-  private func report(_ result: (request: RequestInfo, response: SourceKitdResponse, instructions: Int)) throws {
-    reportPerformanceMeasurement(request: result.request, instructions: result.instructions)
+  private func report(_ result: (request: RequestInfo, response: SourceKitdResponse, instructions: Int, reusingASTContext: Bool)) throws {
+    reportPerformanceMeasurement(request: result.request, instructions: result.instructions, reusingASTContext: result.reusingASTContext)
     try report((result.request, result.response))
   }
 

@@ -47,6 +47,10 @@ struct Timing: Codable {
 
   /// The number of instructions sourcekitd took to exeucte the request.
   var instructions: Int
+
+  /// Whether SourceKit reused an AST when serving the request. `nil` if it is
+  /// unknown whether an AST was reused.
+  var reusingASTContext: Bool?
 }
 
 /// Captures aggregated information about executing a certain request kind on a

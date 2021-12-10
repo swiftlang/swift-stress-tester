@@ -226,7 +226,7 @@ class SourceKitDocument {
     return 0
   }
 
-  func codeComplete(offset: Int, expectedResult: ExpectedResult?) throws -> (request: RequestInfo, response: SourceKitdResponse, instructions: Int) {
+  func codeComplete(offset: Int, expectedResult: ExpectedResult?) throws -> (request: RequestInfo, response: SourceKitdResponse, instructions: Int, reusingASTContext: Bool) {
     let request = SourceKitdRequest(uid: .request_CodeComplete)
 
     request.addParameter(.key_SourceFile, value: args.forFile.path)
@@ -243,8 +243,9 @@ class SourceKitDocument {
         try checkExpectedCompletionResult(expectedResult, in: response, info: info)
       }
     }
+    let reusingASTContext = response.value.getBool(.key_ReusingASTContext)
 
-    return (info, response, instructions)
+    return (info, response, instructions, reusingASTContext)
   }
 
   func typeContextInfo(offset: Int) throws -> (RequestInfo, SourceKitdResponse) {

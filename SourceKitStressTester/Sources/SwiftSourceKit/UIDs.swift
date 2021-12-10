@@ -166,6 +166,7 @@ extension SourceKitdUID {
   public static let key_ExpressionLength = SourceKitdUID(string: "key.expression_length")
   public static let key_ExpressionType = SourceKitdUID(string: "key.expression_type")
   public static let key_RetrieveSymbolGraph = SourceKitdUID(string: "key.retrieve_symbol_graph")
+  public static let key_ReusingASTContext = SourceKitdUID(string: "key.reusingastcontext")
 
   public static let request_ProtocolVersion = SourceKitdUID(string: "source.request.protocol_version")
   public static let request_CompilerVersion = SourceKitdUID(string: "source.request.compiler_version")
