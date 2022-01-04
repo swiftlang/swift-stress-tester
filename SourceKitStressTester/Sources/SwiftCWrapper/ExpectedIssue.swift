@@ -72,8 +72,12 @@ public struct ExpectedIssue: Equatable, Codable {
       guard case .cursorInfo(let specOffset) = issueDetail else { return false }
       return matchDocument(document) &&
         match(offset, against: specOffset)
-    case .codeComplete(let document, let offset, _):
-      guard case .codeComplete(let specOffset) = issueDetail else { return false }
+    case .codeCompleteOpen(let document, let offset, _):
+      guard case .codeCompleteOpen(let specOffset) = issueDetail else { return false }
+      return matchDocument(document) &&
+        match(offset, against: specOffset)
+    case .codeCompleteClose(let document, let offset):
+      guard case .codeCompleteClose(let specOffset) = issueDetail else { return false }
       return matchDocument(document) &&
         match(offset, against: specOffset)
     case .rangeInfo(let document, let offset, let length, _):
@@ -181,10 +185,14 @@ public extension ExpectedIssue {
         path = document.path
         modification = document.modificationSummaryCode
         issueDetail = .format(offset: offset)
-      case .codeComplete(let document, let offset, _):
+      case .codeCompleteOpen(let document, let offset, _):
         path = document.path
         modification = document.modificationSummaryCode
-        issueDetail = .codeComplete(offset: offset)
+        issueDetail = .codeCompleteOpen(offset: offset)
+      case .codeCompleteClose(let document, let offset):
+        path = document.path
+        modification = document.modificationSummaryCode
+        issueDetail = .codeCompleteClose(offset: offset)
       case .rangeInfo(let document, let offset, let length, _):
         path = document.path
         modification = document.modificationSummaryCode
@@ -227,7 +235,8 @@ public extension ExpectedIssue {
     case editorReplaceText(offset: Int?, length: Int?, text: String?)
     case cursorInfo(offset: Int?)
     case format(offset: Int?)
-    case codeComplete(offset: Int?)
+    case codeCompleteOpen(offset: Int?)
+    case codeCompleteClose(offset: Int?)
     case rangeInfo(offset: Int?, length: Int?)
     case typeContextInfo(offset: Int?)
     case conformingMethodList(offset: Int?)
@@ -260,7 +269,11 @@ public extension ExpectedIssue {
           offset: try container.decodeIfPresent(Int.self, forKey: .offset)
         )
       case .codeComplete:
-        self = .codeComplete(
+        self = .codeCompleteOpen(
+          offset: try container.decodeIfPresent(Int.self, forKey: .offset)
+        )
+      case .codeCompleteClose:
+        self = .codeCompleteClose(
           offset: try container.decodeIfPresent(Int.self, forKey: .offset)
         )
       case .rangeInfo:
@@ -314,8 +327,11 @@ public extension ExpectedIssue {
       case .format(let offset):
         try container.encode(RequestBase.format, forKey: .kind)
         try container.encode(offset, forKey: .offset)
-      case .codeComplete(let offset):
+      case .codeCompleteOpen(let offset):
         try container.encode(RequestBase.codeComplete, forKey: .kind)
+        try container.encode(offset, forKey: .offset)
+      case .codeCompleteClose(let offset):
+        try container.encode(RequestBase.codeCompleteClose, forKey: .kind)
         try container.encode(offset, forKey: .offset)
       case .rangeInfo(let offset, let length):
         try container.encode(RequestBase.rangeInfo, forKey: .kind)
@@ -352,7 +368,7 @@ public extension ExpectedIssue {
 
     private enum RequestBase: String, Codable {
       case editorOpen, editorClose, editorReplaceText
-      case cursorInfo, codeComplete, rangeInfo, semanticRefactoring, typeContextInfo, conformingMethodList, collectExpressionType, format, writeModule, interfaceGen
+      case cursorInfo, codeComplete, codeCompleteClose, rangeInfo, semanticRefactoring, typeContextInfo, conformingMethodList, collectExpressionType, format, writeModule, interfaceGen
       case statistics
       case stressTesterCrash
     }
@@ -369,8 +385,10 @@ public extension ExpectedIssue {
         return request == .cursorInfo
       case .format:
         return request == .format
-      case .codeComplete:
+      case .codeCompleteOpen:
         return request == .codeComplete
+      case .codeCompleteClose:
+        return request == .codeCompleteClose
       case .rangeInfo:
         return request == .rangeInfo
       case .typeContextInfo:

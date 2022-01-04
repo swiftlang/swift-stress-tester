@@ -45,6 +45,9 @@ public struct SwiftCWrapperTool {
     let maxJobsEnv = EnvOption("SK_STRESS_MAX_JOBS", type: Int.self)
     /// Dump sourcekitd's responses to the supplied path
     let dumpResponsesPathEnv = EnvOption("SK_STRESS_DUMP_RESPONSES_PATH", type: String.self)
+    /// Extra arguments to pass to code completion requests in the `key.codecomplete.options` dictionary.
+    /// Key and values are separated by `=`. Multiple options are separated by `,`.
+    let extraCodeCompleteOptionsEnv = EnvOption("SK_EXTRA_CODE_COMPLETE_OPTIONS", type: String.self)
 
     // IssueManager params:
     /// Non-default path to the json file containing expected failures
@@ -70,6 +73,7 @@ public struct SwiftCWrapperTool {
     let conformingMethodTypes = try conformingMethodTypesEnv.get(from: environment)
     let maxJobs = try maxJobsEnv.get(from: environment)
     let dumpResponsesPath = try dumpResponsesPathEnv.get(from: environment)
+    let extraCodeCompleteOptions = try extraCodeCompleteOptionsEnv.get(from: environment)
 
     var issueManager: IssueManager? = nil
     if let expectedFailuresPath = try expectedFailuresPathEnv.get(from: environment),
@@ -91,6 +95,7 @@ public struct SwiftCWrapperTool {
                                 rewriteModes: rewriteModes,
                                 requestKinds: requestKinds,
                                 conformingMethodTypes: conformingMethodTypes,
+                                extraCodeCompleteOptions: extraCodeCompleteOptions?.split(separator: ",").map(String.init) ?? [],
                                 ignoreIssues: ignoreIssues,
                                 issueManager: issueManager,
                                 maxJobs: maxJobs,

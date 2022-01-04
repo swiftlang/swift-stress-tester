@@ -87,7 +87,8 @@ public enum RequestInfo {
   case editorReplaceText(document: DocumentInfo, offset: Int, length: Int, text: String)
   case format(document: DocumentInfo, offset: Int)
   case cursorInfo(document: DocumentInfo, offset: Int, args: [String])
-  case codeComplete(document: DocumentInfo, offset: Int, args: [String])
+  case codeCompleteOpen(document: DocumentInfo, offset: Int, args: [String])
+  case codeCompleteClose(document: DocumentInfo, offset: Int)
   case rangeInfo(document: DocumentInfo, offset: Int, length: Int, args: [String])
   case semanticRefactoring(document: DocumentInfo, offset: Int, kind: String, args: [String])
   case typeContextInfo(document: DocumentInfo, offset: Int, args: [String])
@@ -262,9 +263,10 @@ extension RequestInfo: Codable {
          moduleName
   }
   enum BaseRequest: String, Codable {
-    case editorOpen, editorClose, replaceText, format, cursorInfo, codeComplete,
-      rangeInfo, semanticRefactoring, typeContextInfo, conformingMethodList,
-      collectExpressionType, writeModule, interfaceGen, statistics
+    case editorOpen, editorClose, replaceText, format, cursorInfo, codeCompleteOpen,
+      codeCompleteClose, rangeInfo, semanticRefactoring, typeContextInfo,
+      conformingMethodList, collectExpressionType, writeModule, interfaceGen,
+      statistics
   }
 
   public init(from decoder: Decoder) throws {
@@ -281,11 +283,15 @@ extension RequestInfo: Codable {
       let offset = try container.decode(Int.self, forKey: .offset)
       let args = try container.decode([String].self, forKey: .args)
       self = .cursorInfo(document: document, offset: offset, args: args)
-    case .codeComplete:
+    case .codeCompleteOpen:
       let document = try container.decode(DocumentInfo.self, forKey: .document)
       let offset = try container.decode(Int.self, forKey: .offset)
       let args = try container.decode([String].self, forKey: .args)
-      self = .codeComplete(document: document, offset: offset, args: args)
+      self = .codeCompleteOpen(document: document, offset: offset, args: args)
+    case .codeCompleteClose:
+      let document = try container.decode(DocumentInfo.self, forKey: .document)
+      let offset = try container.decode(Int.self, forKey: .offset)
+      self = .codeCompleteClose(document: document, offset: offset)
     case .rangeInfo:
       let document = try container.decode(DocumentInfo.self, forKey: .document)
       let offset = try container.decode(Int.self, forKey: .offset)
@@ -351,11 +357,15 @@ extension RequestInfo: Codable {
       try container.encode(document, forKey: .document)
       try container.encode(offset, forKey: .offset)
       try container.encode(args, forKey: .args)
-    case .codeComplete(let document, let offset, let args):
-      try container.encode(BaseRequest.codeComplete, forKey: .request)
+    case .codeCompleteOpen(let document, let offset, let args):
+      try container.encode(BaseRequest.codeCompleteOpen, forKey: .request)
       try container.encode(document, forKey: .document)
       try container.encode(offset, forKey: .offset)
       try container.encode(args, forKey: .args)
+    case .codeCompleteClose(let document, let offset):
+      try container.encode(BaseRequest.codeCompleteClose, forKey: .request)
+      try container.encode(document, forKey: .document)
+      try container.encode(offset, forKey: .offset)
     case .rangeInfo(let document, let offset, let length, let args):
       try container.encode(BaseRequest.rangeInfo, forKey: .request)
       try container.encode(document, forKey: .document)
@@ -419,8 +429,10 @@ extension RequestInfo: CustomStringConvertible {
       return "CursorInfo in \(document) at offset \(offset) with args: \(escapeArgs(args))"
     case .rangeInfo(let document, let offset, let length, let args):
       return "RangeInfo in \(document) at offset \(offset) for length \(length) with args: \(escapeArgs(args))"
-    case .codeComplete(let document, let offset, let args):
-      return "CodeComplete in \(document) at offset \(offset) with args: \(escapeArgs(args))"
+    case .codeCompleteOpen(let document, let offset, let args):
+      return "CodeCompleteOpen in \(document) at offset \(offset) with args: \(escapeArgs(args))"
+    case .codeCompleteClose(let document, let offset):
+      return "CodeCompleteClose in \(document) at offset \(offset)"
     case .semanticRefactoring(let document, let offset, let kind, let args):
       return "SemanticRefactoring (\(kind)) in \(document) at offset \(offset) with args: \(escapeArgs(args))"
     case .editorReplaceText(let document, let offset, let length, let text):
@@ -548,7 +560,13 @@ extension SourceKitError: CustomStringConvertible {
       let prefix = String(source.utf8.prefix(upTo: index))!
       let suffix = String(source.utf8.suffix(from: index))!
       return prefix + "<cursor-offset>" + suffix
-    case .codeComplete(let document, let offset, _):
+    case .codeCompleteOpen(let document, let offset, _):
+      guard let source = document.modification?.content else { return nil }
+      let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
+      let prefix = String(source.utf8.prefix(upTo: index))!
+      let suffix = String(source.utf8.suffix(from: index))!
+      return prefix + "<complete-offset>" + suffix
+    case .codeCompleteClose(let document, let offset):
       guard let source = document.modification?.content else { return nil }
       let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
       let prefix = String(source.utf8.prefix(upTo: index))!
@@ -607,6 +625,7 @@ public enum RequestKind: String, CaseIterable, CustomStringConvertible, Codable 
   case cursorInfo = "CursorInfo"
   case rangeInfo = "RangeInfo"
   case codeComplete = "CodeComplete"
+  case codeCompleteClose = "CodeCompleteClose"
   case typeContextInfo = "TypeContextInfo"
   case conformingMethodList = "ConformingMethodList"
   case collectExpressionType = "CollectExpressionType"

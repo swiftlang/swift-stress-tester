@@ -41,11 +41,12 @@ public class StressTester {
     }
   }
 
-  public func run(swiftc: String, compilerArgs: CompilerArgs) -> [Error] {
+  public func run(swiftc: String, compilerArgs: CompilerArgs, extraCodeCompleteOptions: [String:String] = [:]) -> [Error] {
     let document = SourceKitDocument(swiftc: swiftc,
                                      args: compilerArgs,
                                      tempDir: options.tempDir,
                                      connection: connection,
+                                     extraCodeCompleteOptions: extraCodeCompleteOptions,
                                      containsErrors: true)
     defer {
       // Save the request durations in a 'defer' block to make sure we're also
@@ -54,7 +55,7 @@ public class StressTester {
         // We are only keeping track of code completion durations for now.
         // This could easily be expanded to other request types.
         let timings: [Timing] = codeCompletionDurations.compactMap({ (request, instructionCount, reusingASTContext) in
-          guard case .codeComplete(document: let document, offset: let offset, args: _) = request else {
+          guard case .codeCompleteOpen(document: let document, offset: let offset, args: _) = request else {
             return nil
           }
           return Timing(modification: document.modificationSummaryCode, offset: offset, instructions: instructionCount, reusingASTContext: reusingASTContext)
@@ -212,7 +213,7 @@ public class StressTester {
     // TODO: Once we measure instructions for other requests, codeCompletionDurations
     // should be a more generic data structure and we shouldn't need the `if case`
     // anymore.
-    if case .codeComplete = request {
+    if case .codeCompleteOpen = request {
       codeCompletionDurations.append((request, instructions, reusingASTContext))
     }
   }
@@ -227,7 +228,7 @@ public class StressTester {
 
     let (request, response) = result
     switch request {
-    case .codeComplete: fallthrough
+    case .codeCompleteOpen: fallthrough
     case .conformingMethodList: fallthrough
     case .typeContextInfo:
       let results = getCompletionResults(from: response.value.getArray(.key_Results))
