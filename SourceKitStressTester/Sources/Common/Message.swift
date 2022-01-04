@@ -534,6 +534,21 @@ extension SourceKitError: CustomStringConvertible {
     }
   }
 
+  /// Returns the current document's contents, marking the position at UTF-8 offset `offset` by `<markerName>`.
+  private func documentContent(document: DocumentInfo, markingOffset offset: Int, markerName: String) -> String? {
+    guard let source = document.modification?.content else { return nil }
+    let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
+    return "\(source[..<index])<\(markerName)>\(source[index...])"
+  }
+
+  /// Returns the current document's contents, marking the UTF-8 offset range `range` by `<markerName>` and `</markerName>`.
+  private func documentContent(document: DocumentInfo, markingOffsetRange range: Range<Int>, markerName: String) -> String? {
+    guard let source = document.modification?.content else { return nil }
+    let startIndex = source.utf8.index(source.utf8.startIndex, offsetBy: range.lowerBound)
+    let endIndex = source.utf8.index(source.utf8.startIndex, offsetBy: range.upperBound)
+    return "\(source[..<startIndex])<\(markerName)>\(source[startIndex..<endIndex])</\(markerName)>\(source[endIndex...])"
+  }
+
   private func markSourceLocation(of request: RequestInfo) -> String? {
     switch request {
     case .editorOpen(let document):
@@ -541,63 +556,23 @@ extension SourceKitError: CustomStringConvertible {
     case .editorClose(let document):
       return document.modification?.content
     case .editorReplaceText(let document, let offset, let length, _):
-      guard let source = document.modification?.content else { return nil }
-      let startIndex = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
-      let endIndex = source.utf8.index(startIndex, offsetBy: length)
-      let prefix = String(source.utf8.prefix(upTo: startIndex))!
-      let replace = String(source.utf8.dropFirst(offset).prefix(length))!
-      let suffix = String(source.utf8.suffix(from: endIndex))!
-      return prefix + "<replace-start>" + replace + "<replace-end>" + suffix
+      return documentContent(document: document, markingOffsetRange: offset..<(offset + length), markerName: "replace")
     case .format(let document, let offset):
-      guard let source = document.modification?.content else { return nil }
-      let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
-      let prefix = String(source.utf8.prefix(upTo: index))!
-      let suffix = String(source.utf8.suffix(from: index))!
-      return prefix + "<format>" + suffix
+      return documentContent(document: document, markingOffset: offset, markerName: "format")
     case .cursorInfo(let document, let offset, _):
-      guard let source = document.modification?.content else { return nil }
-      let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
-      let prefix = String(source.utf8.prefix(upTo: index))!
-      let suffix = String(source.utf8.suffix(from: index))!
-      return prefix + "<cursor-offset>" + suffix
+      return documentContent(document: document, markingOffset: offset, markerName: "cursor-offset")
     case .codeCompleteOpen(let document, let offset, _):
-      guard let source = document.modification?.content else { return nil }
-      let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
-      let prefix = String(source.utf8.prefix(upTo: index))!
-      let suffix = String(source.utf8.suffix(from: index))!
-      return prefix + "<complete-offset>" + suffix
+      return documentContent(document: document, markingOffset: offset, markerName: "complete-offset")
     case .codeCompleteClose(let document, let offset):
-      guard let source = document.modification?.content else { return nil }
-      let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
-      let prefix = String(source.utf8.prefix(upTo: index))!
-      let suffix = String(source.utf8.suffix(from: index))!
-      return prefix + "<complete-offset>" + suffix
+      return documentContent(document: document, markingOffset: offset, markerName: "complete-offset")
     case .rangeInfo(let document, let offset, let length, _):
-      guard let source = document.modification?.content else { return nil }
-      let startIndex = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
-      let endIndex = source.utf8.index(startIndex, offsetBy: length)
-      let prefix = String(source.utf8.prefix(upTo: startIndex))!
-      let replace = String(source.utf8.dropFirst(offset).prefix(length))!
-      let suffix = String(source.utf8.suffix(from: endIndex))!
-      return prefix + "<range-start>" + replace + "<range-end>" + suffix
+      return documentContent(document: document, markingOffsetRange: offset..<(offset + length), markerName: "range")
     case .semanticRefactoring(let document, let offset, _, _):
-      guard let source = document.modification?.content else { return nil }
-      let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
-      let prefix = String(source.utf8.prefix(upTo: index))!
-      let suffix = String(source.utf8.suffix(from: index))!
-      return prefix + "<refactor-offset>" + suffix
+      return documentContent(document: document, markingOffset: offset, markerName: "refactor-offset")
     case .typeContextInfo(let document, let offset, _):
-      guard let source = document.modification?.content else { return nil }
-      let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
-      let prefix = String(source.utf8.prefix(upTo: index))!
-      let suffix = String(source.utf8.suffix(from: index))!
-      return prefix + "<type-context-info-offset>" + suffix
+      return documentContent(document: document, markingOffset: offset, markerName: "type-context-info-offset")
     case .conformingMethodList(let document, let offset, _, _):
-      guard let source = document.modification?.content else { return nil }
-      let index = source.utf8.index(source.utf8.startIndex, offsetBy: offset)
-      let prefix = String(source.utf8.prefix(upTo: index))!
-      let suffix = String(source.utf8.suffix(from: index))!
-      return prefix + "<conforming-method-list-offset>" + suffix
+      return documentContent(document: document, markingOffset: offset, markerName: "conforming-method-list-offset")
     case .collectExpressionType(let document, _):
       return document.modification?.content
     case .writeModule(let document, _):
