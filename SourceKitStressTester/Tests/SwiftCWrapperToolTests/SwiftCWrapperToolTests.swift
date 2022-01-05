@@ -113,7 +113,7 @@ class SwiftCWrapperToolTests: XCTestCase {
         swiftcArgs: list, swiftcPath: "", stressTesterPath: "",
         astBuildLimit: nil, requestDurationsOutputFile: nil,
         rewriteModes: [], requestKinds: Set(),
-        conformingMethodTypes: nil, ignoreIssues: false, issueManager: nil,
+        conformingMethodTypes: nil, extraCodeCompleteOptions: [], ignoreIssues: false, issueManager: nil,
         maxJobs: nil, dumpResponsesPath: nil, failFast: false,
         suppressOutput: false)
       return wrapper.swiftFiles.map { (file, _) in file }

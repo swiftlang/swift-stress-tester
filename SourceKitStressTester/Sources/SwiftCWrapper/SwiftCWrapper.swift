@@ -19,6 +19,7 @@ import TSCBasic
 public struct SwiftCWrapper {
   let arguments: [String]
   let swiftcPath: String
+  let extraCodeCompleteOptions: [String]
   let stressTesterPath: String
   let astBuildLimit: Int?
   let requestDurationsOutputFile: URL?
@@ -36,7 +37,8 @@ public struct SwiftCWrapper {
               stressTesterPath: String, astBuildLimit: Int?,
               requestDurationsOutputFile: URL?,
               rewriteModes: [RewriteMode], requestKinds: Set<RequestKind>,
-              conformingMethodTypes: [String]?, ignoreIssues: Bool,
+              conformingMethodTypes: [String]?,
+              extraCodeCompleteOptions: [String], ignoreIssues: Bool,
               issueManager: IssueManager?, maxJobs: Int?,
               dumpResponsesPath: String?, failFast: Bool,
               suppressOutput: Bool) {
@@ -44,6 +46,7 @@ public struct SwiftCWrapper {
     self.swiftcPath = swiftcPath
     self.stressTesterPath = stressTesterPath
     self.astBuildLimit = astBuildLimit
+    self.extraCodeCompleteOptions = extraCodeCompleteOptions
     self.ignoreIssues = ignoreIssues
     self.issueManager = issueManager
     self.failFast = failFast
@@ -106,6 +109,7 @@ public struct SwiftCWrapper {
                               compilerArgs: arguments,
                               executable: stressTesterPath,
                               swiftc: swiftcPath,
+                              extraCodeCompleteOptions: extraCodeCompleteOptions,
                               requestDurationsOutputFile: requestDurationsOutputFile)
         }
       }

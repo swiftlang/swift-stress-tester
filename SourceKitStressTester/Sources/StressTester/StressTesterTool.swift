@@ -85,6 +85,13 @@ public struct StressTesterTool: ParsableCommand {
     """)
   public var swiftc: String?
 
+  @Option(help: """
+  Extra code completion options to pass to sourcekitd for each code completion request in the 'key.codecomplete.options' dictionary.
+  'key.codecomplete.' will automatically be prepended to these options.
+  Key and value are separated by '='. E.g. --extra-code-complete-options hidelowpriority=1
+  """)
+  public var extraCodeCompleteOptions: [String] = []
+
   @Argument(help: "A Swift source file to stress test", completion: .file(),
             transform: URL.init(fileURLWithPath:))
   public var file: URL
@@ -169,7 +176,15 @@ public struct StressTesterTool: ParsableCommand {
     // insufficient for SwiftSyntax parsing
     let thread = Thread { [self] in
       do {
-        let errors = tester.run(swiftc: swiftc!, compilerArgs: processedArgs)
+        let extraCodeCompleteOptionsDict = try Dictionary<String, String>(extraCodeCompleteOptions.map({
+          let split = $0.split(separator: "=")
+          if split.count == 2 {
+            return (String(split[0]), String(split[1]))
+          } else {
+            throw ValidationError("Invalid extra code completion option '\($0)'. Must be of the form <key>=<value>")
+          }
+        }), uniquingKeysWith: { old, new in new })
+        let errors = tester.run(swiftc: swiftc!, compilerArgs: processedArgs, extraCodeCompleteOptions: extraCodeCompleteOptionsDict)
 
         if !errors.isEmpty {
           var hasOnlySoftErrors = true

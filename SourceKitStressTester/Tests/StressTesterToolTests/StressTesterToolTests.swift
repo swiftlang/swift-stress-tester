@@ -125,7 +125,7 @@ class StressTesterToolTests: XCTestCase {
     XCTAssert(errors.isEmpty, "no sourcekitd crashes in test program")
     XCTAssertFalse(responses.isEmpty, "produces responses")
     XCTAssertTrue(responses.allSatisfy { response in
-      if case .codeComplete = response.request { return true }
+      if case .codeCompleteOpen = response.request { return true }
       return false
     }, "request filter is respected")
     XCTAssertFalse(responses.allSatisfy { $0.results.isEmpty }, "responses have results")

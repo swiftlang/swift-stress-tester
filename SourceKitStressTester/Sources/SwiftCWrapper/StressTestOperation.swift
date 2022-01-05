@@ -66,7 +66,8 @@ final class StressTestOperation: Operation {
   init(file: String, rewriteMode: RewriteMode, requests: Set<RequestKind>,
        conformingMethodTypes: [String]?, limit: Int?, part: (Int, of: Int),
        reportResponses: Bool, compilerArgs: [String], executable: String,
-       swiftc: String, requestDurationsOutputFile: URL?) {
+       swiftc: String, extraCodeCompleteOptions: [String],
+       requestDurationsOutputFile: URL?) {
     var stressTesterArgs = ["--format", "json", "--page", "\(part.0)/\(part.of)", "--rewrite-mode", rewriteMode.rawValue]
     if let limit = limit {
       stressTesterArgs += ["--limit", String(limit)]
@@ -81,6 +82,7 @@ final class StressTestOperation: Operation {
     if reportResponses {
       stressTesterArgs += ["--report-responses"]
     }
+    stressTesterArgs += extraCodeCompleteOptions.flatMap { ["--extra-code-complete-options", $0] }
     stressTesterArgs += ["--swiftc", swiftc]
     stressTesterArgs.append(file)
     stressTesterArgs.append("--")
