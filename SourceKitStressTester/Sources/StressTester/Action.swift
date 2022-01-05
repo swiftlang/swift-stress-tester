@@ -153,7 +153,7 @@ public struct SwiftName: Codable, Hashable {
 
   public init?(_ name: String) {
     if let argStart = name.firstIndex(of: "(") {
-      guard let argEnd = name.firstIndex(of: ")") else { return nil }
+      let argEnd = name.firstIndex(of: ")") ?? name.endIndex
       base = String(name[..<argStart])
       argLabels = name[name.index(after: argStart)..<argEnd]
         .split(separator: ":", omittingEmptySubsequences: false)
