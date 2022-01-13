@@ -232,60 +232,71 @@ class SourceKitDocument {
     return 0
   }
 
-  func codeComplete(offset: Int, expectedResult: ExpectedResult?) throws -> (request: RequestInfo, response: SourceKitdResponse, instructions: Int, reusingASTContext: Bool) {
+  /// Build the codecomplete.open or codecomplete.close request.
+  /// The two requests share the exact same options except for the request name.
+  private func buildCompletionRequest(request: SourceKitdUID, offset: Int, extraOptions: [String: String]) -> SourceKitdRequest {
     let location = converter!.location(for: AbsolutePosition(utf8Offset: offset))
 
-    /// Build the codecomplete.open or codecomplete.close request.
-    /// The two requests share the exact same options except for the request name.
-    func buildCompletionRequest(request: SourceKitdUID) -> SourceKitdRequest {
-      let request = SourceKitdRequest(uid: request)
-      request.addParameter(.key_SourceFile, value: args.forFile.path)
-      request.addParameter(.key_Name, value: args.forFile.path)
-      if let sourceState = sourceState {
-        request.addParameter(.key_SourceText, value: sourceState.source)
-      }
-      request.addParameter(.key_Offset, value: offset)
-      request.addParameter(.key_Line, value: location.line!)
-      request.addParameter(.key_Column, value: location.column!)
-      request.addCompilerArgs(args.sourcekitdArgs)
-
-      let completionOptions = request.addDictionaryParameter(.key_CodeCompleteOptions)
-      // Don't hide any results because otherwise checking if the expected result is contained will fail
-      completionOptions.add(.key_HideLowPriority, value: 0)
-      completionOptions.add(.key_HideByName, value: 0)
-      completionOptions.add(.key_HideUnderscores, value: 0)
-
-      // Set expected results to 200 to avoid inflating the time measurements by serialization time.
-      // To make sure that the expected result is in the results, filter by its base name.
-      completionOptions.add(.key_RequestLimit, value: 200)
-      if let expectedResult = expectedResult {
-        completionOptions.add(.key_FilterText, value: expectedResult.name.base)
-      }
-      
-      for (option, value) in extraCodeCompleteOptions {
-        if let intValue = Int(value) {
-          completionOptions.add(SourceKitdUID(string: "key.codecomplete.\(option)"), value: intValue)
-        } else {
-          completionOptions.add(SourceKitdUID(string: "key.codecomplete.\(option)"), value: value)
-        }
-      }
-      return request
+    let request = SourceKitdRequest(uid: request)
+    request.addParameter(.key_SourceFile, value: args.forFile.path)
+    request.addParameter(.key_Name, value: args.forFile.path)
+    if let sourceState = sourceState {
+      request.addParameter(.key_SourceText, value: sourceState.source)
     }
+    request.addParameter(.key_Offset, value: offset)
+    request.addParameter(.key_Line, value: location.line!)
+    request.addParameter(.key_Column, value: location.column!)
+    request.addCompilerArgs(args.sourcekitdArgs)
 
-    let request = buildCompletionRequest(request: .request_CodeCompleteOpen)
-    let info = RequestInfo.codeCompleteOpen(document: documentInfo, offset: offset,
-                                        args: args.sourcekitdArgs)
-    let (response, instructions) = try sendWithTimeoutMeasuringInstructions(request, info: info) { response in
-      if let expectedResult = expectedResult {
-        try checkExpectedCompletionResult(expectedResult, in: response, info: info)
+    let completionOptions = request.addDictionaryParameter(.key_CodeCompleteOptions)
+    // Don't hide any results because otherwise checking if the expected result is contained will fail
+    completionOptions.add(.key_HideLowPriority, value: 0)
+    completionOptions.add(.key_HideByName, value: 0)
+    completionOptions.add(.key_HideUnderscores, value: 0)
+
+    // Set expected results to 200 to avoid inflating the time measurements by serialization time.
+    // To make sure that the expected result is in the results, filter by its base name.
+    completionOptions.add(.key_RequestLimit, value: 200)
+
+    for (option, value) in extraOptions {
+      if let intValue = Int(value) {
+        completionOptions.add(SourceKitdUID(string: "key.codecomplete.\(option)"), value: intValue)
+      } else {
+        completionOptions.add(SourceKitdUID(string: "key.codecomplete.\(option)"), value: value)
       }
     }
-    let reusingASTContext = response.value.getBool(.key_ReusingASTContext)
+    return request
+  }
 
-    let closeSession = buildCompletionRequest(request: .request_CodeCompleteClose)
-    _ = try sendWithTimeout(closeSession, info: RequestInfo.codeCompleteClose(document: documentInfo, offset: offset))
+  func codeComplete(offset: Int, expectedResult: ExpectedResult?) throws -> (request: RequestInfo, response: SourceKitdResponse, instructions: Int, reusingASTContext: Bool) {
+    var responseToReport: SourceKitdResponse
+    let openRequest = buildCompletionRequest(request: .request_CodeCompleteOpen, offset: offset, extraOptions: extraCodeCompleteOptions)
+    let openInfo = RequestInfo.codeCompleteOpen(document: documentInfo, offset: offset,
+                                                args: args.sourcekitdArgs)
+    let (openResponse, openInstructions) = try sendWithTimeoutMeasuringInstructions(openRequest, info: openInfo)
 
-    return (info, response, instructions, reusingASTContext)
+    let reusingASTContext = openResponse.value.getBool(.key_ReusingASTContext)
+
+    if let expectedResult = expectedResult {
+      var updateOptions = extraCodeCompleteOptions
+
+      updateOptions["filtertext"] = expectedResult.name.base
+
+      let updateRequest = buildCompletionRequest(request: .request_CodeCompleteUpdate, offset: offset, extraOptions: updateOptions)
+      let updateInfo = RequestInfo.codeCompleteOpen(document: documentInfo, offset: offset, args: args.sourcekitdArgs)
+      let updateResponse = try sendWithTimeout(updateRequest, info: updateInfo) { response in
+        try checkExpectedCompletionResult(expectedResult, in: response, info: openInfo)
+      }
+      responseToReport = updateResponse
+    } else {
+      responseToReport = openResponse
+    }
+
+    let closeRequest = buildCompletionRequest(request: .request_CodeCompleteClose, offset: offset, extraOptions: extraCodeCompleteOptions)
+    let closeInfo = RequestInfo.codeCompleteClose(document: documentInfo, offset: offset)
+    _ = try sendWithTimeout(closeRequest, info: closeInfo)
+
+    return (openInfo, responseToReport, openInstructions, reusingASTContext)
   }
 
   func typeContextInfo(offset: Int) throws -> (RequestInfo, SourceKitdResponse) {
