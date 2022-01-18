@@ -1,4 +1,4 @@
-// swift-tools-version:5.1
+// swift-tools-version:5.3
 
 import PackageDescription
 #if os(Linux)
@@ -33,6 +33,9 @@ let package = Package(
     .target(
       name: "SwiftSourceKit",
       dependencies: [],
+      exclude: [
+        "UIDs.swift.gyb"
+      ],
       swiftSettings: [.unsafeFlags(["-Fsystem", sourcekitSearchPath])],
       linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", sourcekitSearchPath,
                                      "-Xlinker", "-F", "-Xlinker", sourcekitSearchPath])]
@@ -42,13 +45,23 @@ let package = Package(
     ),
     .target(
       name: "StressTester",
-      dependencies: ["Common", "ArgumentParser", "SwiftSyntax", "SwiftSyntaxParser", "SwiftSourceKit", "SwiftToolsSupport-auto"],
+      dependencies: [
+        "Common",
+        .product(name: "ArgumentParser", package: "swift-argument-parser"),
+        .product(name: "SwiftSyntax", package: "swift-syntax"),
+        .product(name: "SwiftSyntaxParser", package: "swift-syntax"),
+        "SwiftSourceKit",
+        .product(name: "SwiftToolsSupport-auto", package: "swift-tools-support-core")
+      ],
       swiftSettings: [.unsafeFlags(["-Fsystem", sourcekitSearchPath])],
       linkerSettings: [.unsafeFlags(["-Xlinker", "-F", "-Xlinker", sourcekitSearchPath])]
     ),
     .target(
       name: "SwiftCWrapper",
-      dependencies: ["Common", "SwiftToolsSupport-auto"]
+      dependencies: [
+        "Common",
+        .product(name: "SwiftToolsSupport-auto", package: "swift-tools-support-core")
+      ]
     ),
 
     .target(
