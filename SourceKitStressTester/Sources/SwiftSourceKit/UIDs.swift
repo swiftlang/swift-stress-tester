@@ -1,8 +1,10 @@
+//// Automatically Generated From UIDs.swift.gyb.
+//// Do Not Edit Directly! To regenerate run Utilities/generate-uids.py
 //===--------------- UIDs.swift - Sourcekitd UIDs in Swift ----------------===//
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2014 - 2020 Apple Inc. and the Swift project authors
+// Copyright (c) 2014 - 2022 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -11,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 extension SourceKitdUID {
+  // MARK: Keys
   public static let key_VersionMajor = SourceKitdUID(string: "key.version_major")
   public static let key_VersionMinor = SourceKitdUID(string: "key.version_minor")
   public static let key_VersionPatch = SourceKitdUID(string: "key.version_patch")
@@ -32,6 +35,7 @@ extension SourceKitdUID {
   public static let key_Line = SourceKitdUID(string: "key.line")
   public static let key_Column = SourceKitdUID(string: "key.column")
   public static let key_ReceiverUSR = SourceKitdUID(string: "key.receiver_usr")
+  public static let key_Receivers = SourceKitdUID(string: "key.receivers")
   public static let key_IsDynamic = SourceKitdUID(string: "key.is_dynamic")
   public static let key_IsImplicit = SourceKitdUID(string: "key.is_implicit")
   public static let key_FilePath = SourceKitdUID(string: "key.filepath")
@@ -46,8 +50,8 @@ extension SourceKitdUID {
   public static let key_SourceText = SourceKitdUID(string: "key.sourcetext")
   public static let key_EnableSyntaxMap = SourceKitdUID(string: "key.enablesyntaxmap")
   public static let key_SyntaxTreeTransferMode = SourceKitdUID(string: "key.syntaxtreetransfermode")
-  public static let key_SyntaxTreeSerializationFormat = SourceKitdUID(string: "key.syntax_tree_serialization_format")
   public static let key_EnableStructure = SourceKitdUID(string: "key.enablesubstructure")
+  public static let key_ID = SourceKitdUID(string: "key.id")
   public static let key_Description = SourceKitdUID(string: "key.description")
   public static let key_TypeName = SourceKitdUID(string: "key.typename")
   public static let key_RuntimeName = SourceKitdUID(string: "key.runtime_name")
@@ -57,6 +61,7 @@ extension SourceKitdUID {
   public static let key_FullyAnnotatedGenericSignature = SourceKitdUID(string: "key.fully_annotated_generic_signature")
   public static let key_DocBrief = SourceKitdUID(string: "key.doc.brief")
   public static let key_Context = SourceKitdUID(string: "key.context")
+  public static let key_TypeRelation = SourceKitdUID(string: "key.typerelation")
   public static let key_ModuleImportDepth = SourceKitdUID(string: "key.moduleimportdepth")
   public static let key_NumBytesToErase = SourceKitdUID(string: "key.num_bytes_to_erase")
   public static let key_NotRecommended = SourceKitdUID(string: "key.not_recommended")
@@ -74,8 +79,6 @@ extension SourceKitdUID {
   public static let key_NameLength = SourceKitdUID(string: "key.namelength")
   public static let key_BodyOffset = SourceKitdUID(string: "key.bodyoffset")
   public static let key_BodyLength = SourceKitdUID(string: "key.bodylength")
-  public static let key_ThrowOffset = SourceKitdUID(string: "key.throwoffset")
-  public static let key_ThrowLength = SourceKitdUID(string: "key.throwlength")
   public static let key_DocOffset = SourceKitdUID(string: "key.docoffset")
   public static let key_DocLength = SourceKitdUID(string: "key.doclength")
   public static let key_IsLocal = SourceKitdUID(string: "key.is_local")
@@ -87,18 +90,12 @@ extension SourceKitdUID {
   public static let key_Ranges = SourceKitdUID(string: "key.ranges")
   public static let key_Fixits = SourceKitdUID(string: "key.fixits")
   public static let key_Diagnostics = SourceKitdUID(string: "key.diagnostics")
+  public static let key_EducationalNotePaths = SourceKitdUID(string: "key.educational_note_paths")
   public static let key_FormatOptions = SourceKitdUID(string: "key.editor.format.options")
-  public static let key_IndentSwitchCase = SourceKitdUID(string: "key.editor.format.indent_switch_case")
-  public static let key_IndentWidth = SourceKitdUID(string: "key.editor.format.indentwidth")
-  public static let key_TabWidth = SourceKitdUID(string: "key.editor.format.tabwidth")
-  public static let key_UseTabs = SourceKitdUID(string: "key.editor.format.usetabs")
   public static let key_CodeCompleteOptions = SourceKitdUID(string: "key.codecomplete.options")
+  public static let key_TypeContextInfoOptions = SourceKitdUID(string: "key.typecontextinfo.options")
+  public static let key_ConformingMethodListOptions = SourceKitdUID(string: "key.conformingmethods.options")
   public static let key_FilterRules = SourceKitdUID(string: "key.codecomplete.filterrules")
-  public static let key_HideLowPriority = SourceKitdUID(string: "key.codecomplete.hidelowpriority")
-  public static let key_HideByName = SourceKitdUID(string: "key.codecomplete.hidebyname")
-  public static let key_HideUnderscores = SourceKitdUID(string: "key.codecomplete.hideunderscores")
-  public static let key_RequestLimit = SourceKitdUID(string: "key.codecomplete.requestlimit")
-  public static let key_FilterText = SourceKitdUID(string: "key.codecomplete.filtertext")
   public static let key_NextRequestStart = SourceKitdUID(string: "key.nextrequeststart")
   public static let key_Popular = SourceKitdUID(string: "key.popular")
   public static let key_Unpopular = SourceKitdUID(string: "key.unpopular")
@@ -107,12 +104,12 @@ extension SourceKitdUID {
   public static let key_IsDeprecated = SourceKitdUID(string: "key.is_deprecated")
   public static let key_IsUnavailable = SourceKitdUID(string: "key.is_unavailable")
   public static let key_IsOptional = SourceKitdUID(string: "key.is_optional")
+  public static let key_IsAsync = SourceKitdUID(string: "key.is_async")
   public static let key_Message = SourceKitdUID(string: "key.message")
   public static let key_Introduced = SourceKitdUID(string: "key.introduced")
   public static let key_Deprecated = SourceKitdUID(string: "key.deprecated")
   public static let key_Obsoleted = SourceKitdUID(string: "key.obsoleted")
   public static let key_RemoveCache = SourceKitdUID(string: "key.removecache")
-  public static let key_TypeInterface = SourceKitdUID(string: "key.typeinterface")
   public static let key_TypeUsr = SourceKitdUID(string: "key.typeusr")
   public static let key_ContainerTypeUsr = SourceKitdUID(string: "key.containertypeusr")
   public static let key_ModuleGroups = SourceKitdUID(string: "key.modulegroups")
@@ -154,10 +151,16 @@ extension SourceKitdUID {
   public static let key_ArgIndex = SourceKitdUID(string: "key.argindex")
   public static let key_Text = SourceKitdUID(string: "key.text")
   public static let key_Category = SourceKitdUID(string: "key.category")
+  public static let key_Categories = SourceKitdUID(string: "key.categories")
   public static let key_IsFunctionLike = SourceKitdUID(string: "key.is_function_like")
   public static let key_IsNonProtocolType = SourceKitdUID(string: "key.is_non_protocol_type")
   public static let key_RefactorActions = SourceKitdUID(string: "key.refactor_actions")
   public static let key_RetrieveRefactorActions = SourceKitdUID(string: "key.retrieve_refactor_actions")
+  public static let key_SymbolGraph = SourceKitdUID(string: "key.symbol_graph")
+  public static let key_RetrieveSymbolGraph = SourceKitdUID(string: "key.retrieve_symbol_graph")
+  public static let key_ParentContexts = SourceKitdUID(string: "key.parent_contexts")
+  public static let key_ReferencedSymbols = SourceKitdUID(string: "key.referenced_symbols")
+  public static let key_IsSPI = SourceKitdUID(string: "key.is_spi")
   public static let key_ActionUID = SourceKitdUID(string: "key.actionuid")
   public static let key_ActionUnavailableReason = SourceKitdUID(string: "key.actionunavailablereason")
   public static let key_CompileID = SourceKitdUID(string: "key.compileid")
@@ -170,9 +173,30 @@ extension SourceKitdUID {
   public static let key_ExpressionOffset = SourceKitdUID(string: "key.expression_offset")
   public static let key_ExpressionLength = SourceKitdUID(string: "key.expression_length")
   public static let key_ExpressionType = SourceKitdUID(string: "key.expression_type")
-  public static let key_RetrieveSymbolGraph = SourceKitdUID(string: "key.retrieve_symbol_graph")
+  public static let key_VariableTypeList = SourceKitdUID(string: "key.variable_type_list")
+  public static let key_VariableOffset = SourceKitdUID(string: "key.variable_offset")
+  public static let key_VariableLength = SourceKitdUID(string: "key.variable_length")
+  public static let key_VariableType = SourceKitdUID(string: "key.variable_type")
+  public static let key_VariableTypeExplicit = SourceKitdUID(string: "key.variable_type_explicit")
+  public static let key_CanonicalizeType = SourceKitdUID(string: "key.canonicalize_type")
+  public static let key_InternalDiagnostic = SourceKitdUID(string: "key.internal_diagnostic")
+  public static let key_VFSName = SourceKitdUID(string: "key.vfs.name")
+  public static let key_VFSOptions = SourceKitdUID(string: "key.vfs.options")
+  public static let key_Files = SourceKitdUID(string: "key.files")
+  public static let key_OptimizeForIDE = SourceKitdUID(string: "key.optimize_for_ide")
+  public static let key_RequiredBystanders = SourceKitdUID(string: "key.required_bystanders")
   public static let key_ReusingASTContext = SourceKitdUID(string: "key.reusingastcontext")
+  public static let key_CompletionMaxASTContextReuseCount = SourceKitdUID(string: "key.completion_max_astcontext_reuse_count")
+  public static let key_CompletionCheckDependencyInterval = SourceKitdUID(string: "key.completion_check_dependency_interval")
+  public static let key_AnnotatedTypename = SourceKitdUID(string: "key.annotated.typename")
+  public static let key_CompileOperation = SourceKitdUID(string: "key.compile_operation")
+  public static let key_EffectiveAccess = SourceKitdUID(string: "key.effective_access")
+  public static let key_DeclarationLang = SourceKitdUID(string: "key.decl_lang")
+  public static let key_SecondarySymbols = SourceKitdUID(string: "key.secondary_symbols")
+  public static let key_SimulateLongRequest = SourceKitdUID(string: "key.simulate_long_request")
+  public static let key_IsSynthesized = SourceKitdUID(string: "key.is_synthesized")
 
+  // MARK: Requests
   public static let request_ProtocolVersion = SourceKitdUID(string: "source.request.protocol_version")
   public static let request_CompilerVersion = SourceKitdUID(string: "source.request.compiler_version")
   public static let request_CrashWithExit = SourceKitdUID(string: "source.request.crash_exit")
@@ -216,7 +240,14 @@ extension SourceKitdUID {
   public static let request_EnableCompileNotifications = SourceKitdUID(string: "source.request.enable-compile-notifications")
   public static let request_TestNotification = SourceKitdUID(string: "source.request.test_notification")
   public static let request_CollectExpressionType = SourceKitdUID(string: "source.request.expression.type")
+  public static let request_CollectVariableType = SourceKitdUID(string: "source.request.variable.type")
+  public static let request_GlobalConfiguration = SourceKitdUID(string: "source.request.configuration.global")
+  public static let request_DependencyUpdated = SourceKitdUID(string: "source.request.dependency_updated")
+  public static let request_Diagnostics = SourceKitdUID(string: "source.request.diagnostics")
+  public static let request_Compile = SourceKitdUID(string: "source.request.compile")
+  public static let request_CompileClose = SourceKitdUID(string: "source.request.compile.close")
 
+  // MARK: Kinds
   public static let kind_DeclFunctionFree = SourceKitdUID(string: "source.lang.swift.decl.function.free")
   public static let kind_RefFunctionFree = SourceKitdUID(string: "source.lang.swift.ref.function.free")
   public static let kind_DeclMethodInstance = SourceKitdUID(string: "source.lang.swift.decl.function.method.instance")
@@ -285,6 +316,8 @@ extension SourceKitdUID {
   public static let kind_DeclExtensionProtocol = SourceKitdUID(string: "source.lang.swift.decl.extension.protocol")
   public static let kind_DeclAssociatedType = SourceKitdUID(string: "source.lang.swift.decl.associatedtype")
   public static let kind_RefAssociatedType = SourceKitdUID(string: "source.lang.swift.ref.associatedtype")
+  public static let kind_DeclOpaqueType = SourceKitdUID(string: "source.lang.swift.decl.opaquetype")
+  public static let kind_RefOpaqueType = SourceKitdUID(string: "source.lang.swift.ref.opaquetype")
   public static let kind_DeclTypeAlias = SourceKitdUID(string: "source.lang.swift.decl.typealias")
   public static let kind_RefTypeAlias = SourceKitdUID(string: "source.lang.swift.ref.typealias")
   public static let kind_DeclGenericTypeParam = SourceKitdUID(string: "source.lang.swift.decl.generic_type_param")
@@ -345,6 +378,8 @@ extension SourceKitdUID {
   public static let kind_DiagNote = SourceKitdUID(string: "source.diagnostic.severity.note")
   public static let kind_DiagWarning = SourceKitdUID(string: "source.diagnostic.severity.warning")
   public static let kind_DiagError = SourceKitdUID(string: "source.diagnostic.severity.error")
+  public static let kind_DiagDeprecation = SourceKitdUID(string: "source.diagnostic.category.deprecation")
+  public static let kind_DiagNoUsage = SourceKitdUID(string: "source.diagnostic.category.no_usage")
   public static let kind_CodeCompletionEverything = SourceKitdUID(string: "source.codecompletion.everything")
   public static let kind_CodeCompletionModule = SourceKitdUID(string: "source.codecompletion.module")
   public static let kind_CodeCompletionKeyword = SourceKitdUID(string: "source.codecompletion.keyword")
@@ -376,15 +411,48 @@ extension SourceKitdUID {
   public static let kind_StatNumSemaRequests = SourceKitdUID(string: "source.statistic.num-semantic-requests")
   public static let kind_StatInstructionCount = SourceKitdUID(string: "source.statistic.instruction-count")
   public static let kind_SyntaxTreeOff = SourceKitdUID(string: "source.syntaxtree.transfer.off")
-  public static let kind_SyntaxTreeIncremental = SourceKitdUID(string: "source.syntaxtree.transfer.incremental")
   public static let kind_SyntaxTreeFull = SourceKitdUID(string: "source.syntaxtree.transfer.full")
-  public static let kind_SyntaxTreeSerializationJSON = SourceKitdUID(string: "source.syntaxtree.serialization.format.json")
-  public static let kind_SyntaxTreeSerializationByteTree = SourceKitdUID(string: "source.syntaxtree.serialization.format.bytetree")
+  public static let kind_Swift = SourceKitdUID(string: "source.lang.swift")
+  public static let kind_ObjC = SourceKitdUID(string: "source.lang.objc")
 
+  // MARK: Notifications
   public static let compilerCrashedNotification = SourceKitdUID(string: "notification.toolchain-compiler-crashed")
   public static let semaDisabledNotification = SourceKitdUID(string:
       "source.notification.sema_disabled")
   public static let semaEnabledNotification = SourceKitdUID(string:
       "source.notification.sema_enabled")
   public static let source_notification_editor_documentupdate = SourceKitdUID(string: "source.notification.editor.documentupdate")
+
+  // MARK: Code completion options
+  // TODO: Automatically generate these. Current manually maintained from translateCodeCompletionOptions in SwiftCompletion.cpp
+  public static let key_SortByName = SourceKitdUID(string: "key.codecomplete.sort.byname");
+  public static let key_UseImportDepth = SourceKitdUID(string: "key.codecomplete.sort.useimportdepth");
+  public static let key_GroupOverloads = SourceKitdUID(string: "key.codecomplete.group.overloads");
+  public static let key_GroupStems = SourceKitdUID(string: "key.codecomplete.group.stems");
+  public static let key_FilterText = SourceKitdUID(string: "key.codecomplete.filtertext");
+  public static let key_RequestLimit = SourceKitdUID(string: "key.codecomplete.requestlimit");
+  public static let key_RequestStart = SourceKitdUID(string: "key.codecomplete.requeststart");
+  public static let key_HideUnderscores = SourceKitdUID(string: "key.codecomplete.hideunderscores");
+  public static let key_HideLowPriority = SourceKitdUID(string: "key.codecomplete.hidelowpriority");
+  public static let key_HideByName = SourceKitdUID(string: "key.codecomplete.hidebyname");
+  public static let key_IncludeExactMatch = SourceKitdUID(string: "key.codecomplete.includeexactmatch");
+  public static let key_AddInnerResults = SourceKitdUID(string: "key.codecomplete.addinnerresults");
+  public static let key_AddInnerOperators = SourceKitdUID(string: "key.codecomplete.addinneroperators");
+  public static let key_AddInitsToTopLevel = SourceKitdUID(string: "key.codecomplete.addinitstotoplevel");
+  public static let key_CallPatternHeuristics = SourceKitdUID(string: "key.codecomplete.callpatternheuristics");
+  public static let key_FuzzyMatching = SourceKitdUID(string: "key.codecomplete.fuzzymatching");
+  public static let key_TopNonLiteral = SourceKitdUID(string: "key.codecomplete.showtopnonliteralresults");
+  public static let key_ContextWeight = SourceKitdUID(string: "key.codecomplete.sort.contextweight");
+  public static let key_FuzzyWeight = SourceKitdUID(string: "key.codecomplete.sort.fuzzyweight");
+  public static let key_PopularityBonus = SourceKitdUID(string: "key.codecomplete.sort.popularitybonus");
+  public static let key_AnnotatedDescription = SourceKitdUID(string: "key.codecomplete.annotateddescription");
+  public static let key_IncludeObjectLiterals = SourceKitdUID(string: "key.codecomplete.includeobjectliterals");
+
+  // MARK: Format options
+  // TODO: Automatically generate these. Current manually maintained from applyFormatOptions in SwiftEditor.cpp
+  public static let key_UseTabs = SourceKitdUID(string: "key.editor.format.usetabs");
+  public static let key_IndentWidth = SourceKitdUID(string: "key.editor.format.indentwidth");
+  public static let key_TabWidth = SourceKitdUID(string: "key.editor.format.tabwidth");
+  public static let key_IndentSwitchCase = SourceKitdUID(string: "key.editor.format.indent_switch_case");
+
 }
