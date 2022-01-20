@@ -1,16 +1,41 @@
 // swift-tools-version:5.3
 
 import PackageDescription
-#if os(Linux)
-import Glibc
-#else
-import Darwin.C
-#endif
+import Foundation
 
-func readEnv(_ name: String) -> String? {
-  if let pointer = getenv(name) {
-    return String(cString: pointer)
-  } else {
+/// Return the value of the configuration parameter with the given `name` either
+/// from the environment variables or, if that doesn't exist, from a
+/// `Package-config.json` file located next to `Package.swift`, like the following:
+/// ```
+/// {
+///   "SWIFT_STRESS_TESTER_SOURCEKIT_SEARCHPATH": "/path/to/lib/with/sourcekitd.framework",
+///   "SWIFT_STRESS_TESTER_SWIFTSYNTAX_SEARCHPATH": "/path/to/folder/with/SwiftSyntax.framework"
+/// }
+/// ```
+/// If none of these exist, return `nil`.
+func getConfigParam(_ name: String) -> String? {
+  if let envValue = ProcessInfo.processInfo.environment[name] {
+    return envValue
+  }
+
+  let configFile = URL(fileURLWithPath: #filePath)
+    .deletingLastPathComponent()
+    .appendingPathComponent("Package-config.json")
+
+  let configData: Data
+  do {
+    configData = try Data(contentsOf: configFile)
+  } catch {
+    // Config file not found. That's fine. Return `nil` without complaining.
+    return nil
+  }
+  do {
+    let config = try JSONDecoder().decode([String: String].self, from: configData)
+    return config[name]
+  } catch {
+    // We couldn't parse the Package-config.json, probably malformatted JSON.
+    // Print the error, which shows up as a warning in Xcode.
+    print("Loading Package-config.json failed with error: \(error)")
     return nil
   }
 }
@@ -24,15 +49,15 @@ func readEnv(_ name: String) -> String? {
 /// `SWIFT_STRESS_TESTER_SOURCEKIT_SEARCHPATH` enviornment variable in the
 /// unified build.
 /// The environment variable is only specified once we build the stress tester.
-let sourceKitSearchPath: String? = readEnv("SWIFT_STRESS_TESTER_SOURCEKIT_SEARCHPATH")
+let sourceKitSearchPath: String? = getConfigParam("SWIFT_STRESS_TESTER_SOURCEKIT_SEARCHPATH")
 
 /// Path to a directory containing SwiftSyntax.framework and SwiftSyntaxParser.framework.
 /// Optional. If not specified, SwiftSyntax will be built from source.
-let swiftSyntaxSearchPath: String? = readEnv("SWIFT_STRESS_TESTER_SWIFTSYNTAX_SEARCHPATH")
+let swiftSyntaxSearchPath: String? = getConfigParam("SWIFT_STRESS_TESTER_SWIFTSYNTAX_SEARCHPATH")
 
 /// If specified expect swift-tools-support-core, swift-argument-parser and swift-syntax
 /// to be checked out next to swift-stresss-tester.
-let useLocalDependencies = readEnv("SWIFTCI_USE_LOCAL_DEPS") != nil
+let useLocalDependencies = getConfigParam("SWIFTCI_USE_LOCAL_DEPS") != nil
 
 // MARK: - Conditional build settings
 
