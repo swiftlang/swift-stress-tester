@@ -76,6 +76,7 @@ def run(args):
   if not args.no_local_deps:
     env['SWIFTCI_USE_LOCAL_DEPS'] = "1"
   env['SWIFT_STRESS_TESTER_SOURCEKIT_SEARCHPATH'] = args.sourcekitd_dir
+  env['SWIFT_SYNTAX_PARSER_LIB_SEARCH_PATH'] = os.path.join(args.toolchain, 'lib', 'swift', 'macosx')
 
   if args.update:
     print("** Updating dependencies of %s **" % package_name)
@@ -137,7 +138,6 @@ def run(args):
       install_dir=args.prefix,
       sourcekit_searchpath=args.sourcekitd_dir,
       build_dir=output_dir,
-      rpaths_to_delete=[stdlib_dir],
       verbose=args.verbose)
 
 
@@ -201,7 +201,7 @@ def invoke_swift_single_product(package_dir, swift_exec, action, product, build_
   check_call(args, env=env, verbose=verbose)
 
 
-def install_package(package_dir, install_dir, sourcekit_searchpath, build_dir, rpaths_to_delete, verbose):
+def install_package(package_dir, install_dir, sourcekit_searchpath, build_dir, verbose):
   bin_dir = os.path.join(install_dir, 'bin')
   lib_dir = os.path.join(install_dir, 'lib', 'swift', 'macosx')
 
@@ -215,7 +215,7 @@ def install_package(package_dir, install_dir, sourcekit_searchpath, build_dir, r
     dest = os.path.join(bin_dir, product)
 
     # Create a copy of the list since we modify it
-    rpaths_to_delete_for_this_product = list(rpaths_to_delete)
+    rpaths_to_delete_for_this_product = []
     # Add the rpath to the stdlib in in the toolchain
     rpaths_to_add = ['@executable_path/../lib/swift/macosx']
 
