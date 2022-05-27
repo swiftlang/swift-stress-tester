@@ -190,7 +190,7 @@ def invoke_swift_single_product(package_dir, swift_exec, action, product, build_
     args.extend(['--multiroot-data-file', multiroot_data_file])
 
   if action == 'test':
-    args.extend(['--test-product', product])
+    args.extend(['--test-product', product, '--disable-testable-imports'])
   else:
     args.extend(['--product', product])
 
