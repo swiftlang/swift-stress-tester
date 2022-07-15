@@ -310,7 +310,13 @@ extension SynthesizeMemberwiseInitializerEvolution {
         }
         return Syntax(expr)
       }
-      
+
+      let signature = SyntaxFactory.makeFunctionSignature(
+        input: parameters,
+        asyncOrReasyncKeyword: nil,
+        throwsOrRethrowsKeyword: nil,
+        output: nil)
+
       let newInitializer = SyntaxFactory.makeInitializerDecl(
         attributes: nil,
         modifiers: nil,
@@ -324,8 +330,7 @@ extension SynthesizeMemberwiseInitializerEvolution {
         ),
         optionalMark: nil,
         genericParameterClause: nil,
-        parameters: parameters,
-        throwsOrRethrowsKeyword: nil,
+        signature: signature,
         genericWhereClause: nil,
         body: body
       )
