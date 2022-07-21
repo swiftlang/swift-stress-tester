@@ -43,6 +43,14 @@ public protocol AbstractFunctionDecl: DeclWithParameters {
 
 extension InitializerDeclSyntax: AbstractFunctionDecl {
   public var baseName: String { return "init" }
+
+  public var parameters: ParameterClauseSyntax {
+    return signature.input
+  }
+
+  public func withParameters(_ parameters: ParameterClauseSyntax?) -> InitializerDeclSyntax {
+    return withSignature(signature.withInput(parameters))
+  }
 }
 
 extension FunctionDeclSyntax: AbstractFunctionDecl {
@@ -145,7 +153,7 @@ extension TypeSyntax {
       return self
     }
     if let typealiasDecl = resolved.last as? TypealiasDeclSyntax {
-      return typealiasDecl.initializer!.value
+      return typealiasDecl.initializer.value
         .absolute(in: resolved.removingLast())
     }
     return resolved.typeSyntax
