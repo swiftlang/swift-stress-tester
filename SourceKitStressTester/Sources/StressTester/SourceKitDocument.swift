@@ -253,6 +253,9 @@ class SourceKitDocument {
     completionOptions.add(.key_HideLowPriority, value: 0)
     completionOptions.add(.key_HideByName, value: 0)
     completionOptions.add(.key_HideUnderscores, value: 0)
+    // Disable inner results because they might cause a second completion to occur in SourceKit, slowing down the measurements.
+    completionOptions.add(.key_AddInnerResults, value: 0)
+    completionOptions.add(.key_AddInnerOperators, value: 0)
 
     // Set expected results to 200 to avoid inflating the time measurements by serialization time.
     // To make sure that the expected result is in the results, filter by its base name.

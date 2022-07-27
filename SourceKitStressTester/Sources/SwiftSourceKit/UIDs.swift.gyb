@@ -1,0 +1,75 @@
+%{
+  from gyb_sourcekit_support.UIDs import UID_KEYS, UID_REQUESTS, UID_KINDS
+  # Ignore the following admonition it applies to the resulting .swift file only
+}%
+//// Automatically Generated From UIDs.swift.gyb.
+//// Do Not Edit Directly! To regenerate run Utilities/generate-uids.py
+//===--------------- UIDs.swift - Sourcekitd UIDs in Swift ----------------===//
+//
+// This source file is part of the Swift.org open source project
+//
+// Copyright (c) 2014 - 2022 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
+//
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+//
+//===----------------------------------------------------------------------===//
+
+extension SourceKitdUID {
+  // MARK: Keys
+% for key in UID_KEYS:
+  public static let key_${key.internalName} = SourceKitdUID(string: "${key.externalName}")
+% end
+
+  // MARK: Requests
+% for key in UID_REQUESTS:
+  public static let request_${key.internalName} = SourceKitdUID(string: "${key.externalName}")
+% end
+
+  // MARK: Kinds
+% for key in UID_KINDS:
+  public static let kind_${key.internalName} = SourceKitdUID(string: "${key.externalName}")
+% end
+
+  // MARK: Notifications
+  public static let compilerCrashedNotification = SourceKitdUID(string: "notification.toolchain-compiler-crashed")
+  public static let semaDisabledNotification = SourceKitdUID(string:
+      "source.notification.sema_disabled")
+  public static let semaEnabledNotification = SourceKitdUID(string:
+      "source.notification.sema_enabled")
+  public static let source_notification_editor_documentupdate = SourceKitdUID(string: "source.notification.editor.documentupdate")
+
+  // MARK: Code completion options
+  // TODO: Automatically generate these. Current manually maintained from translateCodeCompletionOptions in SwiftCompletion.cpp
+  public static let key_SortByName = SourceKitdUID(string: "key.codecomplete.sort.byname");
+  public static let key_UseImportDepth = SourceKitdUID(string: "key.codecomplete.sort.useimportdepth");
+  public static let key_GroupOverloads = SourceKitdUID(string: "key.codecomplete.group.overloads");
+  public static let key_GroupStems = SourceKitdUID(string: "key.codecomplete.group.stems");
+  public static let key_FilterText = SourceKitdUID(string: "key.codecomplete.filtertext");
+  public static let key_RequestLimit = SourceKitdUID(string: "key.codecomplete.requestlimit");
+  public static let key_RequestStart = SourceKitdUID(string: "key.codecomplete.requeststart");
+  public static let key_HideUnderscores = SourceKitdUID(string: "key.codecomplete.hideunderscores");
+  public static let key_HideLowPriority = SourceKitdUID(string: "key.codecomplete.hidelowpriority");
+  public static let key_HideByName = SourceKitdUID(string: "key.codecomplete.hidebyname");
+  public static let key_IncludeExactMatch = SourceKitdUID(string: "key.codecomplete.includeexactmatch");
+  public static let key_AddInnerResults = SourceKitdUID(string: "key.codecomplete.addinnerresults");
+  public static let key_AddInnerOperators = SourceKitdUID(string: "key.codecomplete.addinneroperators");
+  public static let key_AddInitsToTopLevel = SourceKitdUID(string: "key.codecomplete.addinitstotoplevel");
+  public static let key_CallPatternHeuristics = SourceKitdUID(string: "key.codecomplete.callpatternheuristics");
+  public static let key_FuzzyMatching = SourceKitdUID(string: "key.codecomplete.fuzzymatching");
+  public static let key_TopNonLiteral = SourceKitdUID(string: "key.codecomplete.showtopnonliteralresults");
+  public static let key_ContextWeight = SourceKitdUID(string: "key.codecomplete.sort.contextweight");
+  public static let key_FuzzyWeight = SourceKitdUID(string: "key.codecomplete.sort.fuzzyweight");
+  public static let key_PopularityBonus = SourceKitdUID(string: "key.codecomplete.sort.popularitybonus");
+  public static let key_AnnotatedDescription = SourceKitdUID(string: "key.codecomplete.annotateddescription");
+  public static let key_IncludeObjectLiterals = SourceKitdUID(string: "key.codecomplete.includeobjectliterals");
+
+  // MARK: Format options
+  // TODO: Automatically generate these. Current manually maintained from applyFormatOptions in SwiftEditor.cpp
+  public static let key_UseTabs = SourceKitdUID(string: "key.editor.format.usetabs");
+  public static let key_IndentWidth = SourceKitdUID(string: "key.editor.format.indentwidth");
+  public static let key_TabWidth = SourceKitdUID(string: "key.editor.format.tabwidth");
+  public static let key_IndentSwitchCase = SourceKitdUID(string: "key.editor.format.indent_switch_case");
+
+}
