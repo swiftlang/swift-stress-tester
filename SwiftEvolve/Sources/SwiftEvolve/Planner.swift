@@ -60,6 +60,7 @@ public class Planner<G: RandomNumberGenerator>: SyntaxAnyVisitor {
     self.rng = rng
     self.rules = rules
     self.includeLineAndColumn = includeLineAndColumn
+    super.init(viewMode: .sourceAccurate)
   }
 
   public func planEvolution(in file: SourceFileSyntax, at url: URL) throws {

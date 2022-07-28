@@ -17,6 +17,7 @@ class FilterVisitor: SyntaxAnyVisitor {
 
   init(predicate: @escaping (Syntax) -> Bool) {
     self.predicate = predicate
+    super.init(viewMode: .sourceAccurate)
   }
 
   override func visitAny(_ node: Syntax) -> SyntaxVisitorContinueKind {

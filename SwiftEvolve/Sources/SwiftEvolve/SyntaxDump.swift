@@ -61,7 +61,7 @@ struct SyntaxDump: TextOutputStreamable {
     default:
       write("\(type(of: node))")
       writeLoc(startLoc)
-      for child in node.children {
+      for child in node.children(viewMode: .sourceAccurate) {
         write("\n  ")
         self.write(child, to: &target, indentation: indentation + 2)
       }

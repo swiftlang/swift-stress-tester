@@ -199,6 +199,10 @@ fileprivate class TokenTextFormatter: SyntaxVisitor {
   var previous: TokenKind?
   var text: String = ""
 
+  init() {
+    super.init(viewMode: .sourceAccurate)
+  }
+
   override func visit(_ token: TokenSyntax) -> SyntaxVisitorContinueKind {
     switch token.tokenKind {
     case .comma:
