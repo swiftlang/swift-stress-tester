@@ -561,6 +561,10 @@ private class ActionTokenCollector: SyntaxAnyVisitor {
   var currentDepth = 0
   var functionDepth = 0
 
+  init() {
+    super.init(viewMode: .sourceAccurate)
+  }
+
   override func visitAny(_ node: Syntax) -> SyntaxVisitorContinueKind {
     if shouldIncreaseDepth(node) {
       currentDepth += 1

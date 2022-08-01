@@ -28,11 +28,11 @@ extension Syntax {
     return withoutActuallyEscaping(trailing) { trailing in
       withoutActuallyEscaping(leading) { leading in
         SingleTokenRewriter(
-          shouldRewrite: { $0 == ($0.parent?.children.last ?? $0) },
+          shouldRewrite: { $0 == ($0.parent?.children(viewMode: .sourceAccurate).last ?? $0) },
           transform: { $0.withTrailingTrivia(trailing($0.trailingTrivia)) }
         ).visit(
           SingleTokenRewriter(
-            shouldRewrite: { $0 == ($0.parent?.children.first ?? $0) },
+            shouldRewrite: { $0 == ($0.parent?.children(viewMode: .sourceAccurate).first ?? $0) },
             transform: { $0.withLeadingTrivia(leading($0.leadingTrivia)) }
           ).visit(self)
         )
