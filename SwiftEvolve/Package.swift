@@ -22,6 +22,9 @@ if let sourcekitSearchPathPointer = getenv("SWIFT_STRESS_TESTER_SOURCEKIT_SEARCH
 
 let package = Package(
     name: "SwiftEvolve",
+    platforms: [
+      .macOS(.v10_13),
+    ],
     products: [
         .executable(name: "swift-evolve", targets: ["swift-evolve"]),
         .library(name: "SwiftEvolve", targets: ["SwiftEvolve"])
