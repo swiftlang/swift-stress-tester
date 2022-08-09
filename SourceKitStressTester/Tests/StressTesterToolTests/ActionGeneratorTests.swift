@@ -57,7 +57,7 @@ class ActionGeneratorTests: XCTestCase {
     <F>}<EE>
 
     <FR>let <FIRCTM>result<CTM> <FR>= <FIRCTM>minMax<FCTM>(<FIRCTM>array<FCTM>: <FRCTM>[<FRRCTM>10<FCTM>,<E> <FRCTM>43<FCTM>,<E> <FRCTM>1<FCTM>,<E> <FCTM>2018<FECTM>]<FEECTM>)<EEEECTM>
-    <FIRCTM>print<FCTM>(<FRCTM>\"<FR>range: <FR>\\<F>(<FIRCTM>result<FCTM>.<FICTM>min<FECTM>)<FE> – <FR>\\<F>(<FIRCTM>result<FCTM>.<FICTM>max<FECTM>)<FFEE>\"<FECTM>)<FEECTM>
+    <FIRCTM>print<FCTM>(<FRCTM>\"<FR>range: <FR>\\<F>(<FIRCTM>result<FCTM>.<FICTM>min<FECTM>)<FE> – <FR>\\<F>(<FIRCTM>result<FCTM>.<FICTM>max<FECTM>)<FEE>\"<FECTM>)<FEECTM>
     """)
   }
 
