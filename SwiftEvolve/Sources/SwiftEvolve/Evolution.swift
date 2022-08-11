@@ -335,9 +335,10 @@ extension SynthesizeMemberwiseInitializerEvolution {
         body: body
       )
       
-      return members.appending(MemberDeclListItemSyntax {
-        $0.useDecl(DeclSyntax(newInitializer))
-      })
+      return members.appending(SyntaxFactory.makeMemberDeclListItem(
+        decl: DeclSyntax(newInitializer),
+        semicolon: nil
+      ))
     }
     return Syntax(evolved)
   }
