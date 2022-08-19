@@ -114,21 +114,21 @@ func != (lhs: Syntax?, rhs: Syntax?) -> Bool {
 
 extension DeclContext {
   var typeSyntax: TypeSyntax {
-    let name = SyntaxFactory.makeIdentifier(last!.name)
+    let name = TokenSyntax.identifier(last!.name)
     let parent = removingLast()
     
     if parent.declarationChain.allSatisfy({ $0 is SourceFileSyntax }) {
       // Base case
-      let typeIdentifier = SyntaxFactory.makeSimpleTypeIdentifier(
+      let typeIdentifier = SimpleTypeIdentifierSyntax(
         name: name,
         genericArgumentClause: nil
       )
       return TypeSyntax(typeIdentifier)
     }
     
-    let typeIdentifer = SyntaxFactory.makeMemberTypeIdentifier(
+    let typeIdentifer = MemberTypeIdentifierSyntax(
       baseType: parent.typeSyntax,
-      period: SyntaxFactory.makePeriodToken(),
+      period: .periodToken(),
       name: name,
       genericArgumentClause: nil
     )

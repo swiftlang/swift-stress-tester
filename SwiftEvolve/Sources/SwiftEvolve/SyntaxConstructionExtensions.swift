@@ -28,7 +28,7 @@ extension BidirectionalCollection where Element: TrailingCommaSyntax {
     var elems: [Element] = []
 
     for elem in dropLast() {
-      let newComma = SyntaxFactory.makeCommaToken(trailingTrivia: betweenTrivia)
+      let newComma = TokenSyntax.commaToken(trailingTrivia: betweenTrivia)
       let newElem = elem.withTrailingComma(newComma)
       elems.append(newElem)
     }
@@ -52,12 +52,12 @@ extension Collection {
     let params = try map(transform)
       .withCorrectTrailingCommas(betweenTrivia: betweenTrivia)
 
-    return SyntaxFactory.makeParameterClause(
-      leftParen: SyntaxFactory.makeLeftParenToken(
+    return ParameterClauseSyntax(
+      leftParen: .leftParenToken(
         leadingTrivia: outerLeadingTrivia, trailingTrivia: innerLeadingTrivia
       ),
-      parameterList: SyntaxFactory.makeFunctionParameterList(params),
-      rightParen: SyntaxFactory.makeRightParenToken(
+      parameterList: FunctionParameterListSyntax(params),
+      rightParen: .rightParenToken(
         leadingTrivia: innerTrailingTrivia, trailingTrivia: outerTrailingTrivia
       )
     )
@@ -73,7 +73,7 @@ extension Collection {
     _ transform: (Element) throws -> Syntax
   ) rethrows -> CodeBlockSyntax {
     let stmts = try map {
-      SyntaxFactory.makeCodeBlockItem(
+      CodeBlockItemSyntax(
         item: try transform($0).replacingTriviaWith(
           leading: statementLeadingTrivia, trailing: statementTrailingTrivia
         ),
@@ -82,12 +82,12 @@ extension Collection {
       )
     }
     
-    return SyntaxFactory.makeCodeBlock(
-      leftBrace: SyntaxFactory.makeLeftBraceToken(
+    return CodeBlockSyntax(
+      leftBrace: .leftBraceToken(
         leadingTrivia: outerLeadingTrivia, trailingTrivia: innerLeadingTrivia
       ),
-      statements: SyntaxFactory.makeCodeBlockItemList(stmts),
-      rightBrace: SyntaxFactory.makeRightBraceToken(
+      statements: CodeBlockItemListSyntax(stmts),
+      rightBrace: .rightBraceToken(
         leadingTrivia: innerTrailingTrivia, trailingTrivia: outerTrailingTrivia
       )
     )
@@ -117,11 +117,11 @@ struct ExprSyntaxTemplate {
     guard case .identifier(_) = identifier.tokenKind else {
       preconditionFailure("ExprSyntaxTemplate(var:) called with non-identifier \(identifier)")
     }
-    self.init(expr: ExprSyntax(SyntaxFactory.makeIdentifierExpr(identifier: identifier, declNameArguments: nil)))
+    self.init(expr: ExprSyntax(IdentifierExprSyntax(identifier: identifier, declNameArguments: nil)))
   }
   
   init(_ name: String) {
-    self.init(SyntaxFactory.makeIdentifier(name))
+    self.init(.identifier(name))
   }
   
   static var _self: ExprSyntaxTemplate {
@@ -133,25 +133,25 @@ struct ExprSyntaxTemplate {
   static func ^= (
     lhs: ExprSyntaxTemplate, rhs: ExprSyntaxTemplate
   ) -> ExprSyntaxTemplate {
-    let assignment = SyntaxFactory.makeAssignmentExpr(
-      assignToken: SyntaxFactory.makeEqualToken(
+    let assignment = AssignmentExprSyntax(
+      assignToken: .equalToken(
         leadingTrivia: .spaces(1), trailingTrivia: .spaces(1)
       )
     )
-    let exprList = SyntaxFactory.makeExprList([
+    let exprList = ExprListSyntax([
       lhs.expr,
       ExprSyntax(assignment),
       rhs.expr
     ])
     return ExprSyntaxTemplate(
-      expr: ExprSyntax(SyntaxFactory.makeSequenceExpr(elements: exprList))
+      expr: ExprSyntax(SequenceExprSyntax(elements: exprList))
     )
   }
   
   subscript (dot identifier: TokenSyntax) -> ExprSyntaxTemplate {
-    let memberAccess = SyntaxFactory.makeMemberAccessExpr(
+    let memberAccess = MemberAccessExprSyntax(
       base: expr,
-      dot: SyntaxFactory.makePeriodToken(),
+      dot: .periodToken(),
       name: identifier,
       declNameArguments: nil
     )
@@ -159,7 +159,7 @@ struct ExprSyntaxTemplate {
   }
   
   subscript (dot name: String) -> ExprSyntaxTemplate {
-    return self[dot: SyntaxFactory.makeIdentifier(name)]
+    return self[dot: .identifier(name)]
   }
   
   subscript (dynamicMember name: String) -> ExprSyntaxTemplate {

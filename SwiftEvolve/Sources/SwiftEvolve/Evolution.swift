@@ -197,7 +197,7 @@ extension ShuffleMembersEvolution {
     let missing = members.indices.filter { !inMapping.contains($0) }
     let fullMapping = mapping + missing
 
-    return Syntax(SyntaxFactory.makeMemberDeclList(fullMapping.map { members[$0] }))
+    return Syntax(MemberDeclListSyntax(fullMapping.map { members[$0] }))
   }
 }
 
@@ -292,12 +292,12 @@ extension SynthesizeMemberwiseInitializerEvolution {
     
     let evolved = inits.reduce(members) { members, properties in
       let parameters = properties.mapToFunctionParameterClause {
-        SyntaxFactory.makeFunctionParameter(
+        FunctionParameterSyntax(
           attributes: nil,
-          firstName: SyntaxFactory.makeIdentifier($0.name),
+          firstName: .identifier($0.name),
           secondName: nil,
-          colon: SyntaxFactory.makeColonToken(trailingTrivia: [.spaces(1)]),
-          type: SyntaxFactory.makeTypeIdentifier($0.type),
+          colon: .colonToken(trailingTrivia: [.spaces(1)]),
+          type: TypeSyntax(SimpleTypeIdentifierSyntax(name: .identifier($0.type), genericArgumentClause: nil)),
           ellipsis: nil,
           defaultArgument: nil,
           trailingComma: nil
@@ -311,16 +311,16 @@ extension SynthesizeMemberwiseInitializerEvolution {
         return Syntax(expr)
       }
 
-      let signature = SyntaxFactory.makeFunctionSignature(
+      let signature = FunctionSignatureSyntax(
         input: parameters,
         asyncOrReasyncKeyword: nil,
         throwsOrRethrowsKeyword: nil,
         output: nil)
 
-      let newInitializer = SyntaxFactory.makeInitializerDecl(
+      let newInitializer = InitializerDeclSyntax(
         attributes: nil,
         modifiers: nil,
-        initKeyword: SyntaxFactory.makeInitKeyword(
+        initKeyword: .initKeyword(
           leadingTrivia: [
             .newlines(2),
             .lineComment("// Synthesized by SynthesizeMemberwiseInitializerEvolution"),
@@ -335,7 +335,7 @@ extension SynthesizeMemberwiseInitializerEvolution {
         body: body
       )
       
-      return members.appending(SyntaxFactory.makeMemberDeclListItem(
+      return members.appending(MemberDeclListItemSyntax(
         decl: DeclSyntax(newInitializer),
         semicolon: nil
       ))
@@ -368,7 +368,7 @@ extension ShuffleGenericRequirementsEvolution {
     precondition(requirements.count == mapping.count,
                  "ShuffleGenericRequirementsEvolution mapping does not match node it's being applied to")
 
-    let genericRequirements = SyntaxFactory.makeGenericRequirementList(
+    let genericRequirements = GenericRequirementListSyntax(
       mapping.map { requirements[$0] }.withCorrectTrailingCommas()
     )
     return Syntax(genericRequirements)
