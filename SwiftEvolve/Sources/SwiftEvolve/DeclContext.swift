@@ -306,7 +306,7 @@ extension PatternSyntax {
       return []
 
     default:
-      return [(SyntaxFactory.makeUnknown("<unknown>"), nil)]
+      return [(TokenSyntax.unknown("<unknown>"), nil)]
     }
   }
 }
