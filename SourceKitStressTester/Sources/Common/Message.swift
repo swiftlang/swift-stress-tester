@@ -516,7 +516,7 @@ extension SourceKitError: CustomStringConvertible {
         """
     case .softTimeout(let request, let duration, let instructions):
       return """
-        Request took \(duration) seconds (\(instructions.map(String.init) ?? "<unknown>") instructions) to execute. This is more than half of the allowed time. This error will match XFails but won't count as an error by itself.
+        Request took \(duration) seconds (\(instructions.map(String.init) ?? "<unknown>") instructions) to execute. This is more than a fifth of the allowed time. This error will match XFails but won't count as an error by itself.
           request: \(request)
         -- begin file content --------
         \(markSourceLocation(of: request) ?? "<unmodified>")

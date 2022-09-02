@@ -520,7 +520,7 @@ class SourceKitDocument {
         try throwIfInvalid(response, request: info)
         try validateResponse(response)
 
-        if requestDuration > TimeInterval(SOURCEKIT_REQUEST_TIMEOUT) / 2 {
+        if requestDuration > TimeInterval(SOURCEKIT_REQUEST_TIMEOUT) / 5 {
           // There was no error in the response, but the request took too long
           // throw a soft timeout.
           throw SourceKitError.softTimeout(request: info, duration: requestDuration, instructions: nil)
