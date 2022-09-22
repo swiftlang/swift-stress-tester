@@ -11,8 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import SwiftParser
 import SwiftSyntax
-import SwiftSyntaxParser
 
 public protocol ActionGenerator {
   func generate(for tree: SourceFileSyntax) -> [Action]
@@ -21,13 +21,16 @@ public protocol ActionGenerator {
 extension ActionGenerator {
   /// Entrypoint intended for testing purposes only
   public func generate(for file: URL) -> [Action] {
-    let tree = try! SyntaxParser.parse(file)
-    return generate(for: tree)
+    let fileData = try! Data(contentsOf: file)
+    let source = fileData.withUnsafeBytes { buf in
+      return String(decoding: buf.bindMemory(to: UInt8.self), as: UTF8.self)
+    }
+    return generate(for: source)
   }
 
   /// Entrypoint intended for testing purposes only
   public func generate(for source: String) -> [Action] {
-    let tree = try! SyntaxParser.parse(source: source)
+    let tree = try! Parser.parse(source: source)
     return generate(for: tree)
   }
 
