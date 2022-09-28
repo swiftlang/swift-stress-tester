@@ -11,8 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 import SwiftSourceKit
+import SwiftDiagnostics
+import SwiftParser
 import SwiftSyntax
-import SwiftSyntaxParser
 import Common
 import Foundation
 
@@ -579,19 +580,20 @@ class SourceKitDocument {
       reparseTransition = nil
     }
 
-    let diagHandler = { (diag: Diagnostic) in
-      // An empty diagnostic handler to practice the diagnostic APIs associated
-      // with SwiftSyntax parser.
-    }
-
     let tree: SourceFileSyntax
     if let state = sourceState {
-      tree = try SyntaxParser.parse(source: state.source,
-                                    parseTransition: reparseTransition,
-                                    diagnosticHandler: diagHandler)
+      tree = try Parser.parse(
+        source: state.source,
+        parseTransition: reparseTransition
+      )
     } else {
-      tree = try SyntaxParser.parse(args.forFile, diagnosticHandler: diagHandler)
+      let fileData = try Data(contentsOf: args.forFile)
+      let source = fileData.withUnsafeBytes { buf in
+        return String(decoding: buf.bindMemory(to: UInt8.self), as: UTF8.self)
+      }
+      tree = try Parser.parse(source: source)
     }
+    _ = ParseDiagnosticsGenerator.diagnostics(for: tree)
     return tree
   }
 

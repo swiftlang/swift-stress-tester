@@ -62,42 +62,43 @@ class ActionGeneratorTests: XCTestCase {
   }
 
   func testCompletionExpectedResults() {
-    typealias TestCase = (source: String, expected: [String])
+    typealias TestCase = (line: UInt, source: String, expected: [String])
     let cases: [TestCase] = [
-      ("foo(x: 10)", ["call:foo(x:)"]),
-      ("foo(45)", ["call:foo(_:)"]),
-      ("foo.bar(first, x: 10)", ["foo", "call:bar(_:x:)", "first", "x:"]),
-      ("foo.bar(x:_:)", ["foo", "bar(x:_:)"]),
+      (#line, "foo(x: 10)", ["call:foo(x:)"]),
+      (#line, "foo(45)", ["call:foo(_:)"]),
+      (#line, "foo.bar(first, x: 10)", ["foo", "call:bar(_:x:)", "first", "x:"]),
+      (#line, "foo.bar(x:_:)", ["foo", "bar(x:_:)"]),
 
       // FIXME: code completion doesn't complete compound name references
-      (".foo(x:y:z:)", ["foo(x:y:z:)"/*, "x", "y", "z"*/]),
-      (".foo(1, 2, other: 5)", ["call:foo(_:_:other:)", "other:"]),
-      ("Foo.foo(fooInstance)(x: 10)", ["Foo", "call:foo(x:)", "fooInstance"]),
+      (#line, ".foo(x:y:z:)", ["foo(x:y:z:)"/*, "x", "y", "z"*/]),
+      (#line, ".foo(1, 2, other: 5)", ["call:foo(_:_:other:)", "other:"]),
+      (#line, "Foo.foo(fooInstance)(x: 10)", ["Foo", "call:foo(x:)", "fooInstance"]),
 
       // The below foo could be either foo(_:) or foo(_:_:), we can't tell
       // syntactically so default to the outer argument list, as it will match
       // even if it should have been the inner argument list due to the
       // incomplete information the matching logic has (it has to assume any
       // parameter could be defaulted or variadic).
-      ("Foo.foo(fooInstance)(10, 20)", ["Foo", "call:foo(_:_:)", "fooInstance"]),
-      ("Foo.foo(fooInstance)()", ["Foo", "call:foo", "fooInstance"]),
-      ("let (x, y) = (a, b)", ["a", "b"]),
-      ("if case let .myCase(Int.max, second) = p {}", ["patt:myCase(_:_:)", "Int", "max", "p"]),
-      ("if case let .myCase(.inner(x:foo), second) = p {}", ["patt:myCase(_:_:)", "patt:inner(x:)", "p"]),
-      ("switch x { case .some(2?): break }", ["x", "patt:some(_:)"]),
+      (#line, "Foo.foo(fooInstance)(10, 20)", ["Foo", "call:foo(_:_:)", "fooInstance"]),
+      (#line, "Foo.foo(fooInstance)()", ["Foo", "call:foo", "fooInstance"]),
+      (#line, "let (x, y) = (a, b)", ["a", "b"]),
+      (#line, "if case let .myCase(Int.max, second) = p {}", ["patt:myCase(_:_:)", "Int", "max", "p"]),
+      (#line, "if case let .myCase(.inner(x:foo), second) = p {}", ["patt:myCase(_:_:)", "patt:inner(x:)", "p"]),
+      (#line, "switch x { case .some(2?): break }", ["x", "patt:some(_:)"]),
 
       // TODO: we don't check operators at the moment
-      ("3 + 4", []),
+      (#line, "3 + 4", []),
       // FIXME: code completion doesn't offer labels after break/continue
-      ("foo: for x in 1...4 { print(x); break foo }", ["call:print(_:)", "x"/*, "foo"*/]),
+      (#line, "foo: for x in 1...4 { print(x); break foo }", ["call:print(_:)", "x"/*, "foo"*/]),
 
       // TODO: subscript completions after [
-      ("data[position]", ["data", "position"]),
-      ("data[position, default: 0]", ["data", "position", "default:"]),
+      (#line, "data[position]", ["data", "position"]),
+      // FIXME: `default` should also be an action position: https://github.com/apple/swift-syntax/issues/829
+      (#line, "data[position, default: 0]", ["data", "position"]),
 
       // FIXME: completion doesn't suggest anonymous closure params (e.g. $0)
-      ("$0.first", [/*"$0",*/ "first"]),
-      ("[1,2,4].filter{ $0 == 4 }", ["call:filter"/*, "$0"*/])
+      (#line, "$0.first", [/*"$0",*/ "first"]),
+      (#line, "[1,2,4].filter{ $0 == 4 }", ["call:filter"/*, "$0"*/])
     ]
 
     for test in cases {
@@ -117,7 +118,7 @@ class ActionGeneratorTests: XCTestCase {
           }
           return nil
         }
-      XCTAssertEqual(generated, test.expected)
+      XCTAssertEqual(generated, test.expected, line: test.line)
     }
   }
 

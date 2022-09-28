@@ -51,7 +51,7 @@ func getConfigParam(_ name: String) -> String? {
 /// The environment variable is only specified once we build the stress tester.
 let sourceKitSearchPath: String? = getConfigParam("SWIFT_STRESS_TESTER_SOURCEKIT_SEARCHPATH")
 
-/// Path to a directory containing SwiftSyntax.framework and SwiftSyntaxParser.framework.
+/// Path to a directory containing SwiftSyntax.framework and SwiftParser.framework.
 /// Optional. If not specified, SwiftSyntax will be built from source.
 let swiftSyntaxSearchPath: String? = getConfigParam("SWIFT_STRESS_TESTER_SWIFTSYNTAX_SEARCHPATH")
 
@@ -91,7 +91,7 @@ if let swiftSyntaxSearchPath = swiftSyntaxSearchPath {
 } else {
   stressTesterTargetDependencies += [
     .product(name: "SwiftSyntax", package: "swift-syntax"),
-    .product(name: "SwiftSyntaxParser", package: "swift-syntax"),
+    .product(name: "SwiftParser", package: "swift-syntax"),
   ]
 }
 
@@ -165,7 +165,7 @@ if !useLocalDependencies {
   // Building standalone.
   package.dependencies += [
     .package(url: "https://github.com/apple/swift-tools-support-core.git", .branch("main")),
-    .package(url: "https://github.com/apple/swift-argument-parser.git", .exact("0.4.3")),
+    .package(url: "https://github.com/apple/swift-argument-parser.git", .upToNextMinor(from: "1.0.1")),
   ]
   if swiftSyntaxSearchPath == nil {
     package.dependencies.append(.package(url: "https://github.com/apple/swift-syntax.git", .branch("main")))
