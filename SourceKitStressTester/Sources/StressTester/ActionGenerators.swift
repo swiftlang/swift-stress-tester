@@ -13,6 +13,7 @@
 import Foundation
 import SwiftParser
 import SwiftSyntax
+import SwiftOperators
 
 public protocol ActionGenerator {
   func generate(for tree: SourceFileSyntax) -> [Action]
@@ -30,7 +31,10 @@ extension ActionGenerator {
 
   /// Entrypoint intended for testing purposes only
   public func generate(for source: String) -> [Action] {
-    let tree = try! Parser.parse(source: source)
+    var tree = try! Parser.parse(source: source)
+    if let foldedTree = try? OperatorTable.standardOperators.foldAll(tree).as(SourceFileSyntax.self) {
+      tree = foldedTree
+    }
     return generate(for: tree)
   }
 
