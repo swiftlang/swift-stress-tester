@@ -294,8 +294,7 @@ extension SynthesizeMemberwiseInitializerEvolution {
       let parameters = properties.mapToFunctionParameterClause {
         FunctionParameterSyntax(
           attributes: nil,
-          isolatedToken: nil,
-          constToken: nil,
+          modifiers: nil,
           firstName: .identifier($0.name),
           secondName: nil,
           colon: .colonToken(trailingTrivia: [.spaces(1)]),
