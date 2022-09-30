@@ -14,6 +14,7 @@ import SwiftSourceKit
 import SwiftDiagnostics
 import SwiftParser
 import SwiftSyntax
+import SwiftOperators
 import Common
 import Foundation
 
@@ -580,7 +581,7 @@ class SourceKitDocument {
       reparseTransition = nil
     }
 
-    let tree: SourceFileSyntax
+    var tree: SourceFileSyntax
     if let state = sourceState {
       tree = try Parser.parse(
         source: state.source,
@@ -592,6 +593,9 @@ class SourceKitDocument {
         return String(decoding: buf.bindMemory(to: UInt8.self), as: UTF8.self)
       }
       tree = try Parser.parse(source: source)
+    }
+    if let foldedTree = OperatorTable.standardOperators.foldAll(tree, errorHandler: { _ in }).as(SourceFileSyntax.self) {
+      tree = foldedTree
     }
     _ = ParseDiagnosticsGenerator.diagnostics(for: tree)
     return tree
