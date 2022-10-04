@@ -117,6 +117,10 @@ public struct SwiftCWrapper {
 
     guard !operations.isEmpty else { return swiftcResult.status }
 
+    if !suppressOutput {
+      stderrStream <<< "Compiler arguments: \(escapeArgs(arguments))\n"
+    }
+
     // Run the operations, reporting progress
     let progress: ProgressAnimationProtocol?
     if !suppressOutput {
