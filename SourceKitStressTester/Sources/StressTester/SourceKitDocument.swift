@@ -278,6 +278,11 @@ class SourceKitDocument {
     let openRequest = buildCompletionRequest(request: .request_CodeCompleteOpen, offset: offset, extraOptions: extraCodeCompleteOptions)
     let openInfo = RequestInfo.codeCompleteOpen(document: documentInfo, offset: offset,
                                                 args: args.sourcekitdArgs)
+    defer {
+      let closeRequest = buildCompletionRequest(request: .request_CodeCompleteClose, offset: offset, extraOptions: extraCodeCompleteOptions)
+      let closeInfo = RequestInfo.codeCompleteClose(document: documentInfo, offset: offset)
+      _ = try? sendWithTimeout(closeRequest, info: closeInfo)
+    }
     let (openResponse, openInstructions) = try sendWithTimeoutMeasuringInstructions(openRequest, info: openInfo)
 
     let reusingASTContext = openResponse.value.getBool(.key_ReusingASTContext)
@@ -296,10 +301,6 @@ class SourceKitDocument {
     } else {
       responseToReport = openResponse
     }
-
-    let closeRequest = buildCompletionRequest(request: .request_CodeCompleteClose, offset: offset, extraOptions: extraCodeCompleteOptions)
-    let closeInfo = RequestInfo.codeCompleteClose(document: documentInfo, offset: offset)
-    _ = try sendWithTimeout(closeRequest, info: closeInfo)
 
     return (openInfo, responseToReport, openInstructions, reusingASTContext)
   }
