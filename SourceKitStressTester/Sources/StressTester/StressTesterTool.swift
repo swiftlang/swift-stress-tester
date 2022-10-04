@@ -45,9 +45,17 @@ public struct StressTesterTool: ParsableCommand {
 
   @Option(name: .shortAndLong, help: ArgumentHelp("""
     Divides the work for each file into <total> equal parts \
-    and only performs the <page>th group.
+    and only performs the <page>th group. \
+    --page is incompatible with --offset-filter.
     """, valueName: "page/total"))
   public var page: Page = Page()
+
+  @Option(name: .long, help: ArgumentHelp("""
+    If specified, only execute actions at this offset. \
+    Useful to reproduce a specific failure locally. \
+    --offset-filter is incompatible with --page.
+    """))
+  public var offsetFilter: Int?
 
   @Option(name: [.customLong("request"), .customShort("r")],
           help: "One of '\(RequestKind.allCases.map({ $0.rawValue }).joined(separator: "\", \""))'")
@@ -136,6 +144,10 @@ public struct StressTesterTool: ParsableCommand {
     } else if !FileManager.default.fileExists(atPath: tempDir!.path) {
       throw ValidationError("Temporary directory \(tempDir!.path) does not exist")
     }
+
+    if page != Page() && offsetFilter != nil {
+      throw ValidationError("--page is incompatible with --offset-filter")
+    }
   }
 
   public mutating func run() throws {
@@ -149,6 +161,7 @@ public struct StressTesterTool: ParsableCommand {
       rewriteMode: rewriteMode,
       conformingMethodsTypeList: conformingMethodsTypeList,
       page: page,
+      offsetFilter: offsetFilter,
       tempDir: tempDir!,
       astBuildLimit: limit,
       printActions: printActions,

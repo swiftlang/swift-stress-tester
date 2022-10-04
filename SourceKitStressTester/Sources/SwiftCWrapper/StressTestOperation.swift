@@ -65,10 +65,16 @@ final class StressTestOperation: Operation {
 
   init(file: String, rewriteMode: RewriteMode, requests: Set<RequestKind>,
        conformingMethodTypes: [String]?, limit: Int?, part: (Int, of: Int),
+       offsetFilter: Int?,
        reportResponses: Bool, compilerArgs: [String], executable: String,
        swiftc: String, extraCodeCompleteOptions: [String],
        requestDurationsOutputFile: URL?) {
-    var stressTesterArgs = ["--format", "json", "--page", "\(part.0)/\(part.of)", "--rewrite-mode", rewriteMode.rawValue]
+    var stressTesterArgs = ["--format", "json", "--rewrite-mode", rewriteMode.rawValue]
+    if let offsetFilter = offsetFilter {
+      stressTesterArgs += ["--offset-filter", String(offsetFilter)]
+    } else {
+      stressTesterArgs += ["--page", "\(part.0)/\(part.of)"]
+    }
     if let limit = limit {
       stressTesterArgs += ["--limit", String(limit)]
     }

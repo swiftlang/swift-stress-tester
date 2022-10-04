@@ -152,6 +152,9 @@ public class StressTester {
     var actions = generator
       .generate(for: tree)
       .filter { action in
+        if let offsetFilter = options.offsetFilter, offsetFilter != action.offset {
+          return false
+        }
         guard !locationsInvalidated else { return false }
         switch action {
         case .cursorInfo:
@@ -272,6 +275,7 @@ public struct StressTesterOptions {
   public var rewriteMode: RewriteMode
   public var conformingMethodsTypeList: [String]
   public var page: Page
+  public var offsetFilter: Int?
   public var tempDir: URL
   public var astBuildLimit: Int?
   public var printActions: Bool
@@ -280,7 +284,7 @@ public struct StressTesterOptions {
   public var dryRun: (([Action]) throws -> Void)?
 
   public init(requests: Set<RequestKind>, rewriteMode: RewriteMode,
-              conformingMethodsTypeList: [String], page: Page,
+              conformingMethodsTypeList: [String], page: Page, offsetFilter: Int?,
               tempDir: URL, astBuildLimit: Int? = nil,
               printActions: Bool = false,
               requestDurationsOutputFile: URL? = nil,
@@ -290,6 +294,7 @@ public struct StressTesterOptions {
     self.rewriteMode = rewriteMode
     self.conformingMethodsTypeList = conformingMethodsTypeList
     self.page = page
+    self.offsetFilter = offsetFilter
     self.tempDir = tempDir
     self.astBuildLimit = astBuildLimit
     self.printActions = printActions
