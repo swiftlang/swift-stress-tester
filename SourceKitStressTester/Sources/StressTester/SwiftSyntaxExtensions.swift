@@ -79,7 +79,8 @@ extension TokenSyntax {
     guard let parent = parent else { return false }
     return parent.isProtocol(ExprSyntaxProtocol.self) ||
       parent.isProtocol(TypeSyntaxProtocol.self) ||
-      parent.is(TupleExprElementSyntax.self)
+      parent.is(TupleExprElementSyntax.self) ||
+      parent.is(KeyPathPropertyComponentSyntax.self)
   }
 
   var textWithoutBackticks: String {
