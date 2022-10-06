@@ -105,6 +105,7 @@ public struct SwiftCWrapper {
                               conformingMethodTypes: conformingMethodTypes,
                               limit: astBuildLimit,
                               part: (part, of: partCount),
+                              offsetFilter: ProcessInfo.processInfo.environment["SK_OFFSET_FILTER"].flatMap { Int($0) },
                               reportResponses: dumpResponsesPath != nil,
                               compilerArgs: arguments,
                               executable: stressTesterPath,

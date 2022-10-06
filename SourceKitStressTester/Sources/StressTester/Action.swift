@@ -23,6 +23,30 @@ public enum Action: Hashable {
   case conformingMethodList(offset: Int)
   case collectExpressionType
   case testModule
+
+  /// If the action is anchored at a specific offset, return that offset, otherwise `nil`.
+  var offset: Int? {
+    switch self {
+    case .cursorInfo(offset: let offset):
+      return offset
+    case .codeComplete(offset: let offset, expectedResult: _):
+      return offset
+    case .rangeInfo(offset: let offset, length: _):
+      return offset
+    case .replaceText(offset: let offset, length: _, text: _):
+      return offset
+    case .format(offset: let offset):
+      return offset
+    case .typeContextInfo(offset: let offset):
+      return offset
+    case .conformingMethodList(offset: let offset):
+      return offset
+    case .collectExpressionType:
+      return nil
+    case .testModule:
+      return nil
+    }
+  }
 }
 
 extension Action: CustomStringConvertible {
