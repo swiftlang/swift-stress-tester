@@ -76,6 +76,7 @@ class SwiftCWrapperToolTests: XCTestCase {
   }
 
   func testStressTesterOperationQueue() throws {
+    try XCTSkipIf(true, "Failing non-deterministically. Disabling until we have time to investigate - rdar://100970606")
     class TestOperation: Operation {
       var waitCount: Int
 
