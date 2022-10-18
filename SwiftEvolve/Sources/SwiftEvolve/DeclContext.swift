@@ -446,7 +446,7 @@ extension EnumCaseDeclSyntax: Decl {
 extension IfConfigDeclSyntax {
   var containsStoredMembers: Bool {
     return clauses.contains { clause in
-      guard let members = clause.elements.as(MemberDeclListSyntax.self) else {
+      guard let members = clause.elements?.as(MemberDeclListSyntax.self) else {
         return false
       }
 
