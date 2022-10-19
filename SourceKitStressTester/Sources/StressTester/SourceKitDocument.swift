@@ -487,7 +487,13 @@ class SourceKitDocument {
 
     do {
       let response = try sendWithTimeout(request, info: info, validateResponse: validateResponse)
-      return (response, try getInstructionCount())
+      let instructions = try getInstructionCount()
+      if instructions > 400_000_000_000 {
+        // This is a bit of a hot-fix to make insideOut-893:884 of ACHNBrowserUI/extensions/Path.swift consistently produce a soft timeout
+        // Previously, its request duration was super flaky and varied between <30s and >5min. I am not entirely sure what's causing the flakiness.
+        throw SourceKitError.softTimeout(request: info, duration: 0, instructions: instructions)
+      }
+      return (response, instructions)
     } catch SourceKitError.softTimeout(request: let request, duration: let duration, instructions: _) {
       throw SourceKitError.softTimeout(request: request, duration: duration, instructions: try getInstructionCount())
     } catch {
