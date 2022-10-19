@@ -73,8 +73,8 @@ fileprivate class SingleTokenRewriter: SyntaxRewriter {
   let shouldRewrite: (Syntax) -> Bool
   let transform: (TokenSyntax) -> TokenSyntax
   
-  override func visit(_ token: TokenSyntax) -> Syntax {
-    return Syntax(transform(token))
+  override func visit(_ token: TokenSyntax) -> TokenSyntax {
+    return transform(token)
   }
   
   override func visitAny(_ node: Syntax) -> Syntax? {
