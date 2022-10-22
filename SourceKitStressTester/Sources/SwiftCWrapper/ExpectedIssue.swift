@@ -76,6 +76,10 @@ public struct ExpectedIssue: Equatable, Codable {
       guard case .codeCompleteOpen(let specOffset) = issueDetail else { return false }
       return matchDocument(document) &&
         match(offset, against: specOffset)
+    case .codeCompleteUpdate(let document, let offset, _):
+      guard case .codeCompleteUpdate(let specOffset) = issueDetail else { return false }
+      return matchDocument(document) &&
+        match(offset, against: specOffset)
     case .codeCompleteClose(let document, let offset):
       guard case .codeCompleteClose(let specOffset) = issueDetail else { return false }
       return matchDocument(document) &&
@@ -189,6 +193,10 @@ public extension ExpectedIssue {
         path = document.path
         modification = document.modificationSummaryCode
         issueDetail = .codeCompleteOpen(offset: offset)
+      case .codeCompleteUpdate(let document, let offset, _):
+        path = document.path
+        modification = document.modificationSummaryCode
+        issueDetail = .codeCompleteUpdate(offset: offset)
       case .codeCompleteClose(let document, let offset):
         path = document.path
         modification = document.modificationSummaryCode
@@ -236,6 +244,7 @@ public extension ExpectedIssue {
     case cursorInfo(offset: Int?)
     case format(offset: Int?)
     case codeCompleteOpen(offset: Int?)
+    case codeCompleteUpdate(offset: Int?)
     case codeCompleteClose(offset: Int?)
     case rangeInfo(offset: Int?, length: Int?)
     case typeContextInfo(offset: Int?)
@@ -270,6 +279,10 @@ public extension ExpectedIssue {
         )
       case .codeComplete:
         self = .codeCompleteOpen(
+          offset: try container.decodeIfPresent(Int.self, forKey: .offset)
+        )
+      case .codeCompleteUpdate:
+        self = .codeCompleteUpdate(
           offset: try container.decodeIfPresent(Int.self, forKey: .offset)
         )
       case .codeCompleteClose:
@@ -330,6 +343,9 @@ public extension ExpectedIssue {
       case .codeCompleteOpen(let offset):
         try container.encode(RequestBase.codeComplete, forKey: .kind)
         try container.encode(offset, forKey: .offset)
+      case .codeCompleteUpdate(let offset):
+        try container.encode(RequestBase.codeCompleteUpdate, forKey: .kind)
+        try container.encode(offset, forKey: .offset)
       case .codeCompleteClose(let offset):
         try container.encode(RequestBase.codeCompleteClose, forKey: .kind)
         try container.encode(offset, forKey: .offset)
@@ -367,8 +383,21 @@ public extension ExpectedIssue {
     }
 
     private enum RequestBase: String, Codable {
-      case editorOpen, editorClose, editorReplaceText
-      case cursorInfo, codeComplete, codeCompleteClose, rangeInfo, semanticRefactoring, typeContextInfo, conformingMethodList, collectExpressionType, format, writeModule, interfaceGen
+      case editorOpen
+      case editorClose
+      case editorReplaceText
+      case cursorInfo
+      case codeComplete
+      case codeCompleteUpdate
+      case codeCompleteClose
+      case rangeInfo
+      case semanticRefactoring
+      case typeContextInfo
+      case conformingMethodList
+      case collectExpressionType
+      case format
+      case writeModule
+      case interfaceGen
       case statistics
       case stressTesterCrash
     }
@@ -387,6 +416,8 @@ public extension ExpectedIssue {
         return request == .format
       case .codeCompleteOpen:
         return request == .codeComplete
+      case .codeCompleteUpdate:
+        return request == .codeCompleteUpdate
       case .codeCompleteClose:
         return request == .codeCompleteClose
       case .rangeInfo:
