@@ -293,7 +293,7 @@ class SourceKitDocument {
       updateOptions["filtertext"] = expectedResult.name.base
 
       let updateRequest = buildCompletionRequest(request: .request_CodeCompleteUpdate, offset: offset, extraOptions: updateOptions)
-      let updateInfo = RequestInfo.codeCompleteOpen(document: documentInfo, offset: offset, args: args.sourcekitdArgs)
+      let updateInfo = RequestInfo.codeCompleteUpdate(document: documentInfo, offset: offset, args: args.sourcekitdArgs)
       let updateResponse = try sendWithTimeout(updateRequest, info: updateInfo) { response in
         try checkExpectedCompletionResult(expectedResult, in: response, info: openInfo)
       }
