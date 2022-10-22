@@ -31,7 +31,7 @@ extension ActionGenerator {
 
   /// Entrypoint intended for testing purposes only
   public func generate(for source: String) -> [Action] {
-    var tree = try! Parser.parse(source: source)
+    var tree = Parser.parse(source: source)
     if let foldedTree = try? OperatorTable.standardOperators.foldAll(tree).as(SourceFileSyntax.self) {
       tree = foldedTree
     }

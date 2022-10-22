@@ -18,8 +18,10 @@ import Common
 public class StressTester {
   let options: StressTesterOptions
   let connection: SourceKitdService
-  /// For each code completion request issued by the stress tester, the number of instructions `sourcekitd` took to execute it.
-  var codeCompletionDurations: [(request: RequestInfo, instructionCount: Int, reusingASTContext: Bool?)] = []
+  /// For different request kinds, the number of instructions that were executed to server the request.
+  /// For all SourceKit requests, this contains the number of instructions executed by `sourcekitd`.
+  /// For `ReplaceText`, this includes the number of instructions the `SwiftParser` running in this process took to parse the file.
+  var requestDurations: [RequestKind: [Timing]] = [:]
 
   public init(options: StressTesterOptions) {
     self.options = options
@@ -54,14 +56,9 @@ public class StressTester {
       if let timingsFile = options.requestDurationsOutputFile {
         // We are only keeping track of code completion durations for now.
         // This could easily be expanded to other request types.
-        let timings: [Timing] = codeCompletionDurations.compactMap({ (request, instructionCount, reusingASTContext) in
-          guard case .codeCompleteOpen(document: let document, offset: let offset, args: _) = request else {
-            return nil
-          }
-          return Timing(modification: document.modificationSummaryCode, offset: offset, instructions: instructionCount, reusingASTContext: reusingASTContext)
-        })
-        let timing = AggregatedRequestDurations(timings: timings)
-        try? RequestDurationManager(jsonFile: timingsFile).add(aggregatedDurations: timing, for: compilerArgs.forFile.path, requestKind: .codeComplete)
+        for (requestKind, timings) in requestDurations {
+          try? RequestDurationManager(jsonFile: timingsFile).add(timings: timings, for: compilerArgs.forFile.path, requestKind: requestKind)
+        }
       }
     }
 
@@ -116,7 +113,7 @@ public class StressTester {
         case .rangeInfo(let offset, let length):
           try report(document.rangeInfo(offset: offset, length: length))
         case .replaceText(let offset, let length, let text):
-          _ = try document.replaceText(offset: offset, length: length, text: text)
+          try report(document.replaceText(offset: offset, length: length, text: text))
         case .format(let offset):
           try report(document.format(offset: offset))
         case .typeContextInfo(let offset):
@@ -213,11 +210,21 @@ public class StressTester {
   }
 
   private func reportPerformanceMeasurement(request: RequestInfo, instructions: Int, reusingASTContext: Bool?) {
-    // TODO: Once we measure instructions for other requests, codeCompletionDurations
-    // should be a more generic data structure and we shouldn't need the `if case`
-    // anymore.
-    if case .codeCompleteOpen = request {
-      codeCompletionDurations.append((request, instructions, reusingASTContext))
+    switch request {
+    case .codeCompleteOpen(document: let document, offset: let offset, args: _):
+      let timing = Timing(modification: document.modificationSummaryCode, offset: offset, instructions: instructions, reusingASTContext: reusingASTContext)
+      self.requestDurations[.codeComplete, default: []].append(timing)
+    case .editorReplaceText(document: let document, offset: let offset, length: _, text: _):
+      if document.modification != nil {
+        // FIXME: We use the modificationSummaryCode *before* the modification as the timing's description.
+        // Since both 'concurrent' and 'insideOut' start by modifying 'unmodified', this results in duplicate keys.
+        // Just ignore this first replaceText for now. We've got plenty of test cases without it anyway.
+        break
+      }
+      let timing = Timing(modification: document.modificationSummaryCode, offset: offset, instructions: instructions, reusingASTContext: reusingASTContext)
+      self.requestDurations[.replaceText, default: []].append(timing)
+    default:
+      break
     }
   }
 
@@ -239,6 +246,10 @@ public class StressTester {
     default:
       try handler(SourceKitResponseData([response.value.description], for: request))
     }
+  }
+
+  private func report(_ result: (request: RequestInfo, tree: SourceFileSyntax, response: SourceKitdResponse, instructions: Int)) throws {
+    reportPerformanceMeasurement(request: result.request, instructions: result.instructions, reusingASTContext: nil)
   }
 
   private func getCompletionResults(from results: SourceKitdResponse.Array) -> [String] {
