@@ -74,7 +74,7 @@ class RegressionTests: XCTestCase {
 
           XCTAssertNil(
             try SynthesizeMemberwiseInitializerEvolution(
-              for: (ifConfig.clauses.first!.elements!),
+              for: Syntax(ifConfig.clauses.first!.elements!),
               in: dc, using: &unusedRNG
             ),
             "Should not try to synthesize an init() inside an #if"
@@ -109,7 +109,7 @@ class RegressionTests: XCTestCase {
 
           XCTAssertNil(
             try SynthesizeMemberwiseInitializerEvolution(
-              for: (ifConfig.clauses.first!.elements!),
+              for: Syntax(ifConfig.clauses.first!.elements!),
               in: dc, using: &unusedRNG
             ),
             "Should not try to synthesize an init() inside an #if"
@@ -145,7 +145,7 @@ class RegressionTests: XCTestCase {
 
           XCTAssertNil(
             try SynthesizeMemberwiseInitializerEvolution(
-              for: (ifConfig.clauses.first!.elements!),
+              for: Syntax(ifConfig.clauses.first!.elements!),
               in: dc, using: &unusedRNG
             ),
             "Should not try to synthesize an init() inside an #if"
