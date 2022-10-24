@@ -18,6 +18,7 @@ import SwiftSyntax
 import SwiftOperators
 import Common
 import Foundation
+import InstructionCount
 
 let SOURCEKIT_REQUEST_TIMEOUT = 300 // seconds
 
@@ -410,7 +411,7 @@ class SourceKitDocument {
     return (info, response)
   }
 
-  func replaceText(offset: Int, length: Int, text: String) throws -> (SourceFileSyntax, SourceKitdResponse) {
+  func replaceText(offset: Int, length: Int, text: String) throws -> (request: RequestInfo, tree: SourceFileSyntax, response: SourceKitdResponse, instructions: Int) {
     let request = SourceKitdRequest(uid: .request_EditorReplaceText)
     request.addParameter(.key_Name, value: args.forFile.path)
     request.addParameter(.key_Offset, value: offset)
@@ -426,9 +427,9 @@ class SourceKitDocument {
 
     // update expected source content and syntax tree
     sourceState?.replace(offset: offset, length: length, with: text)
-    try updateSyntaxTree(request: info)
+    let instructions = try updateSyntaxTree(request: info).instructions
 
-    return (tree!, response)
+    return (request: info, tree: tree!, response: response, instructions)
   }
 
   private func checkExpectedCompletionResult(_ expected: ExpectedResult, in response: SourceKitdResponse, info: RequestInfo) throws {
@@ -591,7 +592,7 @@ class SourceKitDocument {
 
     var tree: SourceFileSyntax
     if let state = sourceState {
-      tree = try Parser.parse(
+      tree = Parser.parse(
         source: state.source,
         parseTransition: reparseTransition
       )
@@ -600,7 +601,7 @@ class SourceKitDocument {
       let source = fileData.withUnsafeBytes { buf in
         return String(decoding: buf.bindMemory(to: UInt8.self), as: UTF8.self)
       }
-      tree = try Parser.parse(source: source)
+      tree = Parser.parse(source: source)
     }
     if let foldedTree = OperatorTable.standardOperators.foldAll(tree, errorHandler: { _ in }).as(SourceFileSyntax.self) {
       tree = foldedTree
@@ -610,10 +611,13 @@ class SourceKitDocument {
   }
 
   @discardableResult
-  private func updateSyntaxTree(request: RequestInfo) throws -> SourceFileSyntax {
+  private func updateSyntaxTree(request: RequestInfo) throws -> (tree: SourceFileSyntax, instructions: Int) {
     let tree: SourceFileSyntax
+    let executedInstruction: Int
     do {
+      let previousInstructionCount = Int(get_current_instruction_count())
       tree = try parseSyntax(request: request)
+      executedInstruction = Int(get_current_instruction_count()) - previousInstructionCount
     } catch let error {
       throw SourceKitError.failed(.errorDeserializingSyntaxTree, request: request, response: error.localizedDescription)
     }
@@ -641,7 +645,7 @@ class SourceKitDocument {
       throw SourceKitError.failed(.sourceAndSyntaxTreeMismatch, request: request, response: comparison)
     }
 
-    return tree
+    return (tree, executedInstruction)
   }
 }
 

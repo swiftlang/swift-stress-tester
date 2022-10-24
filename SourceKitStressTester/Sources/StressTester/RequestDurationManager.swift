@@ -53,51 +53,13 @@ struct Timing: Codable {
   var reusingASTContext: Bool?
 }
 
-/// Captures aggregated information about executing a certain request kind on a
-/// certain file. 
-/// Everything except `values` is a legacy data structure used by an analysis
-/// script in the source compatibility suite repo and will be removed.
-struct AggregatedRequestDurations: Codable {
-  static let empty = AggregatedRequestDurations(timings: [])
-
-  /// The log histogram created by the extension on `Array` above.
-  var logHistogram: [Int: Int]
-
-  /// The total number of instructions executed by the requests of this type
-  /// `totalInstructions` / `requestsExecuted` gives the average number of
-  /// instructions per request.
-  var totalInstructions: Int
-
-  /// The total number of requests of a given kind executed for a given file
-  var requestsExecuted: Int
-  
-  var values: [Timing]
-
-  init(timings: [Timing]) {
-    values = timings
-    let instructionCounts = timings.map { $0.instructions }
-    logHistogram = instructionCounts.logHistogram
-    totalInstructions = instructionCounts.reduce(0, { $0 + $1 })
-    requestsExecuted = instructionCounts.count
-  }
-
-  mutating func merge(other: AggregatedRequestDurations) {
-    self.logHistogram.merge(other.logHistogram, uniquingKeysWith: {
-      $0 + $1
-    })
-    self.totalInstructions += other.totalInstructions
-    self.requestsExecuted += other.requestsExecuted
-    self.values += other.values
-  }
-}
-
 /// Contains aggregated information for all request kinds of all files executed
 /// by the stress tester.
 fileprivate struct RequestDurations: Codable {
   // FIXME: We should be using `RequestKind` as the inner key but that causes
   // the inner dictionary to be serialized as an array (rdar://78099769)
   /// Maps file paths to request kinds to aggregated request duration information
-  var files: [String: [String: AggregatedRequestDurations]]
+  var files: [String: [String: [Timing]]]
 }
 
 /// Collects the durations that requests executed by the stress tester took and
@@ -124,10 +86,10 @@ class RequestDurationManager {
     return try JSONDecoder().decode(RequestDurations.self, from: data)
   }
 
-  func add(aggregatedDurations: AggregatedRequestDurations, for file: String, requestKind: RequestKind) throws {
+  func add(timings: [Timing], for file: String, requestKind: RequestKind) throws {
     try localFileSystem.withLock(on: AbsolutePath(jsonFile.path), type: .exclusive) {
       var currentTimings = try getRequestDurations()
-      currentTimings.files[file, default: [:]][requestKind.rawValue, default: .empty].merge(other: aggregatedDurations)
+      currentTimings.files[file, default: [:]][requestKind.rawValue, default: []] += timings
       let data = try JSONEncoder().encode(currentTimings)
       try data.write(to: jsonFile)
     }

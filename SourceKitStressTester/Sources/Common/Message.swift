@@ -624,6 +624,7 @@ extension StressTesterMessage: CustomStringConvertible {
 }
 
 public enum RequestKind: String, CaseIterable, CustomStringConvertible, Codable {
+  case replaceText = "ReplaceText"
   case cursorInfo = "CursorInfo"
   case rangeInfo = "RangeInfo"
   case codeComplete = "CodeComplete"

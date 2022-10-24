@@ -124,8 +124,11 @@ let package = Package(
       name: "Common"
     ),
     .target(
+      name: "InstructionCount"
+    ),
+    .target(
       name: "StressTester",
-      dependencies: stressTesterTargetDependencies,
+      dependencies: ["InstructionCount"] + stressTesterTargetDependencies,
       swiftSettings: [.unsafeFlags(sourceKitSwiftSettings + swiftSyntaxSwiftSettings)],
       linkerSettings: [.unsafeFlags(sourceKitLinkerSettings + swiftSyntaxLinkerSettings)]
     ),
