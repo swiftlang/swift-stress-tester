@@ -70,7 +70,7 @@ extension Collection {
     statementTrailingTrivia: Trivia = [.newlines(1)],
     innerTrailingTrivia: Trivia = [],
     outerTrailingTrivia: Trivia = [.newlines(1)],
-    _ transform: (Element) throws -> Syntax
+    _ transform: (Element) throws -> CodeBlockItemSyntax.Item
   ) rethrows -> CodeBlockSyntax {
     let stmts = try map {
       CodeBlockItemSyntax(

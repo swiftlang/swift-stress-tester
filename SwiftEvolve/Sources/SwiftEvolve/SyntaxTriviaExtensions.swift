@@ -17,7 +17,7 @@
 
 import SwiftSyntax
 
-extension Syntax {
+extension SyntaxProtocol {
   func prependingComment(_ text: String) -> Self {
     return replacingTriviaWith(leading: {
       $0 + [.lineComment("// \(text)"), .newlines(1)] + $0.trailingIndentation
@@ -34,8 +34,8 @@ extension Syntax {
           SingleTokenRewriter(
             shouldRewrite: { $0 == ($0.parent?.children(viewMode: .sourceAccurate).first ?? $0) },
             transform: { $0.withLeadingTrivia(leading($0.leadingTrivia)) }
-          ).visit(self)
-        )
+          ).visit(Syntax(self))
+        ).as(Self.self)!
       }
     }
   }

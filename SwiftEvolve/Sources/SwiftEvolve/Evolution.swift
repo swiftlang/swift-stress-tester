@@ -309,7 +309,7 @@ extension SynthesizeMemberwiseInitializerEvolution {
         let expr = ExprSyntaxTemplate.makeExpr(withVars: "self", prop.name) {
           _self, arg in _self[dot: prop.name] ^= arg
         }
-        return Syntax(expr)
+        return .expr(expr)
       }
 
       let signature = FunctionSignatureSyntax(
