@@ -215,7 +215,7 @@ public class StressTester {
       let timing = Timing(modification: document.modificationSummaryCode, offset: offset, instructions: instructions, reusingASTContext: reusingASTContext)
       self.requestDurations[.codeComplete, default: []].append(timing)
     case .editorReplaceText(document: let document, offset: let offset, length: _, text: _):
-      if document.modification != nil {
+      if document.modification == nil {
         // FIXME: We use the modificationSummaryCode *before* the modification as the timing's description.
         // Since both 'concurrent' and 'insideOut' start by modifying 'unmodified', this results in duplicate keys.
         // Just ignore this first replaceText for now. We've got plenty of test cases without it anyway.
