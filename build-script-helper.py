@@ -170,7 +170,7 @@ def handle_errors(func, message, *args, **kwargs):
 
 
 def update_swiftpm_dependencies(package_dir, swift_exec, build_dir, env, verbose):
-  args = [swift_exec, 'package', '--package-path', package_dir, '--build-path', build_dir, 'update']
+  args = [swift_exec, 'package', '--package-path', package_dir, '--scratch-path', build_dir, 'update']
   check_call(args, env=env, verbose=verbose)
 
 
@@ -182,7 +182,7 @@ def invoke_swift(package_dir, swift_exec, action, products, build_dir, multiroot
 
 
 def invoke_swift_single_product(package_dir, swift_exec, action, product, build_dir, multiroot_data_file, config, env, verbose):
-  args = [swift_exec, action, '--package-path', package_dir, '-c', config, '--build-path', build_dir]
+  args = [swift_exec, action, '--package-path', package_dir, '-c', config, '--scratch-path', build_dir]
 
   if multiroot_data_file:
     args.extend(['--multiroot-data-file', multiroot_data_file])
