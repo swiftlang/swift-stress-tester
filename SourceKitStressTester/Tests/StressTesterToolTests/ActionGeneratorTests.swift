@@ -93,8 +93,7 @@ class ActionGeneratorTests: XCTestCase {
 
       // TODO: subscript completions after [
       (#line, "data[position]", ["data", "position"]),
-      // FIXME: `default` should also be an action position: https://github.com/apple/swift-syntax/issues/829
-      (#line, "data[position, default: 0]", ["data", "position"]),
+      (#line, "data[position, default: 0]", ["data", "position", "default:"]),
 
       // FIXME: completion doesn't suggest anonymous closure params (e.g. $0)
       (#line, "$0.first", [/*"$0",*/ "first"]),
