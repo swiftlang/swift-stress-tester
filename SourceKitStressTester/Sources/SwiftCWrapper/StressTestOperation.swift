@@ -116,14 +116,14 @@ final class StressTestOperation: Operation {
     if isCancelled {
       status = .cancelled
     } else if let parsed = parseMessages(result.stdout) {
-      if result.status == EXIT_SUCCESS {
-        status = .passed
-        self.responses = parsed.sourceKitResponses
-      } else if !parsed.sourceKitErrors.isEmpty {
+      if !parsed.sourceKitErrors.isEmpty {
         status = .failed(sourceKitError: parsed.sourceKitErrors)
         self.responses = parsed.sourceKitResponses
+      } else if result.status == EXIT_SUCCESS {
+        status = .passed
+        self.responses = parsed.sourceKitResponses
       } else {
-        // A non-successful exit code with no error produced-> stress tester failure
+        // Non-empty unparseable output -> treat this as a stress tester failure
         status = .errored(status: result.status)
       }
     } else {
