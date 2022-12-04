@@ -150,7 +150,12 @@ public class StressTester {
       .generate(for: tree)
       .filter { action in
         if let offsetFilter = options.offsetFilter, offsetFilter != action.offset {
-          return false
+          if case .replaceText = action {
+            // Don't filter replaceText actions.
+            // They are necessary to reproduce the source state we want to test.
+          } else {
+            return false
+          }
         }
         guard !locationsInvalidated else { return false }
         switch action {
