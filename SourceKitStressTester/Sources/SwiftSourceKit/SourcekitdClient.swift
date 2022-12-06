@@ -44,8 +44,18 @@ public class SourceKitdService {
   /// Handlers to be executed whenever the `state` changes.
   private var stateChangeHandlers: [ObjectIdentifier: () -> Void] = [:]
 
-  public init() {
+  private let printRequests: Bool
+
+  public init(printRequests: Bool) {
+    self.printRequests = printRequests
     initializeService()
+  }
+
+  private func sendRequestSync(_ req: SourceKitdRequest) -> sourcekitd_response_t! {
+    if printRequests {
+      print(req.description)
+    }
+    return sourcekitd_send_request_sync(req.rawRequest)
   }
 
   /// Set up a new SourceKit service instance.
@@ -65,7 +75,7 @@ public class SourceKitdService {
           // the request queue is blocked.
           let request = SourceKitdRequest(uid: .request_CursorInfo)
           request.addParameter(.key_SourceText, value: "")
-          _ = sourcekitd_send_request_sync(request.rawRequest)
+          _ = self.sendRequestSync(request)
         }
 
         if response.isConnectionInterruptionError {
@@ -89,7 +99,7 @@ public class SourceKitdService {
   /// SourceKit.
   public func crash() {
     let request = SourceKitdRequest(uid: .request_CrashWithExit)
-    _ = sourcekitd_send_request_sync(request.rawRequest)
+    _ = sendRequestSync(request)
     stateQueue.sync {
       self.state = .interrupted
     }
@@ -128,7 +138,7 @@ public class SourceKitdService {
   public func sendSyn(request: SourceKitdRequest) -> SourceKitdResponse {
     return requestQueue.sync {
       blockUntilState(.running)
-      return SourceKitdResponse(resp: sourcekitd_send_request_sync(request.rawRequest))
+      return SourceKitdResponse(resp: sendRequestSync(request))
     }
   }
 
@@ -139,7 +149,7 @@ public class SourceKitdService {
                    handler: @escaping (SourceKitdResponse) -> ())  {
     requestQueue.async { [self] in
       blockUntilState(.running)
-      let response = SourceKitdResponse(resp: sourcekitd_send_request_sync(request.rawRequest))
+      let response = SourceKitdResponse(resp: sendRequestSync(request))
       if response.isConnectionInterruptionError {
         // Set the state into the interrupted state now. We will also catch this
         // in the notification handler but that has some delay and we might be
