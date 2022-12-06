@@ -214,6 +214,9 @@ public class StressTester {
     case .codeCompleteOpen(document: let document, offset: let offset, args: _):
       let timing = Timing(modification: document.modificationSummaryCode, offset: offset, instructions: instructions, reusingASTContext: reusingASTContext)
       self.requestDurations[.codeComplete, default: []].append(timing)
+    case .cursorInfo(document: let document, offset: let offset, args: _):
+      let timing = Timing(modification: document.modificationSummaryCode, offset: offset, instructions: instructions, reusingASTContext: reusingASTContext)
+      self.requestDurations[.cursorInfo, default: []].append(timing)
     case .editorReplaceText(document: let document, offset: let offset, length: _, text: _):
       if document.modification == nil {
         // FIXME: We use the modificationSummaryCode *before* the modification as the timing's description.
