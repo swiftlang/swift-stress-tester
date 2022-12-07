@@ -43,6 +43,11 @@ public struct StressTesterTool: ParsableCommand {
     """)
   public var printActions: Bool = false
 
+  @Flag(name: .long, help: """
+    Print all request that are being sent to sourcekitd as JSON
+    """)
+  public var printRequests: Bool = false
+
   @Option(name: .shortAndLong, help: ArgumentHelp("""
     Divides the work for each file into <total> equal parts \
     and only performs the <page>th group. \
@@ -165,6 +170,7 @@ public struct StressTesterTool: ParsableCommand {
       tempDir: tempDir!,
       astBuildLimit: limit,
       printActions: printActions,
+      printRequests: printRequests,
       requestDurationsOutputFile: requestDurationsOutputFile,
       responseHandler: !reportResponses ? nil :
         { [format] responseData in

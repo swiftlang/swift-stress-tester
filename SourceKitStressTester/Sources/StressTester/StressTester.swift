@@ -25,7 +25,7 @@ public class StressTester {
 
   public init(options: StressTesterOptions) {
     self.options = options
-    self.connection = SourceKitdService()
+    self.connection = SourceKitdService(printRequests: options.printRequests)
   }
 
   var generator: ActionGenerator {
@@ -295,6 +295,7 @@ public struct StressTesterOptions {
   public var tempDir: URL
   public var astBuildLimit: Int?
   public var printActions: Bool
+  public var printRequests: Bool
   public var requestDurationsOutputFile: URL?
   public var responseHandler: ((SourceKitResponseData) throws -> Void)?
   public var dryRun: (([Action]) throws -> Void)?
@@ -302,7 +303,7 @@ public struct StressTesterOptions {
   public init(requests: Set<RequestKind>, rewriteMode: RewriteMode,
               conformingMethodsTypeList: [String], page: Page, offsetFilter: Int?,
               tempDir: URL, astBuildLimit: Int? = nil,
-              printActions: Bool = false,
+              printActions: Bool = false, printRequests: Bool = false,
               requestDurationsOutputFile: URL? = nil,
               responseHandler: ((SourceKitResponseData) throws -> Void)? = nil,
               dryRun: (([Action]) throws -> Void)? = nil) {
@@ -314,6 +315,7 @@ public struct StressTesterOptions {
     self.tempDir = tempDir
     self.astBuildLimit = astBuildLimit
     self.printActions = printActions
+    self.printRequests = printRequests
     self.requestDurationsOutputFile = requestDurationsOutputFile
     self.responseHandler = responseHandler
     self.dryRun = dryRun
