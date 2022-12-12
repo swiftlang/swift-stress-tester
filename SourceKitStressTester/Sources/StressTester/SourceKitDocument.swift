@@ -137,7 +137,7 @@ class SourceKitDocument {
     return (info, response)
   }
 
-  func cursorInfo(offset: Int) throws -> (RequestInfo, SourceKitdResponse) {
+  func cursorInfo(offset: Int) throws -> (request: RequestInfo, response: SourceKitdResponse, instructions: Int, reusingASTContext: Bool) {
     let request = SourceKitdRequest(uid: .request_CursorInfo)
 
     request.addParameter(.key_SourceFile, value: args.forFile.path)
@@ -148,13 +148,15 @@ class SourceKitDocument {
 
     let info = RequestInfo.cursorInfo(document: documentInfo, offset: offset,
                                       args: args.sourcekitdArgs)
-    let response = try sendWithTimeout(request, info: info) { response in
+    let (response, instructions) = try sendWithTimeoutMeasuringInstructions(request, info: info) { response in
       if !containsErrors {
         if let typeName = response.value.getOptional(.key_TypeName)?.getString(), typeName.contains("<<error type>>") {
           throw SourceKitError.failed(.errorTypeInResponse, request: info, response: response.value.description)
         }
       }
     }
+
+    let reusingASTContext = response.value.getBool(.key_ReusingASTContext)
 
     let symbolName = response.value.getOptional(.key_Name)?.getString()
     if let actions = response.value.getOptional(.key_RefactorActions)?.getArray() {
@@ -169,7 +171,7 @@ class SourceKitDocument {
       }
     }
 
-    return (info, response)
+    return (info, response, instructions, reusingASTContext)
   }
 
   func format(offset: Int) throws -> (RequestInfo, SourceKitdResponse) {
