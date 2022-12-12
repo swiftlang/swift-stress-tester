@@ -632,19 +632,10 @@ class SourceKitDocument {
       tree = try parseSyntax(request: request)
       executedInstruction = Int(get_current_instruction_count()) - previousInstructionCount
     } catch let error {
-      throw SourceKitError.failed(.errorDeserializingSyntaxTree, request: request, response: error.localizedDescription)
+      throw SourceKitError.failed(.errorResponse, request: request, response: error.localizedDescription)
     }
     self.tree = tree
     self.converter = SourceLocationConverter(file: "", tree: tree)
-
-    /// When we should be able to fully parse the file, we verify the syntax tree
-    if !containsErrors {
-      do {
-        try SyntaxVerifier.verify(Syntax(tree))
-      } catch let error as SyntaxVerifierError {
-        throw SourceKitError.failed(.errorDeserializingSyntaxTree, request: request, response: error.description)
-      }
-    }
 
     if let state = sourceState, state.source != tree.description {
       // FIXME: add state and tree descriptions in their own field
