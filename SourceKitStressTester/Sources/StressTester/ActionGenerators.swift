@@ -613,7 +613,7 @@ private class ActionTokenCollector: SyntaxAnyVisitor {
     if !token.isOperator && token.ancestors.contains(where: {($0.isProtocol(ExprSyntaxProtocol.self) || $0.isProtocol(TypeSyntaxProtocol.self)) && $0.firstToken == token}) {
       return [.format, .codeComplete, .typeContextInfo, .conformingMethodList]
     }
-    if case .contextualKeyword(let text) = token.tokenKind, ["get", "set", "didSet", "willSet"].contains(text) {
+    if case .contextualKeyword(let keyword) = token.tokenKind, [.get, .set, .didSet, .willSet].contains(keyword) {
       return [.format, .codeComplete, .typeContextInfo, .conformingMethodList]
     }
     return [.format]
@@ -626,7 +626,7 @@ private class ActionTokenCollector: SyntaxAnyVisitor {
     if !token.isOperator && token.ancestors.contains(where: {($0.isProtocol(ExprSyntaxProtocol.self) || $0.isProtocol(TypeSyntaxProtocol.self)) && $0.lastToken == token}) {
       return [.codeComplete, .typeContextInfo, .conformingMethodList]
     }
-    if case .contextualKeyword(let text) = token.tokenKind, ["get", "set", "didSet", "willSet"].contains(text) {
+    if case .contextualKeyword(let keyword) = token.tokenKind, [.get, .set, .didSet, .willSet].contains(keyword) {
       return [.codeComplete, .typeContextInfo, .conformingMethodList]
     }
     return []
