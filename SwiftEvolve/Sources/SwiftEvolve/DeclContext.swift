@@ -458,11 +458,9 @@ extension Optional where Wrapped == AttributeListSyntax {
   func contains(named name: String) -> Bool {
     return self?.contains { 
       if let builtinAttribute = $0.as(AttributeSyntax.self) {
-        return builtinAttribute.attributeName.text == name 
-      } else if let customAttribute = $0.as(CustomAttributeSyntax.self) {
         // FIXME: Attribute name is a TypeSyntax, so .description isn't quite
         // right here (e.g. @MyCustomAttribute<MyTypeParam> is valid)
-        return customAttribute.attributeName.description == name
+        return builtinAttribute.attributeName.description == name
       } else {
         preconditionFailure("unhandled AttributeListSyntax element kind")
       }
