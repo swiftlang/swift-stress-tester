@@ -288,17 +288,6 @@ extension PatternSyntax {
     case .identifierPattern(let identifierPattern):
       return [(identifierPattern.identifier, nil)]
 
-    case .asTypePattern(let asTypePattern):
-      let subnames = asTypePattern.pattern.boundIdentifiers
-      if let tupleType = asTypePattern.type.as(TupleTypeSyntax.self) {
-        return zip(subnames.map { $0.name }, tupleType.elements.map { $0.type })
-          .map { ($0.0, $0.1) }
-      }
-      else {
-        assert(subnames.count == 1)
-        return [ (subnames[0].name, asTypePattern.type) ]
-      }
-
     case .tuplePattern(let tuplePattern):
       return tuplePattern.elements.flatMap { $0.pattern.boundIdentifiers }
 
