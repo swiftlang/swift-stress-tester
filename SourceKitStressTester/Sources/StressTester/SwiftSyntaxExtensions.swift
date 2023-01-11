@@ -49,7 +49,7 @@ extension SyntaxProtocol {
 extension TokenSyntax {
   var isOperator: Bool {
     switch tokenKind {
-    case .prefixOperator, .postfixOperator, .spacedBinaryOperator, .unspacedBinaryOperator, .equal:
+    case .prefixOperator, .postfixOperator, .binaryOperator, .equal:
       return true
     default:
       return false
