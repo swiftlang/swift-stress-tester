@@ -321,7 +321,7 @@ extension SynthesizeMemberwiseInitializerEvolution {
       let newInitializer = InitializerDeclSyntax(
         attributes: nil,
         modifiers: nil,
-        initKeyword: .initKeyword(
+        initKeyword: .keyword(.`init`,
           leadingTrivia: [
             .newlines(2),
             .lineComment("// Synthesized by SynthesizeMemberwiseInitializerEvolution"),
