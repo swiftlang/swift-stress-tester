@@ -20,7 +20,7 @@ import Foundation
 
 public protocol DeclWithMembers: DeclSyntaxProtocol {
   var members: MemberDeclBlockSyntax { get }
-  func withMembers(_ newChild: MemberDeclBlockSyntax?) -> Self
+  func withMembers(_ newChild: MemberDeclBlockSyntax) -> Self
 }
 
 extension ClassDeclSyntax: DeclWithMembers {}
@@ -33,7 +33,7 @@ public protocol DeclWithParameters: DeclSyntaxProtocol {
   var baseName: String { get }
   
   var parameters: ParameterClauseSyntax { get }
-  func withParameters(_ parameters: ParameterClauseSyntax?) -> Self
+  func withParameters(_ parameters: ParameterClauseSyntax) -> Self
 }
 
 public protocol AbstractFunctionDecl: DeclWithParameters {
@@ -48,7 +48,7 @@ extension InitializerDeclSyntax: AbstractFunctionDecl {
     return signature.input
   }
 
-  public func withParameters(_ parameters: ParameterClauseSyntax?) -> InitializerDeclSyntax {
+  public func withParameters(_ parameters: ParameterClauseSyntax) -> InitializerDeclSyntax {
     return withSignature(signature.withInput(parameters))
   }
 }
@@ -62,7 +62,7 @@ extension FunctionDeclSyntax: AbstractFunctionDecl {
     return signature.input
   }
 
-  public func withParameters(_ parameters: ParameterClauseSyntax?) -> FunctionDeclSyntax {
+  public func withParameters(_ parameters: ParameterClauseSyntax) -> FunctionDeclSyntax {
     return withSignature(signature.withInput(parameters))
   }
 }
@@ -74,7 +74,7 @@ extension SubscriptDeclSyntax: DeclWithParameters {
     return indices
   }
 
-  public func withParameters(_ parameters: ParameterClauseSyntax?) -> SubscriptDeclSyntax {
+  public func withParameters(_ parameters: ParameterClauseSyntax) -> SubscriptDeclSyntax {
     return withIndices(parameters)
   }
 }
