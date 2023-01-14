@@ -76,9 +76,7 @@ extension Collection {
       CodeBlockItemSyntax(
         item: try transform($0).replacingTriviaWith(
           leading: statementLeadingTrivia, trailing: statementTrailingTrivia
-        ),
-        semicolon: nil,
-        errorTokens: nil
+        )
       )
     }
     
