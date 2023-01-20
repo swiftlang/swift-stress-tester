@@ -29,11 +29,11 @@ extension SyntaxProtocol {
       withoutActuallyEscaping(leading) { leading in
         SingleTokenRewriter(
           shouldRewrite: { $0 == ($0.parent?.children(viewMode: .sourceAccurate).last ?? $0) },
-          transform: { $0.withTrailingTrivia(trailing($0.trailingTrivia)) }
+          transform: { $0.with(\.trailingTrivia, trailing($0.trailingTrivia)) }
         ).visit(
           SingleTokenRewriter(
             shouldRewrite: { $0 == ($0.parent?.children(viewMode: .sourceAccurate).first ?? $0) },
-            transform: { $0.withLeadingTrivia(leading($0.leadingTrivia)) }
+            transform: { $0.with(\.leadingTrivia, leading($0.leadingTrivia)) }
           ).visit(Syntax(self))
         ).as(Self.self)!
       }
