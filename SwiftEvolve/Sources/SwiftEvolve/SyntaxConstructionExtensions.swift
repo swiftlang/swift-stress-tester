@@ -17,7 +17,7 @@
 import SwiftSyntax
 
 protocol TrailingCommaSyntax: SyntaxProtocol {
-  func withTrailingComma(_ token: TokenSyntax?) -> Self
+  var trailingComma: TokenSyntax? { get set }
 }
 
 extension FunctionParameterSyntax: TrailingCommaSyntax {}
@@ -29,11 +29,11 @@ extension BidirectionalCollection where Element: TrailingCommaSyntax {
 
     for elem in dropLast() {
       let newComma = TokenSyntax.commaToken(trailingTrivia: betweenTrivia)
-      let newElem = elem.withTrailingComma(newComma)
+      let newElem = elem.with(\.trailingComma, newComma)
       elems.append(newElem)
     }
     if let last = last {
-      elems.append(last.withTrailingComma(nil))
+      elems.append(last.with(\.trailingComma, nil))
     }
 
     return elems

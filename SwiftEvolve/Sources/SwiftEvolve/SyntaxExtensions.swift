@@ -19,8 +19,7 @@ import SwiftSyntax
 import Foundation
 
 public protocol DeclWithMembers: DeclSyntaxProtocol {
-  var members: MemberDeclBlockSyntax { get }
-  func withMembers(_ newChild: MemberDeclBlockSyntax) -> Self
+  var members: MemberDeclBlockSyntax { get set }
 }
 
 extension ClassDeclSyntax: DeclWithMembers {}
@@ -32,24 +31,23 @@ extension ExtensionDeclSyntax: DeclWithMembers {}
 public protocol DeclWithParameters: DeclSyntaxProtocol {
   var baseName: String { get }
   
-  var parameters: ParameterClauseSyntax { get }
-  func withParameters(_ parameters: ParameterClauseSyntax) -> Self
+  var parameters: ParameterClauseSyntax { get set }
 }
 
 public protocol AbstractFunctionDecl: DeclWithParameters {
-  var body: CodeBlockSyntax? { get }
-  func withBody(_ body: CodeBlockSyntax?) -> Self
+  var body: CodeBlockSyntax? { get set }
 }
 
 extension InitializerDeclSyntax: AbstractFunctionDecl {
   public var baseName: String { return "init" }
 
   public var parameters: ParameterClauseSyntax {
-    return signature.input
-  }
-
-  public func withParameters(_ parameters: ParameterClauseSyntax) -> InitializerDeclSyntax {
-    return withSignature(signature.withInput(parameters))
+    get {
+      return signature.input
+    }
+    set {
+      self = with(\.signature, signature.with(\.input, newValue))
+    }
   }
 }
 
@@ -59,11 +57,12 @@ extension FunctionDeclSyntax: AbstractFunctionDecl {
   }
 
   public var parameters: ParameterClauseSyntax {
-    return signature.input
-  }
-
-  public func withParameters(_ parameters: ParameterClauseSyntax) -> FunctionDeclSyntax {
-    return withSignature(signature.withInput(parameters))
+    get {
+      return signature.input
+    }
+    set {
+      self = with(\.signature, signature.with(\.input, newValue))
+    }
   }
 }
 
@@ -71,11 +70,12 @@ extension SubscriptDeclSyntax: DeclWithParameters {
   public var baseName: String { return "subscript" }
 
   public var parameters: ParameterClauseSyntax {
-    return indices
-  }
-
-  public func withParameters(_ parameters: ParameterClauseSyntax) -> SubscriptDeclSyntax {
-    return withIndices(parameters)
+    get {
+      return indices
+    }
+    set {
+      self = with(\.indices, newValue)
+    }
   }
 }
 
