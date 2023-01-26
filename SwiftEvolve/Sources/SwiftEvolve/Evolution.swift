@@ -312,11 +312,7 @@ extension SynthesizeMemberwiseInitializerEvolution {
         return .expr(expr)
       }
 
-      let signature = FunctionSignatureSyntax(
-        input: parameters,
-        asyncOrReasyncKeyword: nil,
-        throwsOrRethrowsKeyword: nil,
-        output: nil)
+      let signature = FunctionSignatureSyntax(input: parameters)
 
       let newInitializer = InitializerDeclSyntax(
         attributes: nil,
