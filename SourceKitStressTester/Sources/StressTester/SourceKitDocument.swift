@@ -144,6 +144,7 @@ class SourceKitDocument {
     request.addParameter(.key_Offset, value: offset)
     request.addParameter(.key_RetrieveRefactorActions, value: 1)
     request.addParameter(.key_RetrieveSymbolGraph, value: 1)
+    request.addParameter(.key_VerifySolverBasedCursorInfo, value: 1)
     request.addCompilerArgs(args.sourcekitdArgs)
 
     let info = RequestInfo.cursorInfo(document: documentInfo, offset: offset,
