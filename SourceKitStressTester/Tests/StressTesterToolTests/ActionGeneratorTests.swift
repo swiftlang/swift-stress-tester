@@ -47,11 +47,11 @@ class ActionGeneratorTests: XCTestCase {
         <FRR>var <FIRCTM>currentMin<CTM> <FR>= <FIRCTM>array<FCTM>[<FCTM>0<FCTM>]<EEEECTM>
         <FR>var <FIRCTM>currentMax<CTM> <FR>= <FIRCTM>array<FCTM>[<FCTM>0<FCTM>]<EEEECTM>
         <FR>for <FICTM>value<CTM> <F>in <FIRCTM>array<FCTM>[<FRCTM>1<FCTM>..<<FIRCTM>array<FCTM>.<FICTM>count<FEECTM>]<ECTM> <FR>{
-            <FRCTM>if <FIRCTM>value<CTM> <F>< <FICTM>currentMin<ECTM> <FR>{
+            <FR>if <FIRCTM>value<CTM> <F>< <FICTM>currentMin<ECTM> <FR>{
                 <FIRCTM>currentMin<CTM> <F>= <FICTM>value<ECTM>
-            <F>}<E> <F>else <FRCTM>if <FIRCTM>value<CTM> <F>> <FICTM>currentMax<ECTM> <FR>{
+            <F>}<E> <F>else <FR>if <FIRCTM>value<CTM> <F>> <FICTM>currentMax<ECTM> <FR>{
                 <FIRCTM>currentMax<CTM> <F>= <FICTM>value<ECTM>
-            <F>}<EEECTM>
+            <F>}<EEE>
         <F>}<EE>
         <FR>return <FRCTM>(<FIRRCTM>currentMin<FCTM>,<E> <FICTM>currentMax<FECTM>)<EEECTM>
     <F>}<EE>
