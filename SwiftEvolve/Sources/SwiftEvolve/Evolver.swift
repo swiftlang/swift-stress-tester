@@ -18,12 +18,12 @@ import Foundation
 import SwiftSyntax
 
 struct Context {
-  var syntaxPath: [Int] = []
+  var syntaxPath: [String] = []
   var declContext = DeclContext()
 
   @discardableResult
   mutating func enter(_ node: Syntax) -> Bool {
-    syntaxPath.append(node.indexInParent)
+    syntaxPath.append(String(describing: node.keyPathInParent!))
     if let node = node.as(Decl.self) {
       declContext.append(node)
       return true
@@ -43,7 +43,7 @@ struct Context {
 }
 
 public class Evolver: SyntaxRewriter {
-  var plan: [URL: [[Int]: [PlannedEvolution]]]
+  var plan: [URL: [[String]: [PlannedEvolution]]]
   var url: URL!
   
   var context = Context()
