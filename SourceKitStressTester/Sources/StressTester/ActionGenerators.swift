@@ -495,7 +495,9 @@ private struct ActionToken {
       case .functionCallExpr: fallthrough
       case .subscriptExpr: fallthrough
       case .expressionSegment:
-        guard tupleElem.indexInParent != 0 else { return nil }
+        if tupleElem.parent?.as(TupleExprElementListSyntax.self)?.first == tupleElem {
+          return nil
+        }
         return ExpectedResult(name: SwiftName(base: token.textWithoutBackticks + ":", labels: []), kind: .reference)
       default:
         return nil
