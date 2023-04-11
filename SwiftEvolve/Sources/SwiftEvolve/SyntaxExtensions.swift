@@ -185,9 +185,8 @@ extension TypeSyntax {
 
 extension TokenKind {
   var needsSpace: Bool {
-    if isLexerClassifiedKeyword { return true }
     switch self {
-    case .identifier, .dollarIdentifier, .integerLiteral, .floatingLiteral, .keyword(.yield):
+    case .identifier, .dollarIdentifier, .integerLiteral, .floatingLiteral, .keyword:
       return true
     default:
       return false

@@ -21,7 +21,7 @@ import SwiftSyntax
 public struct PlannedEvolution: Codable {
   var sourceLocation: String
   var file: URL
-  var syntaxPath: [Int]
+  var syntaxPath: [String]
   var evolution: AnyEvolution
 }
 
