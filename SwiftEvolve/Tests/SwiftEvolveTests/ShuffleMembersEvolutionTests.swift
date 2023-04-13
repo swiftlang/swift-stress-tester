@@ -19,7 +19,7 @@ class ShuffleMembersEvolutionTests: XCTestCase {
     let decl = code.filter(whereIs: EnumDeclSyntax.self).first!
     let dc = DeclContext(declarationChain: [code, decl])
     let evo = try ShuffleMembersEvolution(
-      for: Syntax(decl.members.members), in: dc, using: &predictableRNG
+      for: Syntax(decl.memberBlock.members), in: dc, using: &predictableRNG
     )
 
     XCTAssertEqual(evo?.mapping.count, 3)
