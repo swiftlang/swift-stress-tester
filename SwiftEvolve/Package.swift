@@ -41,7 +41,7 @@ let package = Package(
         ),
         .target(
             name: "SwiftEvolve",
-            dependencies: ["SwiftToolsSupport-auto", "SwiftSyntax", "SwiftSyntaxParser"],
+            dependencies: ["SwiftToolsSupport-auto", "SwiftSyntax", "SwiftParser"],
             linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", sourcekitSearchPath])]
         ),
         .testTarget(
