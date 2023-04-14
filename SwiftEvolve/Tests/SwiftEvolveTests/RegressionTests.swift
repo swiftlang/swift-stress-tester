@@ -1,16 +1,16 @@
 import XCTest
 import SwiftSyntax
-import SwiftSyntaxParser
+import SwiftParser
 import SwiftEvolve
 
 class RegressionTests: XCTestCase {
   var unusedRNG = UnusedGenerator()
 
-  func testUnshuffledDeclsStayInOrder() throws {
+  func testUnshuffledDeclsStayInOrder() {
     // Checks that we don't mess up the order of declarations we're not trying
     // to shuffle. In particular, if we store the properties in a Set or other
     // unordered collection, we could screw this up.
-    let code = try SyntaxParser.parse(source:
+    let code = Parser.parse(source:
       """
       @_fixed_layout struct X {
         var p0: Int
@@ -44,12 +44,12 @@ class RegressionTests: XCTestCase {
     }
   }
 
-  func testStoredIfConfigBlocksMemberwiseInitSynthesis() throws {
+  func testStoredIfConfigBlocksMemberwiseInitSynthesis() {
     do {
       // FIXME: Crashes when run in Xcode because of a version mismatch between
       // SwiftSyntax and the compiler it uses (specifically, how they represent
       // accessor blocks). Should pass in "env PATH=... swift build".
-      let code = try SyntaxParser.parse(source:
+      let code = Parser.parse(source:
         """
         struct A {
           #if os(iOS)
@@ -84,7 +84,7 @@ class RegressionTests: XCTestCase {
     }
 
     do {
-      let code = try SyntaxParser.parse(source:
+      let code = Parser.parse(source:
         """
         struct B {
           var b1: Int
@@ -119,7 +119,7 @@ class RegressionTests: XCTestCase {
     }
 
     do {
-      let code = try SyntaxParser.parse(source:
+      let code = Parser.parse(source:
         """
         struct C {
           #if os(iOS)
