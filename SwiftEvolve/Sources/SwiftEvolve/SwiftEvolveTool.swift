@@ -16,7 +16,7 @@
 
 import Foundation
 import SwiftSyntax
-import SwiftSyntaxParser
+import SwiftParser
 import TSCBasic
 
 public class SwiftEvolveTool {
@@ -184,7 +184,7 @@ extension SwiftEvolveTool {
       return preparsed
     }
 
-    let parsed = try SyntaxParser.parse(URL(path))
+    let parsed = Parser.parse(source: try String(contentsOf: URL(path)))
     parsedSourceFiles[path] = parsed
     return parsed
   }
