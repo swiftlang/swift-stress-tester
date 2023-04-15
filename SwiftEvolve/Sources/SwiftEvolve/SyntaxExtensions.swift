@@ -19,7 +19,7 @@ import SwiftSyntax
 import Foundation
 
 public protocol DeclWithMembers: DeclSyntaxProtocol {
-  var members: MemberDeclBlockSyntax { get set }
+  var memberBlock: MemberDeclBlockSyntax { get set }
 }
 
 extension ClassDeclSyntax: DeclWithMembers {}

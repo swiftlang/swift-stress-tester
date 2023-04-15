@@ -64,7 +64,7 @@ class RegressionTests: XCTestCase {
 
         XCTAssertThrowsError(
           try SynthesizeMemberwiseInitializerEvolution(
-            for: Syntax(decl.members.members), in: dc, using: &unusedRNG
+            for: Syntax(decl.memberBlock.members), in: dc, using: &unusedRNG
           ),
           "Should throw when a stored property is in a #if block"
         )
@@ -99,7 +99,7 @@ class RegressionTests: XCTestCase {
 
         XCTAssertNoThrow(
           try SynthesizeMemberwiseInitializerEvolution(
-            for: Syntax(decl.members.members), in: dc, using: &unusedRNG
+            for: Syntax(decl.memberBlock.members), in: dc, using: &unusedRNG
           ),
           "Should not throw when properties are only non-stored"
         )
@@ -135,7 +135,7 @@ class RegressionTests: XCTestCase {
 
         XCTAssertNoThrow(
           try SynthesizeMemberwiseInitializerEvolution(
-            for: Syntax(decl.members.members), in: dc, using: &unusedRNG
+            for: Syntax(decl.memberBlock.members), in: dc, using: &unusedRNG
           ),
           "Should not throw when there's an explicit init"
         )
