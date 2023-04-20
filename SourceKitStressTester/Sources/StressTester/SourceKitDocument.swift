@@ -190,7 +190,7 @@ class SourceKitDocument {
     options.add(.key_UseTabs, value: 0)
 
     let location = converter.location(for: AbsolutePosition(utf8Offset: offset))
-    request.addParameter(.key_Line, value: location.line!)
+    request.addParameter(.key_Line, value: location.line)
     request.addParameter(.key_Length, value: 1)
 
     let info = RequestInfo.format(document: documentInfo, offset: offset)
@@ -207,8 +207,8 @@ class SourceKitDocument {
     request.addParameter(.key_ActionUID, value: actionKind)
     request.addParameter(.key_SourceFile, value: args.forFile.path)
     let location = converter.location(for: AbsolutePosition(utf8Offset: offset))
-    request.addParameter(.key_Line, value: location.line!)
-    request.addParameter(.key_Column, value: location.column!)
+    request.addParameter(.key_Line, value: location.line)
+    request.addParameter(.key_Column, value: location.column)
     if let newName = newName, actionName == "Local Rename" {
       request.addParameter(.key_Name, value: newName)
     }
@@ -251,8 +251,8 @@ class SourceKitDocument {
       request.addParameter(.key_SourceText, value: sourceState.source)
     }
     request.addParameter(.key_Offset, value: offset)
-    request.addParameter(.key_Line, value: location.line!)
-    request.addParameter(.key_Column, value: location.column!)
+    request.addParameter(.key_Line, value: location.line)
+    request.addParameter(.key_Column, value: location.column)
     request.addCompilerArgs(args.sourcekitdArgs)
 
     let completionOptions = request.addDictionaryParameter(.key_CodeCompleteOptions)
