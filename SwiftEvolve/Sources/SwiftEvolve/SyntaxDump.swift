@@ -36,13 +36,13 @@ struct SyntaxDump: TextOutputStreamable {
     func writeLoc(_ loc: SourceLocation?) {
       guard let loc = loc else { return }
       
-      let url = loc.file.map(URL.init(fileURLWithPath:))
+      let url = URL(fileURLWithPath: loc.file)
       write(" ")
-      write(url?.lastPathComponent ?? "<unknown>")
+      write(url.lastPathComponent)
       write(":")
-      write(loc.line.map(String.init) ?? "<unknown>")
+      write(loc.line.description)
       write(":")
-      write(loc.column.map(String.init) ?? "<unknown>")
+      write(loc.column.description)
     }
 
     let startLoc = node.startLocation(converter: locationConverter)
