@@ -90,9 +90,9 @@ extension DeclWithParameters {
 
 extension SourceLocation: CustomStringConvertible {
   public var description: String {
-    let file = self.file ?? "<unknown>"
-    let line = self.line.map(String.init) ?? "<unknown>"
-    let column = self.column.map(String.init) ?? "<unknown>"
+    let file = self.file
+    let line = self.line.description
+    let column = self.column.description
     return "\(file):\(line):\(column)"
   }
 }
