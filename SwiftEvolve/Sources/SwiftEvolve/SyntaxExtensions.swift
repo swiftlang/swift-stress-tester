@@ -19,7 +19,7 @@ import SwiftSyntax
 import Foundation
 
 public protocol DeclWithMembers: DeclSyntaxProtocol {
-  var members: MemberDeclBlockSyntax { get set }
+  var memberBlock: MemberDeclBlockSyntax { get set }
 }
 
 extension ClassDeclSyntax: DeclWithMembers {}
@@ -185,9 +185,8 @@ extension TypeSyntax {
 
 extension TokenKind {
   var needsSpace: Bool {
-    if isLexerClassifiedKeyword { return true }
     switch self {
-    case .identifier, .dollarIdentifier, .integerLiteral, .floatingLiteral, .keyword(.yield):
+    case .identifier, .dollarIdentifier, .integerLiteral, .floatingLiteral, .keyword:
       return true
     default:
       return false

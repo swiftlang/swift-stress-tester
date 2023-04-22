@@ -1,13 +1,13 @@
 import XCTest
 import SwiftSyntax
-import SwiftSyntaxParser
+import SwiftParser
 import SwiftEvolve
 
 class ShuffleGenericRequirementsEvolutionTests: XCTestCase {
   var predictableRNG = PredictableGenerator(values: 1..<16)
 
   func testEvolution() throws {
-    let code = try SyntaxParser.parse(source:
+    let code = Parser.parse(source:
       """
       func foo<T>(_: T) where T: Hashable, T == Comparable {}
       """
@@ -27,8 +27,8 @@ class ShuffleGenericRequirementsEvolutionTests: XCTestCase {
     //               "T == Comparable , T: Hashable")
   }
 
-  func testBypass() throws {
-    let code = try SyntaxParser.parse(source:
+  func testBypass() {
+    let code = Parser.parse(source:
       """
       func foo<T>(_: T) where T: Hashable, T == Comparable {}
       """

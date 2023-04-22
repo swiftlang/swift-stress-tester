@@ -171,7 +171,7 @@ public extension Decl {
 
 public extension Decl where Self: DeclWithMembers {
   func lookupDirect(_ name: String) -> Decl? {
-    for item in members.members {
+    for item in memberBlock.members {
       guard let member = item.decl.as(Decl.self) else { continue }
       if member.name == name {
         return member
