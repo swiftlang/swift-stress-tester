@@ -598,7 +598,7 @@ class SourceKitDocument {
     let reparseTransition: IncrementalParseTransition?
     switch request {
     case .editorReplaceText(_, let offset, let length, let text):
-      let edit = SourceEdit(range: ByteSourceRange(offset: offset, length: length), replacementLength: text.utf8.count)
+      let edit = IncrementalEdit(range: ByteSourceRange(offset: offset, length: length), replacementLength: text.utf8.count)
       reparseTransition = IncrementalParseTransition(previousTree: self.tree!, edits: ConcurrentEdits(edit))
     default:
       reparseTransition = nil
