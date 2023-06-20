@@ -98,8 +98,16 @@ public struct SwiftCWrapper {
       }
       // Split large files into multiple parts to improve load balancing
       let partCount = max(Int(sizeInBytes / 1000), 1)
-      return rewriteModes.flatMap { mode in
-        (1...partCount).map { part in
+      return rewriteModes.flatMap { (mode) -> [StressTestOperation] in
+        // CodePointWidth.swift in swift-power-assert produces a lot of
+        // expressions that are bogus and take very long to type check, causing
+        // the stress tester to time out. Skip it for now until the underlying
+        // issue is fixed.
+        // https://github.com/apple/swift/issues/66785
+        if file.contains("CodePointWidth.swift") && (mode == .insideOut || mode == .concurrent) {
+          return []
+        }
+        return (1...partCount).map { part in
           StressTestOperation(file: file, rewriteMode: mode,
                               requests: requestKinds,
                               conformingMethodTypes: conformingMethodTypes,
