@@ -35,6 +35,7 @@ class SourceKitDocument {
 
   private var sourceState: SourceState? = nil
   private var tree: SourceFileSyntax? = nil
+  private var lookaheadRanges: LookaheadRanges? = nil
   private var converter: SourceLocationConverter? = nil
 
   private var tempModulePath: URL {
@@ -599,14 +600,14 @@ class SourceKitDocument {
     switch request {
     case .editorReplaceText(_, let offset, let length, let text):
       let edit = IncrementalEdit(range: ByteSourceRange(offset: offset, length: length), replacementLength: text.utf8.count)
-      reparseTransition = IncrementalParseTransition(previousTree: self.tree!, edits: ConcurrentEdits(edit))
+      reparseTransition = IncrementalParseTransition(previousTree: self.tree!, edits: ConcurrentEdits(edit), lookaheadRanges: self.lookaheadRanges!)
     default:
       reparseTransition = nil
     }
 
     var tree: SourceFileSyntax
     if let state = sourceState {
-      tree = Parser.parse(
+      (tree, lookaheadRanges) = Parser.parseIncrementally(
         source: state.source,
         parseTransition: reparseTransition
       )
