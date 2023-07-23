@@ -658,7 +658,7 @@ private class ActionTokenCollector: SyntaxAnyVisitor {
     ///    would at some point be rewritten inside-out to `a/b/c/d/...` which
     ///    can take up to several minutes to typecheck if none of `a`, `b` etc.
     ///    are defined.
-    switch node.as(SyntaxEnum.self) {
+    switch node.kind {
     case .stringLiteralExpr, .stringLiteralSegments, .stringSegment:
       return false
     default:
