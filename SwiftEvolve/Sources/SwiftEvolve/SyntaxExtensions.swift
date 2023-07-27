@@ -139,9 +139,9 @@ extension DeclContext {
 extension TypeSyntax {
   func lookup(in context: DeclContext) -> DeclContext? {
     switch Syntax(self).as(SyntaxEnum.self) {
-    case .simpleTypeIdentifier(let simpleTypeIdentifier):
+    case .identifierType(let simpleTypeIdentifier):
       return context.lookupUnqualified(simpleTypeIdentifier.name)
-    case .memberTypeIdentifier(let memberTypeIdentifier):
+    case .memberType(let memberTypeIdentifier):
       return memberTypeIdentifier.baseType.lookup(in: context)?.lookupDirect(memberTypeIdentifier.name)
     default:
       return nil

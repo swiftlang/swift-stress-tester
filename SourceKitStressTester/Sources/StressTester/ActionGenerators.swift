@@ -491,9 +491,9 @@ private struct ActionToken {
 
     // Report argument label completions for any arguments other than the first
     if let tupleElem = parent.as(TupleExprElementSyntax.self), tupleElem.label == token {
-      switch tupleElem.parent?.parent?.as(SyntaxEnum.self) {
+      switch tupleElem.parent?.parent?.kind {
       case .functionCallExpr: fallthrough
-      case .subscriptExpr: fallthrough
+      case .subscriptCallExpr: fallthrough
       case .expressionSegment:
         if tupleElem.parent?.as(TupleExprElementListSyntax.self)?.first == tupleElem {
           return nil
