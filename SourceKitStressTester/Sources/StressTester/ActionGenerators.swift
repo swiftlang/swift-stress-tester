@@ -512,15 +512,15 @@ private struct ActionToken {
         let name = SwiftName(base: token.text, labels: callArgs)
         return ExpectedResult(name: name, kind: kind)
       }
-    }
-    if let parent = parent.as(MemberAccessExprSyntax.self), parent.name == token {
-      if let refArgs = parent.declNameArguments {
-        let name = SwiftName(base: token.text, labels: refArgs.arguments.map{ $0.name.text })
-        return ExpectedResult(name: name, kind: .reference)
-      }
-      if let (kind, callArgs) = getParentArgs(of: parent) {
-        let name = SwiftName(base: token.text, labels: callArgs)
-        return ExpectedResult(name: name, kind: kind)
+      if let parentsParent = parent.parent?.as(MemberAccessExprSyntax.self), parentsParent.name == token {
+        if let refArgs = parentsParent.declNameArguments {
+          let name = SwiftName(base: token.text, labels: refArgs.arguments.map{ $0.name.text })
+          return ExpectedResult(name: name, kind: .reference)
+        }
+        if let (kind, callArgs) = getParentArgs(of: parentsParent) {
+          let name = SwiftName(base: token.text, labels: callArgs)
+          return ExpectedResult(name: name, kind: kind)
+        }
       }
     }
     let name = SwiftName(base: token.text, labels: [])

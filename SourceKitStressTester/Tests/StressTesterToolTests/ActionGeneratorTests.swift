@@ -188,13 +188,13 @@ class ActionGeneratorTests: XCTestCase {
     }
     XCTAssertEqual(edits, [
         Action.replaceText(offset: 0, length: 9, text: ""),
-        Action.replaceText(offset: 0, length: 0, text: "."), // .
-        Action.replaceText(offset: 1, length: 0, text: "c"), // .c
+        Action.replaceText(offset: 0, length: 0, text: "c"), // c
+        Action.replaceText(offset: 0, length: 0, text: "."), // .c
         Action.replaceText(offset: 0, length: 0, text: "["), // [.c
         Action.replaceText(offset: 3, length: 0, text: "]"), // [.c]
         Action.replaceText(offset: 0, length: 0, text: "a"), // a[.c]
-        Action.replaceText(offset: 1, length: 0, text: "."), // a.[.c]
-        Action.replaceText(offset: 2, length: 0, text: "b"), // a.b[.c]
+        Action.replaceText(offset: 1, length: 0, text: "b"), // ab[.c]
+        Action.replaceText(offset: 1, length: 0, text: "."), // a.b[.c]
         Action.replaceText(offset: 3, length: 0, text: "("), // a.b([.c]
         Action.replaceText(offset: 8, length: 0, text: ")"), // a.b([.c])
     ])
