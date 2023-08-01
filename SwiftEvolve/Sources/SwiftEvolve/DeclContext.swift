@@ -365,17 +365,17 @@ extension VariableDeclSyntax: Decl {
     // each individual binding (or, arguably, each individual bound property)
     // is stored or not stored.
     return bindings.allSatisfy { binding in
-      guard let accessor = binding.accessor else {
+      guard let accessorBlock = binding.accessorBlock else {
         return true
       }
-      switch Syntax(accessor).as(SyntaxEnum.self) {
-      case .codeBlock(_):
+      switch accessorBlock.accessors {
+      case .getter:
         // There's a computed getter.
         return false
 
-      case .accessorBlock(let accessorBlock):
+      case .accessors(let accessors):
         // Check the individual accessors.
-        return accessorBlock.accessors.allSatisfy { accessor in
+        return accessors.allSatisfy { accessor in
           switch accessor.accessorKind.text {
           case "willSet", "didSet":
             // These accessors are allowed on stored properties.
