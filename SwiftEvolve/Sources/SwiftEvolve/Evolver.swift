@@ -61,7 +61,7 @@ public class Evolver: SyntaxRewriter {
 
     // Cast makes this go through the overload with
     // visitPre()/visitAny()/visitPost().
-    return visit(Syntax(file))
+    return rewrite(Syntax(file))
   }
 
   var recursionGuard: Syntax?
@@ -78,7 +78,7 @@ public class Evolver: SyntaxRewriter {
     
     let nodePlan = plan[url, default: [:]][context.syntaxPath, default: []]
 
-    return nodePlan.reduce(visit(node)) { node, planned in
+    return nodePlan.reduce(rewrite(node)) { node, planned in
       log(type: .debug, "  Evolving \(planned.sourceLocation) by \(planned.evolution)")
       return planned.evolution.evolve(node)
     }

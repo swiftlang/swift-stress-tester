@@ -28,7 +28,7 @@ class RegressionTests: XCTestCase {
     )
     let evo = ShuffleMembersEvolution(mapping: [])
 
-    for node in code.filter(whereIs: MemberDeclListSyntax.self) {
+    for node in code.filter(whereIs: MemberBlockItemListSyntax.self) {
       let evolved = evo.evolve(Syntax(node))
       let evolvedCode = evolved.description
 

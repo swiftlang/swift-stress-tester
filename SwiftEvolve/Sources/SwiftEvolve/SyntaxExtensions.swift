@@ -19,7 +19,7 @@ import SwiftSyntax
 import Foundation
 
 public protocol DeclWithMembers: DeclSyntaxProtocol {
-  var memberBlock: MemberDeclBlockSyntax { get set }
+  var memberBlock: MemberBlockSyntax { get set }
 }
 
 extension ClassDeclSyntax: DeclWithMembers {}
@@ -31,7 +31,7 @@ extension ExtensionDeclSyntax: DeclWithMembers {}
 public protocol DeclWithParameters: DeclSyntaxProtocol {
   var baseName: String { get }
   
-  var parameters: ParameterClauseSyntax { get set }
+  var parameters: FunctionParameterClauseSyntax { get set }
 }
 
 public protocol AbstractFunctionDecl: DeclWithParameters {
@@ -41,27 +41,27 @@ public protocol AbstractFunctionDecl: DeclWithParameters {
 extension InitializerDeclSyntax: AbstractFunctionDecl {
   public var baseName: String { return "init" }
 
-  public var parameters: ParameterClauseSyntax {
+  public var parameters: FunctionParameterClauseSyntax {
     get {
-      return signature.input
+      return signature.parameterClause
     }
     set {
-      self = with(\.signature, signature.with(\.input, newValue))
+      self = with(\.signature, signature.with(\.parameterClause, newValue))
     }
   }
 }
 
 extension FunctionDeclSyntax: AbstractFunctionDecl {
   public var baseName: String {
-    return identifier.text
+    return name.text
   }
 
-  public var parameters: ParameterClauseSyntax {
+  public var parameters: FunctionParameterClauseSyntax {
     get {
-      return signature.input
+      return signature.parameterClause
     }
     set {
-      self = with(\.signature, signature.with(\.input, newValue))
+      self = with(\.signature, signature.with(\.parameterClause, newValue))
     }
   }
 }
@@ -69,19 +69,19 @@ extension FunctionDeclSyntax: AbstractFunctionDecl {
 extension SubscriptDeclSyntax: DeclWithParameters {
   public var baseName: String { return "subscript" }
 
-  public var parameters: ParameterClauseSyntax {
+  public var parameters: FunctionParameterClauseSyntax {
     get {
-      return indices
+      return parameterClause
     }
     set {
-      self = with(\.indices, newValue)
+      self = with(\.parameterClause, newValue)
     }
   }
 }
 
 extension DeclWithParameters {
-  public var name: String {
-    let parameterNames = parameters.parameterList.map { param in
+  public var nameString: String {
+    let parameterNames = parameters.parameters.map { param in
       "\(param.firstName.text):"
     }
     return "\( baseName )(\( parameterNames.joined() ))"
@@ -114,19 +114,19 @@ func != (lhs: Syntax?, rhs: Syntax?) -> Bool {
 
 extension DeclContext {
   var typeSyntax: TypeSyntax {
-    let name = TokenSyntax.identifier(last!.name)
+    let name = TokenSyntax.identifier(last!.nameString)
     let parent = removingLast()
     
     if parent.declarationChain.allSatisfy({ $0 is SourceFileSyntax }) {
       // Base case
-      let typeIdentifier = SimpleTypeIdentifierSyntax(
+      let typeIdentifier = IdentifierTypeSyntax(
         name: name,
         genericArgumentClause: nil
       )
       return TypeSyntax(typeIdentifier)
     }
     
-    let typeIdentifer = MemberTypeIdentifierSyntax(
+    let typeIdentifer = MemberTypeSyntax(
       baseType: parent.typeSyntax,
       period: .periodToken(),
       name: name,
@@ -152,7 +152,7 @@ extension TypeSyntax {
     guard let resolved = lookup(in: dc) else {
       return self
     }
-    if let typealiasDecl = resolved.last as? TypealiasDeclSyntax {
+    if let typealiasDecl = resolved.last as? TypeAliasDeclSyntax {
       return typealiasDecl.initializer.value
         .absolute(in: resolved.removingLast())
     }

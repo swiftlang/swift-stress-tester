@@ -48,15 +48,15 @@ extension Collection {
     innerTrailingTrivia: Trivia = [],
     outerTrailingTrivia: Trivia = [],
     _ transform: (Element) throws -> FunctionParameterSyntax
-  ) rethrows -> ParameterClauseSyntax {
+  ) rethrows -> FunctionParameterClauseSyntax {
     let params = try map(transform)
       .withCorrectTrailingCommas(betweenTrivia: betweenTrivia)
 
-    return ParameterClauseSyntax(
+    return FunctionParameterClauseSyntax(
       leftParen: .leftParenToken(
         leadingTrivia: outerLeadingTrivia, trailingTrivia: innerLeadingTrivia
       ),
-      parameterList: FunctionParameterListSyntax(params),
+      parameters: FunctionParameterListSyntax(params),
       rightParen: .rightParenToken(
         leadingTrivia: innerTrailingTrivia, trailingTrivia: outerTrailingTrivia
       )
@@ -115,7 +115,7 @@ struct ExprSyntaxTemplate {
     guard case .identifier(_) = identifier.tokenKind else {
       preconditionFailure("ExprSyntaxTemplate(var:) called with non-identifier \(identifier)")
     }
-    self.init(expr: ExprSyntax(IdentifierExprSyntax(identifier: identifier, declNameArguments: nil)))
+    self.init(expr: ExprSyntax(DeclReferenceExprSyntax(baseName: identifier, argumentNames: nil)))
   }
   
   init(_ name: String) {
@@ -132,7 +132,7 @@ struct ExprSyntaxTemplate {
     lhs: ExprSyntaxTemplate, rhs: ExprSyntaxTemplate
   ) -> ExprSyntaxTemplate {
     let assignment = AssignmentExprSyntax(
-      assignToken: .equalToken(
+      equal: .equalToken(
         leadingTrivia: .spaces(1), trailingTrivia: .spaces(1)
       )
     )
@@ -149,9 +149,8 @@ struct ExprSyntaxTemplate {
   subscript (dot identifier: TokenSyntax) -> ExprSyntaxTemplate {
     let memberAccess = MemberAccessExprSyntax(
       base: expr,
-      dot: .periodToken(),
-      name: identifier,
-      declNameArguments: nil
+      period: .periodToken(),
+      name: identifier
     )
     return .init(expr: ExprSyntax(memberAccess))
   }

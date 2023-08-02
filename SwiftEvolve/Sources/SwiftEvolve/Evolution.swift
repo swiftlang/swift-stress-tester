@@ -160,7 +160,7 @@ extension ShuffleMembersEvolution {
     where G: RandomNumberGenerator
   {
     guard
-      let membersList = node.as(MemberDeclListSyntax.self)
+      let membersList = node.as(MemberBlockItemListSyntax.self)
     else { throw EvolutionError.unsupported }
     let members = Array(membersList)
 
@@ -191,13 +191,13 @@ extension ShuffleMembersEvolution {
   }
 
   public func evolve(_ node: Syntax) -> Syntax {
-    let members = Array(node.as(MemberDeclListSyntax.self)!)
+    let members = Array(node.as(MemberBlockItemListSyntax.self)!)
 
     let inMapping = Set(mapping)
     let missing = members.indices.filter { !inMapping.contains($0) }
     let fullMapping = mapping + missing
 
-    return Syntax(MemberDeclListSyntax(fullMapping.map { members[$0] }))
+    return Syntax(MemberBlockItemListSyntax(fullMapping.map { members[$0] }))
   }
 }
 
@@ -205,13 +205,13 @@ extension SynthesizeMemberwiseInitializerEvolution {
   public init?<G>(for node: Syntax, in decl: DeclContext, using rng: inout G) throws
     where G : RandomNumberGenerator
   {
-    guard let members = node.as(MemberDeclListSyntax.self) else {
+    guard let members = node.as(MemberBlockItemListSyntax.self) else {
       throw EvolutionError.unsupported
     }
     guard let lastDecl = decl.last.map(Syntax.init), lastDecl.is(StructDeclSyntax.self) else {
       return nil
     }
-    guard let parent = members.parent, parent.is(MemberDeclBlockSyntax.self) else {
+    guard let parent = members.parent, parent.is(MemberBlockSyntax.self) else {
       return nil
     }
 
@@ -260,7 +260,7 @@ extension SynthesizeMemberwiseInitializerEvolution {
       default:
         // Consistency check: This isn't somehow stored, is it?
         if let member = membersItem.decl.as(Decl.self) {
-          assert(!member.isStored, "\(member.name) is a stored non-property???")
+          assert(!member.isStored, "\(member.nameString) is a stored non-property???")
         }
 
         // If not, then we don't care.
@@ -288,7 +288,7 @@ extension SynthesizeMemberwiseInitializerEvolution {
   }
 
   public func evolve(_ node: Syntax) -> Syntax {
-    let members = node.as(MemberDeclListSyntax.self)!
+    let members = node.as(MemberBlockItemListSyntax.self)!
     
     let evolved = inits.reduce(members) { members, properties in
       let parameters = properties.mapToFunctionParameterClause {
@@ -298,9 +298,9 @@ extension SynthesizeMemberwiseInitializerEvolution {
           firstName: .identifier($0.name),
           secondName: nil,
           colon: .colonToken(trailingTrivia: [.spaces(1)]),
-          type: TypeSyntax(SimpleTypeIdentifierSyntax(name: .identifier($0.type), genericArgumentClause: nil)),
+          type: TypeSyntax(IdentifierTypeSyntax(name: .identifier($0.type), genericArgumentClause: nil)),
           ellipsis: nil,
-          defaultArgument: nil,
+          defaultValue: nil,
           trailingComma: nil
         )
       }
@@ -312,7 +312,7 @@ extension SynthesizeMemberwiseInitializerEvolution {
         return .expr(expr)
       }
 
-      let signature = FunctionSignatureSyntax(input: parameters)
+      let signature = FunctionSignatureSyntax(parameterClause: parameters)
 
       let newInitializer = InitializerDeclSyntax(
         attributes: nil,
@@ -332,7 +332,7 @@ extension SynthesizeMemberwiseInitializerEvolution {
         body: body
       )
       
-      return members.appending(MemberDeclListItemSyntax(
+      return members.appending(MemberBlockItemSyntax(
         decl: DeclSyntax(newInitializer),
         semicolon: nil
       ))

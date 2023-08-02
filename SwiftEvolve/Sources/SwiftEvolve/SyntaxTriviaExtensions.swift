@@ -30,11 +30,11 @@ extension SyntaxProtocol {
         SingleTokenRewriter(
           shouldRewrite: { $0 == ($0.parent?.children(viewMode: .sourceAccurate).last ?? $0) },
           transform: { $0.with(\.trailingTrivia, trailing($0.trailingTrivia)) }
-        ).visit(
+        ).rewrite(
           SingleTokenRewriter(
             shouldRewrite: { $0 == ($0.parent?.children(viewMode: .sourceAccurate).first ?? $0) },
             transform: { $0.with(\.leadingTrivia, leading($0.leadingTrivia)) }
-          ).visit(Syntax(self))
+          ).rewrite(Syntax(self))
         ).as(Self.self)!
       }
     }
