@@ -18,7 +18,7 @@
 import SwiftSyntax
 
 private func makeName(from declarationChain: [Decl]) -> String {
-  return declarationChain.map { $0.name }.joined(separator: ".")
+  return declarationChain.map { $0.nameString }.joined(separator: ".")
 }
 
 public struct DeclContext {
@@ -150,12 +150,12 @@ public protocol Decl {
   /// means we don't have to reimplement the property in terms of Syntax(self).
   var _syntaxNode: Syntax { get }
 
-  var name: String { get }
+  var nameString: String { get }
 
   var isResilient: Bool { get }
   var isStored: Bool { get }
 
-  var modifiers: ModifierListSyntax? { get }
+  var modifiers: DeclModifierListSyntax? { get }
   
   func lookupDirect(_ name: String) -> Decl?
 }
@@ -173,7 +173,7 @@ public extension Decl where Self: DeclWithMembers {
   func lookupDirect(_ name: String) -> Decl? {
     for item in memberBlock.members {
       guard let member = item.decl.as(Decl.self) else { continue }
-      if member.name == name {
+      if member.nameString == name {
         return member
       }
     }
@@ -186,7 +186,7 @@ public extension Decl where Self: AbstractFunctionDecl {
     guard let body = self.body else { return nil }
     for item in body.statements {
       guard let decl = item.item.as(Decl.self) else { continue }
-      if decl.name == name {
+      if decl.nameString == name {
         return decl
       }
     }
@@ -195,14 +195,14 @@ public extension Decl where Self: AbstractFunctionDecl {
 }
 
 extension SourceFileSyntax: Decl {
-  public var name: String { return "(file)" }
+  public var nameString: String { return "(file)" }
 
-  public var modifiers: ModifierListSyntax? { return nil }
+  public var modifiers: DeclModifierListSyntax? { return nil }
   
   public func lookupDirect(_ name: String) -> Decl? {
     for item in statements {
       guard let decl = item.item.as(Decl.self) else { continue }
-      if decl.name == name {
+      if decl.nameString == name {
         return decl
       }
     }
@@ -211,8 +211,8 @@ extension SourceFileSyntax: Decl {
 }
 
 extension ClassDeclSyntax: Decl {
-  public var name: String {
-    return identifier.text
+  public var nameString: String {
+    return name.text
   }
 
   public var isResilient: Bool {
@@ -221,8 +221,8 @@ extension ClassDeclSyntax: Decl {
 }
 
 extension StructDeclSyntax: Decl {
-  public var name: String {
-    return identifier.text
+  public var nameString: String {
+    return name.text
   }
 
   public var isResilient: Bool {
@@ -231,8 +231,8 @@ extension StructDeclSyntax: Decl {
 }
 
 extension EnumDeclSyntax: Decl {
-  public var name: String {
-    return identifier.text
+  public var nameString: String {
+    return name.text
   }
 
   public var isResilient: Bool {
@@ -241,20 +241,20 @@ extension EnumDeclSyntax: Decl {
 }
 
 extension ProtocolDeclSyntax: Decl {
-  public var name: String {
-    return identifier.text
+  public var nameString: String {
+    return name.text
   }
 }
 
 extension ExtensionDeclSyntax: Decl {
-  public var name: String {
+  public var nameString: String {
     return "(extension \(extendedType.typeText))"
   }
 }
 
-extension TypealiasDeclSyntax: Decl {
-  public var name: String {
-    return identifier.text
+extension TypeAliasDeclSyntax: Decl {
+  public var nameString: String {
+    return name.text
   }
   
   public func lookupDirect(_ name: String) -> Decl? {
@@ -262,9 +262,9 @@ extension TypealiasDeclSyntax: Decl {
   }
 }
 
-extension AssociatedtypeDeclSyntax: Decl {
-  public var name: String {
-    return identifier.text
+extension AssociatedTypeDeclSyntax: Decl {
+  public var nameString: String {
+    return name.text
   }
   
   public func lookupDirect(_ name: String) -> Decl? {
@@ -338,7 +338,7 @@ extension VariableDeclSyntax: Decl {
     }
   }
   
-  public var name: String {
+  public var nameString: String {
     let list = boundProperties
     if list.count == 1 { return list.first!.name.text }
     let nameList = list.map { $0.name.text }
@@ -376,7 +376,7 @@ extension VariableDeclSyntax: Decl {
       case .accessors(let accessors):
         // Check the individual accessors.
         return accessors.allSatisfy { accessor in
-          switch accessor.accessorKind.text {
+          switch accessor.accessorSpecifier.text {
           case "willSet", "didSet":
             // These accessors are allowed on stored properties.
             return true
@@ -385,10 +385,6 @@ extension VariableDeclSyntax: Decl {
             return false
           }
         }
-
-      default:
-        // This binding doesn't include any computed getters.
-        return true
       }
     }
   }
@@ -399,9 +395,9 @@ extension VariableDeclSyntax: Decl {
 }
 
 extension EnumCaseElementSyntax {
-  var name: String {
+  var nameString: String {
     let params: String
-    if let paramList = associatedValue?.parameterList {
+    if let paramList = parameterClause?.parameters {
       params = paramList.map {
         "\($0.firstName?.text ?? "_"):"
       }.joined()
@@ -409,17 +405,17 @@ extension EnumCaseElementSyntax {
     else {
       params = ""
     }
-    return "\(identifier.text)(\( params ))"
+    return "\(name.text)(\( params ))"
   }
 }
 
 extension EnumCaseDeclSyntax: Decl {
-  public var name: String {
+  public var nameString: String {
     if elements.count == 1 {
-      return elements.first!.name
+      return elements.first!.nameString
     }
     else {
-      return "(" + elements.map { $0.name }.joined(separator: ", ") + ")"
+      return "(" + elements.map { $0.nameString }.joined(separator: ", ") + ")"
     }
   }
 
@@ -435,7 +431,7 @@ extension EnumCaseDeclSyntax: Decl {
 extension IfConfigDeclSyntax {
   var containsStoredMembers: Bool {
     return clauses.contains { clause in
-      guard let members = clause.elements?.as(MemberDeclListSyntax.self) else {
+      guard let members = clause.elements?.as(MemberBlockItemListSyntax.self) else {
         return false
       }
 
@@ -468,7 +464,7 @@ extension Optional where Wrapped == AttributeListSyntax {
   }
 }
 
-extension Optional where Wrapped == ModifierListSyntax {
+extension Optional where Wrapped == DeclModifierListSyntax {
   func contains(named name: String) -> Bool {
     return self?.contains { $0.name.text == name } ?? false
   }
