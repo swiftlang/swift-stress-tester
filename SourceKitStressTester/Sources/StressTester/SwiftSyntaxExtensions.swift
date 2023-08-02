@@ -79,7 +79,7 @@ extension TokenSyntax {
     guard let parent = parent else { return false }
     return parent.isProtocol(ExprSyntaxProtocol.self) ||
       parent.isProtocol(TypeSyntaxProtocol.self) ||
-      parent.is(TupleExprElementSyntax.self) ||
+      parent.is(LabeledExprSyntax.self) ||
       parent.is(KeyPathPropertyComponentSyntax.self)
   }
 
@@ -97,7 +97,7 @@ extension TokenSyntax {
       return parent.is(TupleExprSyntax.self)
     case .rightBrace:
       return parent.is(ClosureExprSyntax.self)
-    case .rightSquareBracket:
+    case .rightSquare:
       return parent.is(ArrayExprSyntax.self) || parent.is(DictionaryExprSyntax.self)
     default:
       return false
