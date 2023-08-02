@@ -71,7 +71,7 @@ extension ActionGenerator {
     }
 
     // insert content
-    if withReplaceTexts && token.contentLength.utf8Length > 0 {
+    if withReplaceTexts && token.trimmedLength.utf8Length > 0 {
       actions.append(.replaceText(offset: contentStart, length: 0, text: content))
     }
 
@@ -88,7 +88,7 @@ extension ActionGenerator {
     }
 
     // actions to perform at the content-end position
-    let contentEnd = (position + token.leadingTriviaLength + token.contentLength).utf8Offset
+    let contentEnd = (position + token.leadingTriviaLength + token.trimmedLength).utf8Offset
     for rearAction in actionToken.rearActions {
       switch rearAction {
       case .cursorInfo:
@@ -194,7 +194,7 @@ public final class TypoActionGenerator: ActionGenerator {
             return ("}", "")
         case .rightAngle:
             return (">", "")
-        case .rightSquareBracket:
+        case .rightSquare:
             return ("]", "")
         case .identifier(let spelling):
             switch spelling.prefix(1) {
@@ -218,7 +218,7 @@ public final class TypoActionGenerator: ActionGenerator {
         let token = actionToken.token
         guard let spelling = updateSpelling(token.tokenKind), token.presence == .present else { return [] }
         let contentStart = token.positionAfterSkippingLeadingTrivia.utf8Offset
-        let contentLength = token.contentLength.utf8Length
+        let contentLength = token.trimmedLength.utf8Length
 
         var actions: [Action] = [
             .replaceText(offset: contentStart, length: contentLength, text: spelling.new),
@@ -305,7 +305,7 @@ public final class ConcurrentRewriteActionGenerator: ActionGenerator {
     var actions = generatePositionActions(for: actionToken, at: position, withReplaceTexts: true)
 
     // range actions
-    let rangeEnd = (position + token.leadingTriviaLength + token.contentLength).utf8Offset
+    let rangeEnd = (position + token.leadingTriviaLength + token.trimmedLength).utf8Offset
     actions += actionToken.endedRangeStartTokens.map { startToken in
       // The start token should be:
       // 1) from the same group, or
@@ -380,7 +380,7 @@ public final class InsideOutRewriteActionGenerator: ActionGenerator {
     var actions = generatePositionActions(for: actionToken, at: position, withReplaceTexts: true)
 
     // range actions for ranges this token ends
-    let rangeEnd = (position + token.leadingTriviaLength + token.contentLength).utf8Offset
+    let rangeEnd = (position + token.leadingTriviaLength + token.trimmedLength).utf8Offset
     actions += actionToken.endedRangeStartTokens.compactMap { startToken in
       guard let startTokenStart = getPlacedStart(of: startToken, in: groups) else { return nil }
       let rangeStart = startTokenStart.utf8Offset
@@ -392,7 +392,7 @@ public final class InsideOutRewriteActionGenerator: ActionGenerator {
     let rangeStart = (position + token.leadingTriviaLength).utf8Offset
     actions += actionToken.startedRangeEndTokens.compactMap { endToken in
       guard let endTokenStart = getPlacedStart(of: endToken, in: groups) else { return nil }
-      let rangeEnd = (endTokenStart + endToken.contentLength).utf8Offset
+      let rangeEnd = (endTokenStart + endToken.trimmedLength).utf8Offset
       assert(rangeEnd - rangeStart > 0)
       return Action.rangeInfo(offset: rangeStart, length: rangeEnd - rangeStart)
     }
@@ -461,18 +461,18 @@ private struct ActionToken {
     self.frontExpectedResult = ActionToken.expectedResult(for: token)
 
     var previous: TokenSyntax? = token
-    self.endedRangeStartTokens = token.tokenKind == .eof ? [] : token.ancestors
-      .prefix { $0.lastToken == token }
+    self.endedRangeStartTokens = token.tokenKind == .endOfFile ? [] : token.ancestors
+      .prefix { $0.lastToken(viewMode: .sourceAccurate) == token }
       .compactMap { ancestor in
-        defer { previous = ancestor.firstToken }
-        return ancestor.firstToken == previous ? nil : ancestor.firstToken
+        defer { previous = ancestor.firstToken(viewMode: .sourceAccurate) }
+        return ancestor.firstToken(viewMode: .sourceAccurate) == previous ? nil : ancestor.firstToken(viewMode: .sourceAccurate)
       }
     previous = token
-    self.startedRangeEndTokens = token.tokenKind == .eof ? [] : token.ancestors
-      .prefix { $0.firstToken == token }
+    self.startedRangeEndTokens = token.tokenKind == .endOfFile ? [] : token.ancestors
+      .prefix { $0.firstToken(viewMode: .sourceAccurate) == token }
       .compactMap { ancestor in
-        defer { previous = ancestor.lastToken }
-        return ancestor.lastToken == previous ? nil : ancestor.lastToken
+        defer { previous = ancestor.lastToken(viewMode: .sourceAccurate) }
+        return ancestor.lastToken(viewMode: .sourceAccurate) == previous ? nil : ancestor.lastToken(viewMode: .sourceAccurate)
       }
   }
 
@@ -490,12 +490,12 @@ private struct ActionToken {
     guard let parent = token.parent else { return nil }
 
     // Report argument label completions for any arguments other than the first
-    if let tupleElem = parent.as(TupleExprElementSyntax.self), tupleElem.label == token {
+    if let tupleElem = parent.as(LabeledExprSyntax.self), tupleElem.label == token {
       switch tupleElem.parent?.parent?.kind {
       case .functionCallExpr: fallthrough
       case .subscriptCallExpr: fallthrough
       case .expressionSegment:
-        if tupleElem.parent?.as(TupleExprElementListSyntax.self)?.first == tupleElem {
+        if tupleElem.parent?.as(LabeledExprListSyntax.self)?.first == tupleElem {
           return nil
         }
         return ExpectedResult(name: SwiftName(base: token.textWithoutBackticks + ":", labels: []), kind: .reference)
@@ -503,8 +503,8 @@ private struct ActionToken {
         return nil
       }
     }
-    if let parent = parent.as(IdentifierExprSyntax.self), parent.identifier == token {
-      if let refArgs = parent.declNameArguments {
+    if let parent = parent.as(DeclReferenceExprSyntax.self), parent.baseName == token {
+      if let refArgs = parent.argumentNames {
         let name = SwiftName(base: token.text, labels: refArgs.arguments.map{ $0.name.text })
         return ExpectedResult(name: name, kind: .reference)
       }
@@ -512,8 +512,8 @@ private struct ActionToken {
         let name = SwiftName(base: token.text, labels: callArgs)
         return ExpectedResult(name: name, kind: kind)
       }
-      if let parentsParent = parent.parent?.as(MemberAccessExprSyntax.self), parentsParent.name == token {
-        if let refArgs = parentsParent.declNameArguments {
+      if let parentsParent = parent.parent?.as(MemberAccessExprSyntax.self), parentsParent.declName.baseName == token {
+        if let refArgs = parentsParent.declName.argumentNames {
           let name = SwiftName(base: token.text, labels: refArgs.arguments.map{ $0.name.text })
           return ExpectedResult(name: name, kind: .reference)
         }
@@ -531,8 +531,8 @@ private struct ActionToken {
     guard let parent = syntax.parent else { return nil }
     if let call = parent.as(FunctionCallExprSyntax.self) {
       // Check for: Bar.foo(instanceOfBar)(x:1)
-      if call.argumentList.count == 1 &&
-         call.argumentList.allSatisfy({$0.label == nil}) {
+      if call.arguments.count == 1 &&
+         call.arguments.allSatisfy({$0.label == nil}) {
         if let outerCall = call.parent?.as(FunctionCallExprSyntax.self),
            Syntax(outerCall.calledExpression) == parent {
           // The outer call args correspond to foo if they have any labels. If
@@ -550,7 +550,7 @@ private struct ActionToken {
           // at least one parameter, the extras are assumed to be variadic terms
           // of the last parameter. If foo has no parameters however, there's no
           // possibly-variadic parameter to match arguments, so it will fail.
-          return (.call, outerCall.argumentList.map{ $0.label?.text ?? "_" })
+          return (.call, outerCall.arguments.map{ $0.label?.text ?? "_" })
         }
       }
       let kind: ExpectedResult.Kind
@@ -559,7 +559,7 @@ private struct ActionToken {
       } else {
         kind = .call
       }
-      return (kind, call.argumentList.map{ $0.label?.text ?? "_" })
+      return (kind, call.arguments.map{ $0.label?.text ?? "_" })
     }
     return nil
   }
@@ -612,7 +612,7 @@ private class ActionTokenCollector: SyntaxAnyVisitor {
     if token.isIdentifier {
       return [.cursorInfo, .format, .codeComplete, .typeContextInfo, .conformingMethodList]
     }
-    if !token.isOperator && token.ancestors.contains(where: {($0.isProtocol(ExprSyntaxProtocol.self) || $0.isProtocol(TypeSyntaxProtocol.self)) && $0.firstToken == token}) {
+    if !token.isOperator && token.ancestors.contains(where: {($0.isProtocol(ExprSyntaxProtocol.self) || $0.isProtocol(TypeSyntaxProtocol.self)) && $0.firstToken(viewMode: .sourceAccurate) == token}) {
       return [.format, .codeComplete, .typeContextInfo, .conformingMethodList]
     }
     if case .keyword(let keyword) = token.tokenKind, [.get, .set, .didSet, .willSet].contains(keyword) {
@@ -625,7 +625,7 @@ private class ActionTokenCollector: SyntaxAnyVisitor {
     if token.isIdentifier {
       return [.codeComplete, .typeContextInfo, .conformingMethodList]
     }
-    if !token.isOperator && token.ancestors.contains(where: {($0.isProtocol(ExprSyntaxProtocol.self) || $0.isProtocol(TypeSyntaxProtocol.self)) && $0.lastToken == token}) {
+    if !token.isOperator && token.ancestors.contains(where: {($0.isProtocol(ExprSyntaxProtocol.self) || $0.isProtocol(TypeSyntaxProtocol.self)) && $0.lastToken(viewMode: .sourceAccurate) == token}) {
       return [.codeComplete, .typeContextInfo, .conformingMethodList]
     }
     if case .keyword(let keyword) = token.tokenKind, [.get, .set, .didSet, .willSet].contains(keyword) {
