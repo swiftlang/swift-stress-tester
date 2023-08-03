@@ -186,7 +186,7 @@ extension TypeSyntax {
 extension TokenKind {
   var needsSpace: Bool {
     switch self {
-    case .identifier, .dollarIdentifier, .integerLiteral, .floatingLiteral, .keyword:
+    case .identifier, .dollarIdentifier, .integerLiteral, .floatLiteral, .keyword:
       return true
     default:
       return false

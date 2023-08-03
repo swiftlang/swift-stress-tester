@@ -332,10 +332,10 @@ extension SynthesizeMemberwiseInitializerEvolution {
         body: body
       )
       
-      return members.appending(MemberBlockItemSyntax(
+      return members + [MemberBlockItemSyntax(
         decl: DeclSyntax(newInitializer),
         semicolon: nil
-      ))
+      )]
     }
     return Syntax(evolved)
   }
