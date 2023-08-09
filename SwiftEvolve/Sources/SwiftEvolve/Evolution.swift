@@ -293,15 +293,9 @@ extension SynthesizeMemberwiseInitializerEvolution {
     let evolved = inits.reduce(members) { members, properties in
       let parameters = properties.mapToFunctionParameterClause {
         FunctionParameterSyntax(
-          attributes: nil,
-          modifiers: nil,
           firstName: .identifier($0.name),
-          secondName: nil,
           colon: .colonToken(trailingTrivia: [.spaces(1)]),
-          type: TypeSyntax(IdentifierTypeSyntax(name: .identifier($0.type), genericArgumentClause: nil)),
-          ellipsis: nil,
-          defaultValue: nil,
-          trailingComma: nil
+          type: TypeSyntax(IdentifierTypeSyntax(name: .identifier($0.type), genericArgumentClause: nil))
         )
       }
       
@@ -315,8 +309,6 @@ extension SynthesizeMemberwiseInitializerEvolution {
       let signature = FunctionSignatureSyntax(parameterClause: parameters)
 
       let newInitializer = InitializerDeclSyntax(
-        attributes: nil,
-        modifiers: nil,
         initKeyword: .keyword(.`init`,
           leadingTrivia: [
             .newlines(2),
@@ -325,10 +317,7 @@ extension SynthesizeMemberwiseInitializerEvolution {
           ],
           trailingTrivia: []
         ),
-        optionalMark: nil,
-        genericParameterClause: nil,
         signature: signature,
-        genericWhereClause: nil,
         body: body
       )
       
