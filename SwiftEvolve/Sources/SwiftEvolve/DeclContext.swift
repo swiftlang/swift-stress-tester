@@ -155,7 +155,7 @@ public protocol Decl {
   var isResilient: Bool { get }
   var isStored: Bool { get }
 
-  var modifiers: DeclModifierListSyntax? { get }
+  var modifiers: DeclModifierListSyntax { get }
   
   func lookupDirect(_ name: String) -> Decl?
 }
@@ -165,7 +165,7 @@ public extension Decl {
   var isStored: Bool { return false }
 
   var formalAccessLevel: AccessLevel {
-    return modifiers?.lazy.compactMap { $0.accessLevel }.first ?? .internal
+    return modifiers.lazy.compactMap { $0.accessLevel }.first ?? .internal
   }
 }
 
@@ -197,7 +197,7 @@ public extension Decl where Self: AbstractFunctionDecl {
 extension SourceFileSyntax: Decl {
   public var nameString: String { return "(file)" }
 
-  public var modifiers: DeclModifierListSyntax? { return nil }
+  public var modifiers: DeclModifierListSyntax { return [] }
   
   public func lookupDirect(_ name: String) -> Decl? {
     for item in statements {
@@ -450,9 +450,9 @@ extension IfConfigDeclSyntax {
 
 // MARK: - Helpers
 
-extension Optional where Wrapped == AttributeListSyntax {
+extension AttributeListSyntax {
   func contains(named name: String) -> Bool {
-    return self?.contains { 
+    return self.contains {
       if let builtinAttribute = $0.as(AttributeSyntax.self) {
         // FIXME: Attribute name is a TypeSyntax, so .description isn't quite
         // right here (e.g. @MyCustomAttribute<MyTypeParam> is valid)
@@ -460,7 +460,7 @@ extension Optional where Wrapped == AttributeListSyntax {
       } else {
         preconditionFailure("unhandled AttributeListSyntax element kind")
       }
-    } ?? false
+    }
   }
 }
 
