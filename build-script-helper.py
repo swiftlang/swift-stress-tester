@@ -74,8 +74,7 @@ def run(args):
   if not args.no_local_deps:
     env['SWIFTCI_USE_LOCAL_DEPS'] = "1"
   env['SWIFT_STRESS_TESTER_SOURCEKIT_SEARCHPATH'] = args.sourcekitd_dir
-  env['SWIFT_SYNTAX_PARSER_LIB_SEARCH_PATH'] = os.path.join(args.toolchain, 'lib', 'swift', 'macosx')
-
+  
   if args.update:
     print("** Updating dependencies of %s **" % package_name)
     handle_errors(update_swiftpm_dependencies,
@@ -191,10 +190,6 @@ def invoke_swift_single_product(package_dir, swift_exec, action, product, build_
     args.extend(['--test-product', product, '--disable-testable-imports'])
   else:
     args.extend(['--product', product])
-
-  # Tell SwiftSyntax that we are building in a build-script environment so that
-  # it does not need to rebuilt if it has already been built before.
-  env['SWIFT_BUILD_SCRIPT_ENVIRONMENT'] = '1'
 
   check_call(args, env=env, verbose=verbose)
 
