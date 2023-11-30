@@ -166,10 +166,14 @@ class SourceKitDocument {
         let action = actions.getDictionary(i)
         guard action.getOptional(.key_ActionUnavailableReason) == nil else { continue }
         let actionName = action.getString(.key_ActionName)
-        guard actionName != "Global Rename" else { continue }
-        let kind = action.getUID(.key_ActionUID)
-        _ = try semanticRefactoring(actionKind: kind, actionName: actionName,
-                                    offset: offset, newName: symbolName)
+        switch actionName {
+        case "Global Rename", "Local Rename":
+          continue
+        default:
+          let kind = action.getUID(.key_ActionUID)
+          _ = try semanticRefactoring(actionKind: kind, actionName: actionName,
+                                      offset: offset)
+        }
       }
     }
 
@@ -201,7 +205,7 @@ class SourceKitDocument {
   }
 
   func semanticRefactoring(actionKind: SourceKitdUID, actionName: String,
-                           offset: Int, newName: String? = nil) throws -> (RequestInfo, SourceKitdResponse) {
+                           offset: Int) throws -> (RequestInfo, SourceKitdResponse) {
     let request = SourceKitdRequest(uid: .request_SemanticRefactoring)
     guard let converter = self.converter else { fatalError("didn't call open?") }
 
@@ -210,9 +214,6 @@ class SourceKitDocument {
     let location = converter.location(for: AbsolutePosition(utf8Offset: offset))
     request.addParameter(.key_Line, value: location.line)
     request.addParameter(.key_Column, value: location.column)
-    if let newName = newName, actionName == "Local Rename" {
-      request.addParameter(.key_Name, value: newName)
-    }
     request.addCompilerArgs(args.sourcekitdArgs)
 
     let info = RequestInfo.semanticRefactoring(document: documentInfo,
