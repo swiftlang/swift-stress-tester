@@ -212,10 +212,9 @@ def install_package(package_dir, install_dir, sourcekit_searchpath, build_dir, v
 
     # Create a copy of the list since we modify it
     rpaths_to_delete_for_this_product = []
-    # Add the rpath to the stdlib in in the toolchain
-    rpaths_to_add = ['@executable_path/../lib/swift/macosx']
+    rpaths_to_add = []
 
-    if product in ['sk-stress-test', 'swift-evolve']:
+    if product == 'sk-stress-test':
       # Make the rpath to sourcekitd relative in the toolchain
       rpaths_to_delete_for_this_product += [sourcekit_searchpath]
       rpaths_to_add += ['@executable_path/../lib']
