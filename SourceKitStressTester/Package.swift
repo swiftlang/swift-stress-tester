@@ -168,13 +168,15 @@ let package = Package(
 )
 
 if !useLocalDependencies {
+  let relatedDependenciesBranch = "main"
+
   // Building standalone.
   package.dependencies += [
-    .package(url: "https://github.com/apple/swift-tools-support-core.git", .branch("main")),
+    .package(url: "https://github.com/apple/swift-tools-support-core.git", .branch(relatedDependenciesBranch)),
     .package(url: "https://github.com/apple/swift-argument-parser.git", .upToNextMinor(from: "1.0.1")),
   ]
   if swiftSyntaxSearchPath == nil {
-    package.dependencies.append(.package(url: "https://github.com/apple/swift-syntax.git", .branch("main")))
+    package.dependencies.append(.package(url: "https://github.com/apple/swift-syntax.git", .branch(relatedDependenciesBranch)))
   }
 } else {
   package.dependencies += [
