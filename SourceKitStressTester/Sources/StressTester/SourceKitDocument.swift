@@ -533,21 +533,7 @@ class SourceKitDocument {
         try throwIfInvalid(response, request: info)
         try validateResponse(response)
 
-        // Hack to make ACHNBrowserUI/extensions/Path.swift insideOut-893:884 a
-        // soft timeout. It seems to vary *wildly* between runs. We should
-        // investigate why that is, but just get the stress tester to stop
-        // failing for now.
-        var forceSoftTimeout = false
-        if case let .codeCompleteOpen(document, offset, _) = info,
-           offset == 884,
-           let modification = document.modification,
-           modification.mode == .insideOut,
-           modification.content.count == 893,
-           document.path.hasSuffix("ACHNBrowserUI/extensions/Path.swift") {
-          forceSoftTimeout = true
-        }
-
-        if forceSoftTimeout || requestDuration > TimeInterval(SOURCEKIT_REQUEST_TIMEOUT) / 10 {
+        if requestDuration > TimeInterval(SOURCEKIT_REQUEST_TIMEOUT) / 10 {
           // There was no error in the response, but the request took too long
           // throw a soft timeout.
           throw SourceKitError.softTimeout(request: info, duration: requestDuration, instructions: nil)
