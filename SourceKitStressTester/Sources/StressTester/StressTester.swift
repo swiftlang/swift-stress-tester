@@ -129,7 +129,13 @@ public class StressTester {
         if case SourceKitError.softTimeout(request: let request, duration: _, instructions: let .some(instructions)) = error {
           reportPerformanceMeasurement(request: request, instructions: instructions, reusingASTContext: nil)
         }
-        errors.append(error)
+        if case SourceKitError.timedOut = error {
+          // Ignore timeout errors. In practice, we have always just added the timeouts to the XFails and keeping track
+          // of these timeouts is the major cause of stress tester failures, producing noise.
+          // We use instruction count measurements to keep track of performance.
+        } else {
+          errors.append(error)
+        }
       }
     }
 
