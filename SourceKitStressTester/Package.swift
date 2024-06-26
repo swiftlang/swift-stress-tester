@@ -176,7 +176,7 @@ if !useLocalDependencies {
     .package(url: "https://github.com/apple/swift-argument-parser.git", .upToNextMinor(from: "1.0.1")),
   ]
   if swiftSyntaxSearchPath == nil {
-    package.dependencies.append(.package(url: "https://github.com/apple/swift-syntax.git", .branch(relatedDependenciesBranch)))
+    package.dependencies.append(.package(url: "https://github.com/swiftlang/swift-syntax.git", .branch(relatedDependenciesBranch)))
   }
 } else {
   package.dependencies += [

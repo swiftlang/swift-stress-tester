@@ -25,7 +25,7 @@ $ ./swift/utils/build-script --test --skip-build-benchmark --skip-test-cmark --s
 
 ### For local development
 
-For local development, you'll first need to download and install a recent [swift.org development snapshot](https://swift.org/download/#snapshots) toolchain that matches the latest commit on main in the [SwiftSyntax](https://github.com/apple/swift-syntax). This is because the Stress Tester depends on the latest version of SwiftSyntax and SwiftSyntax integrates into the latest version of the compiler.
+For local development, you'll first need to download and install a recent [swift.org development snapshot](https://swift.org/download/#snapshots) toolchain that matches the latest commit on main in the [SwiftSyntax](https://github.com/swiftlang/swift-syntax). This is because the Stress Tester depends on the latest version of SwiftSyntax and SwiftSyntax integrates into the latest version of the compiler.
 
 The toolchain is installed into `/Library/Developer/Toolchains/` if installed for all users. Note that the `$TOOLCHAIN_DIR` variables below should include `/usr` at the end of their path, eg. `TOOLCHAIN_DIR=/Library/Developer/Toolchains/swift-DEVELOPMENT-SNAPSHOT-<...>.xctoolchain/usr`.
 
@@ -35,7 +35,7 @@ To generate an Xcode project that's set up correctly, run `build-script-helper.p
 ```
 $ ./build-script-helper.py --package-dir SourceKitStressTester --toolchain $TOOLCHAIN_DIR generate-xcodeproj --no-local-deps
 ```
-If you have the [SwiftSyntax](https://github.com/apple/swift-syntax) and [SwiftPM](https://github.com/apple/swift-package-manager) repositories already checked out next to the stress tester's repository, you can omit the `--no-local-deps` option to use the existing checkouts instead of fetching the dependencies using SwiftPM.
+If you have the [SwiftSyntax](https://github.com/swiftlang/swift-syntax) and [SwiftPM](https://github.com/swiftlang/swift-package-manager) repositories already checked out next to the stress tester's repository, you can omit the `--no-local-deps` option to use the existing checkouts instead of fetching the dependencies using SwiftPM.
 
 This will generate `SourceKitStressTester/SourceKitStressTester.xcodeproj`. Open it and select the toolchain you installed from the Xcode > Toolchains menu, before building the `SourceKitStressTester-Package` scheme.
 
@@ -45,7 +45,7 @@ To build, run `build-script-helper.py`, passing the path to the downloaded toolc
 ```
 $ ./build-script-helper.py --package-dir SourceKitStressTester --toolchain $TOOLCHAIN_DIR
 ```
-If you have the [SwiftSyntax](https://github.com/apple/swift-syntax) and [SwiftPM](https://github.com/apple/swift-package-manager) repositories already checked out next to the stress tester's repository, you can omit the `--no-local-deps` option to use the existing checkouts instead of fetching the dependencies using SwiftPM.
+If you have the [SwiftSyntax](https://github.com/swiftlang/swift-syntax) and [SwiftPM](https://github.com/swiftlang/swift-package-manager) repositories already checked out next to the stress tester's repository, you can omit the `--no-local-deps` option to use the existing checkouts instead of fetching the dependencies using SwiftPM.
 
 To run the tests, repeat the above command, but additionally, pass the `test` action:
 ```
