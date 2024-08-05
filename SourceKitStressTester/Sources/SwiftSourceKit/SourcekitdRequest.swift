@@ -12,6 +12,7 @@
 // This file provides a convenient way to build a sourcekitd request.
 //===----------------------------------------------------------------------===//
 
+import Darwin
 import sourcekitd
 
 public struct SourceKitdRequest: CustomStringConvertible {
