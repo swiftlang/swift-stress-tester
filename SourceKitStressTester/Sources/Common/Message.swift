@@ -39,11 +39,6 @@ public struct SourceKitResponseData: Codable {
 public enum SourceKitError: Error {
   case crashed(request: RequestInfo)
   case timedOut(request: RequestInfo)
-  /// Thrown if a request was close to the time out that triggers a timedOut
-  /// error.
-  /// If it was counted how many instructions SourceKit took to fulfill the
-  /// request, `instructions` contains that number. Otherwise it's `nil`.
-  case softTimeout(request: RequestInfo, duration: TimeInterval, instructions: Int?)
   case failed(_ reason: SourceKitErrorReason, request: RequestInfo, response: String)
 
   public var request: RequestInfo {
@@ -52,8 +47,6 @@ public enum SourceKitError: Error {
       return request
     case .timedOut(let request):
       return request
-    case .softTimeout(let request, _, _):
-      return request
     case .failed(_, let request, _):
       return request
     }
@@ -61,16 +54,19 @@ public enum SourceKitError: Error {
 
   /// Soft errors are allowed to match XFails, but don't fail the stress tester
   /// on their own.
-  /// The current use case for soft errors are soft timeouts, where the request
-  /// took more than half of the allowed time. If the issue is XFailed, we don't
-  /// want to mark it as unexpectedly passed because the faster execution time
-  /// might be due to noise. But we haven't surpassed the limit either, so it
-  /// shouldn't be a hard error either.
+  ///
+  /// The current use case for soft errors are timeouts, since it's possible
+  /// that it hits a failure on a faster run, which can lead to non-determinism
+  /// in matching XFAILs.
+  ///
+  /// Timouts aren't considered errors on their own since they would be a major
+  /// cause of stress tester failures, producing noise. We instead use
+  /// instruction count measurements to keep track of performance.
   public var isSoft: Bool {
     switch self {
-    case .crashed, .timedOut, .failed:
+    case .crashed, .failed:
       return false
-    case .softTimeout:
+    case .timedOut:
       return true
     }
   }
@@ -210,7 +206,7 @@ extension SourceKitError: Codable {
     case error, kind, request, response, duration, instructions
   }
   enum BaseError: String, Codable {
-    case crashed, failed, timedOut, softTimeout
+    case crashed, failed, timedOut
   }
 
   public init(from decoder: Decoder) throws {
@@ -222,11 +218,6 @@ extension SourceKitError: Codable {
     case .timedOut:
       let request = try container.decode(RequestInfo.self, forKey: .request)
       self = .timedOut(request: request)
-    case .softTimeout:
-      let request = try container.decode(RequestInfo.self, forKey: .request)
-      let duration = try container.decode(Double.self, forKey: .duration)
-      let instructions = try container.decodeIfPresent(Int.self, forKey: .instructions)
-      self = .softTimeout(request: request, duration: duration, instructions: instructions)
     case .failed:
       let reason = try container.decode(SourceKitErrorReason.self, forKey: .kind)
       let request = try container.decode(RequestInfo.self, forKey: .request)
@@ -244,11 +235,6 @@ extension SourceKitError: Codable {
     case .timedOut(let request):
       try container.encode(BaseError.timedOut, forKey: .error)
       try container.encode(request, forKey: .request)
-    case .softTimeout(let request, let duration, let instructions):
-      try container.encode(BaseError.softTimeout, forKey: .error)
-      try container.encode(request, forKey: .request)
-      try container.encode(duration, forKey: .duration)
-      try container.encodeIfPresent(instructions, forKey: .instructions)
     case .failed(let kind, let request, let response):
       try container.encode(BaseError.failed, forKey: .error)
       try container.encode(kind, forKey: .kind)
@@ -532,14 +518,6 @@ extension SourceKitError: CustomStringConvertible {
     case .timedOut(let request):
       return """
         Timed out waiting for SourceKit response
-          request: \(request)
-        -- begin file content --------
-        \(markSourceLocation(of: request) ?? "<unmodified>")
-        -- end file content ----------
-        """
-    case .softTimeout(let request, let duration, let instructions):
-      return """
-        Request took \(duration) seconds (\(instructions.map(String.init) ?? "<unknown>") instructions) to execute. This is more than a tenth of the allowed time. This error will match XFails but won't count as an error by itself.
           request: \(request)
         -- begin file content --------
         \(markSourceLocation(of: request) ?? "<unmodified>")

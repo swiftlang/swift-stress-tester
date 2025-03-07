@@ -492,26 +492,17 @@ class SourceKitDocument {
       }
     }
 
-    do {
-      let response = try sendWithTimeout(request, info: info, validateResponse: validateResponse)
-      return (response, try getInstructionCount())
-    } catch SourceKitError.softTimeout(request: let request, duration: let duration, instructions: _) {
-      throw SourceKitError.softTimeout(request: request, duration: duration, instructions: try getInstructionCount())
-    } catch {
-      throw error
-    }
+    let response = try sendWithTimeout(request, info: info, validateResponse: validateResponse)
+    return (response, try getInstructionCount())
   }
 
   /// Send the `request` synchronously, timing out after
   /// `SOURCEKIT_REQUEST_TIMEOUT`.
   /// An error is thrown if either the response is invalid (see `throwIfInvalid`)
-  /// or `validateResponse` throws. If the request took longer than half the
-  /// time allowed but no other error is thrown, a `SourceKitError.softTimeout`
-  /// will be thrown.
+  /// or `validateResponse` throws.
   private func sendWithTimeout(_ request: SourceKitdRequest, info: RequestInfo, validateResponse: (SourceKitdResponse) throws -> Void = { _ in }, reopenDocumentIfNeeded: Bool = true) throws -> SourceKitdResponse {
     var response: SourceKitdResponse? = nil
     let completed = DispatchSemaphore(value: 0)
-    let startDate = Date()
     connection.send(request: request) {
       response = $0
       completed.signal()
@@ -523,8 +514,6 @@ class SourceKitDocument {
         fatalError("nil response without timout being hit?")
       }
 
-      let requestDuration = Date().timeIntervalSince(startDate)
-
       if response.isError, response.description.contains("No associated Editor Document"), reopenDocumentIfNeeded {
         _ = try self.openOrUpdate(source: sourceState?.source)
         return try sendWithTimeout(request, info: info, validateResponse: validateResponse, reopenDocumentIfNeeded: false)
@@ -532,14 +521,7 @@ class SourceKitDocument {
         // Check if there was an error in the response
         try throwIfInvalid(response, request: info)
         try validateResponse(response)
-
-        if requestDuration > TimeInterval(SOURCEKIT_REQUEST_TIMEOUT) / 10 {
-          // There was no error in the response, but the request took too long
-          // throw a soft timeout.
-          throw SourceKitError.softTimeout(request: info, duration: requestDuration, instructions: nil)
-        } else {
-          return response
-        }
+        return response
       }
     case .timedOut:
       /// We timed out waiting for the response. Any following requests would
