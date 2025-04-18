@@ -168,7 +168,7 @@ let package = Package(
 )
 
 if !useLocalDependencies {
-  let relatedDependenciesBranch = "main"
+  let relatedDependenciesBranch = "release/6.2"
 
   // Building standalone.
   package.dependencies += [
