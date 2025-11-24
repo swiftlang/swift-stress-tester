@@ -97,7 +97,11 @@ class ActionGeneratorTests: XCTestCase {
 
       // FIXME: completion doesn't suggest anonymous closure params (e.g. $0)
       (#line, "$0.first", [/*"$0",*/ "first"]),
-      (#line, "[1,2,4].filter{ $0 == 4 }", ["call:filter"/*, "$0"*/])
+      (#line, "[1,2,4].filter{ $0 == 4 }", ["call:filter"/*, "$0"*/]),
+
+      // We don't include completions for underscored attributes.
+      (#line, "@_underscored(a: Foo)", []),
+      (#line, "@_spi(Foo)", []),
     ]
 
     for test in cases {
