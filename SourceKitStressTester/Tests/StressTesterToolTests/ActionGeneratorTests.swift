@@ -153,7 +153,17 @@ class ActionGeneratorTests: XCTestCase {
       (match: .pattern, of: "first(_:z:)", against: "first(x:y:)", ignoreArgs: false, result: false),
       (match: .pattern, of: "first(_:)", against: "first", ignoreArgs: false, result: false),
       (match: .pattern, of: "first(_:)", against: "first()", ignoreArgs: false, result: true),
-      (match: .pattern, of: "first(_:_:)", against: "first()", ignoreArgs: false, result: true)
+      (match: .pattern, of: "first(_:_:)", against: "first()", ignoreArgs: false, result: true),
+
+      // We don't do matching for `file` and `line`.
+      (match: .call, of: "foo(x:file:line:)", against: "foo(x:)", ignoreArgs: false, result: true),
+      (match: .call, of: "foo(x:file:line:)", against: "foo(x:file:line:)", ignoreArgs: false, result: true),
+      (match: .call, of: "foo(x:file:line:y:)", against: "foo(x:y:)", ignoreArgs: false, result: true),
+      (match: .call, of: "foo(file:line:y:)", against: "foo(file:line:x:y:z:)", ignoreArgs: false, result: true),
+      (match: .call, of: "foo(x:file:line:y:)", against: "foo(x:y:z:)", ignoreArgs: false, result: true),
+      (match: .call, of: "foo(file:line:y:)", against: "foo(x:y:)", ignoreArgs: false, result: true),
+      (match: .call, of: "foo(file:line:)", against: "foo(_:)", ignoreArgs: false, result: true),
+      (match: .call, of: "foo(file:line:)", against: "foo()", ignoreArgs: false, result: true),
     ]
 
     for test in cases {
