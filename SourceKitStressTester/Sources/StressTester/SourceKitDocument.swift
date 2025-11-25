@@ -718,8 +718,22 @@ public struct CompletionMatcher {
   private func matchesCall(paramLabels: [String]) -> Bool {
     var remainingArgLabels = expected.name.argLabels[...]
 
+    func skippingIgnorableArgLabels(skipEmpty: Bool = false) -> ArraySlice<String> {
+      var remainingArgLabels = remainingArgLabels
+      if skipEmpty || remainingArgLabels.count < expected.name.argLabels.count {
+        // If previous param was matched, allow consuming unlabeled args to
+        // handle variadic cases.
+        remainingArgLabels = remainingArgLabels.drop { $0.isEmpty }
+      }
+      // Ignore `file` and `line` since we don't include `#file` and `#line`
+      // default args for completion.
+      // FIXME: We ought to have this be configurable and enable it for the stress
+      // tester.
+      return remainingArgLabels.drop { $0 == "file" || $0 == "line" }
+    }
+
     guard !paramLabels.isEmpty else {
-      return remainingArgLabels.allSatisfy { $0.isEmpty }
+      return skippingIgnorableArgLabels(skipEmpty: true).isEmpty
     }
     for nextParamLabel in paramLabels {
       if nextParamLabel.isEmpty {
@@ -732,12 +746,9 @@ public struct CompletionMatcher {
           continue
         }
       } else {
-        // Has param label
-        if remainingArgLabels.count < expected.name.argLabels.count {
-          // A previous param was matched, so assume it was variadic and consume
-          // any leading unlabelled args so the next arg is labelled
-          remainingArgLabels = remainingArgLabels.drop{ $0.isEmpty }
-        }
+        // Has param label, skip any ignorable labels before matching.
+        remainingArgLabels = skippingIgnorableArgLabels()
+
         guard let nextArgLabel = remainingArgLabels.first else {
           // Assume any unprocessed parameters are defaulted
           return true
@@ -750,9 +761,6 @@ public struct CompletionMatcher {
         // Else assume this param was defaulted and skip it.
       }
     }
-    // If at least one arglabel was matched, allow for it being variadic
-    let hadMatch = remainingArgLabels.count < expected.name.argLabels.count
-    return  remainingArgLabels.isEmpty || hadMatch &&
-      remainingArgLabels.allSatisfy { $0.isEmpty }
+    return skippingIgnorableArgLabels().isEmpty
   }
 }

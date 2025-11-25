@@ -503,6 +503,15 @@ private struct ActionToken {
         return nil
       }
     }
+
+    // Avoid matching for underscored attributes since we hide completions for
+    // those.
+    if let attr = parent.ancestorOrSelf(mapping: { $0.as(AttributeSyntax.self) }),
+       let ident = attr.attributeName.as(IdentifierTypeSyntax.self),
+       ident.name.text.hasPrefix("_") {
+      return nil
+    }
+
     if let parent = parent.as(DeclReferenceExprSyntax.self), parent.baseName == token {
       if let refArgs = parent.argumentNames {
         let name = SwiftName(base: token.text, labels: refArgs.arguments.map{ $0.name.text })
