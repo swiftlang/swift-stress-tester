@@ -100,7 +100,13 @@ def run(args):
       env=env,
       verbose=args.verbose)
 
-  output_dir = os.path.realpath(os.path.join(args.build_dir, args.config))
+  output_dir = get_bin_path(
+    package_dir=args.package_dir,
+    swift_exec=args.swift_exec,
+    build_dir=args.build_dir,
+    config=args.config,
+    env=env,
+    verbose=args.verbose)
 
   if should_run_action("generate-xcodeproj", args.build_actions):
     print("** Generating Xcode project for %s **" % package_name)
@@ -166,6 +172,16 @@ def handle_errors(func, message, *args, **kwargs):
     printerr('FAIL: %s' % message)
     printerr('Executing subprocess failed: %s. Add --verbose to see command' % e)
     sys.exit(1)
+
+
+def get_bin_path(package_dir, swift_exec, build_dir, config, env, verbose):
+  args = [swift_exec, 'build', '--package-path', package_dir, '-c', config,
+          '--scratch-path', build_dir, '--show-bin-path']
+  output = subprocess.check_output(args, env=env, stderr=subprocess.STDOUT).decode('utf-8').strip()
+  bin_path = output.split('\n')[-1]
+  if verbose:
+    print('Bin path: %s' % bin_path)
+  return bin_path
 
 
 def update_swiftpm_dependencies(package_dir, swift_exec, build_dir, env, verbose):
